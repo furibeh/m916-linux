@@ -70,3 +70,8 @@ botones básicos, opciones de un byte, volcado/restauración y notificaciones.
 
 Pendiente: atajos y macros en botones, significado de algunas opciones, LEDs y una interfaz
 gráfica.
+
+## Licencia
+
+[GPL-3.0-or-later](LICENSE). Proyecto independiente, sin relación con Redragon. Los nombres
+de producto se usan solo para identificar el hardware compatible.

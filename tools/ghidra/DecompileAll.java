@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Decompile every function of the current program into one C file.
 // Usage (headless): analyzeHeadless PROJECT_DIR NAME -import hidusb.dll \
 //                     -scriptPath tools/ghidra -postScript DecompileAll.java OUT.c

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Tests for m916.py against a simulated mouse backed by a real flash dump.
 
 Run: python3 -m unittest discover -s tests

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Extract the native HID libraries (hidusb.dll x64, hidusb32.dll x86) that "Mouse Drive Beta.exe"
 embeds as Costura resources. The vendor binaries are not part of this repository.
 

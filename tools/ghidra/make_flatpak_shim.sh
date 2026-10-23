@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
 # The flatpak Ghidra (org.ghidra_sre.Ghidra) cannot run headless from the host because
 # support/launch.properties links to /var/config/ghidra.properties, which only exists inside
 # the sandbox. This builds a mirror install: symlinks to the flatpak tree plus a real support/.

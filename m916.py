@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Linux configuration tool for the Redragon M916-PRO-1K mouse.
 
 Protocol reconstructed from hidusb.dll / "Mouse Drive Beta.exe" and verified on hardware

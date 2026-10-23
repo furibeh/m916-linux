@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Print the field constants (enum values, const ints/strings) of a .NET assembly by reading its
 ECMA-335 Constant table directly. Used to recover UsbCommandID, KEY_CLASS, REPORT_RATE, etc.
 
