@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+
+# Vendor software is not redistributed
+*.exe
+*.dll
+unins000.*
+
+# Personal flash dumps (the test fixture is tracked explicitly)
+*.bin
+!tests/fixtures/*.bin

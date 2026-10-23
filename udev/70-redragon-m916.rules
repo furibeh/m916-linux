@@ -1,0 +1,4 @@
+# Redragon M916-PRO-1K: give the logged-in user access to the mouse hidraw nodes
+# (wired F55E, dongles F55F / F5D5) so m916.py works without sudo.
+# Install: sudo cp udev/70-redragon-m916.rules /etc/udev/rules.d/ && sudo udevadm control --reload && sudo udevadm trigger
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3554", ATTRS{idProduct}=="f55e|f55f|f5d5", TAG+="uaccess"
