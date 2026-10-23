@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Redragon M916
+GenericName=Mouse configuration
+GenericName[es]=Configuración del ratón
+Comment=Configure DPI, buttons and performance of the Redragon M916-PRO-1K
+Comment[es]=Configura DPI, botones y rendimiento del Redragon M916-PRO-1K
+Exec=m916-gui
+Icon=input-mouse
+Terminal=false
+Categories=Settings;HardwareSettings;Qt;
+Keywords=mouse;dpi;redragon;m916;ratón;

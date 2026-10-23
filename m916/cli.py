@@ -6,7 +6,7 @@ import time
 
 from . import config as cfg
 from .protocol import FLASH_SIZE, STATUS_NAMES, CMD_STATUS_CHANGED, REPORT_ID, Mouse, \
-    MouseAsleep, find_devices
+    MouseAsleep, ProtocolError, find_devices
 
 
 def progress_printer(label):
@@ -239,7 +239,7 @@ def main(argv=None):
             if not m.wait_online():
                 sys.exit("error: the mouse did not wake up")
         args.func(m, args)
-    except (MouseAsleep, IOError) as e:
+    except (MouseAsleep, ProtocolError, OSError) as e:
         sys.exit("error: %s" % e)
     finally:
         m.close()

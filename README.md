@@ -8,7 +8,8 @@ Probado con el receptor inalámbrico `3554:F5D5`.
 
 ## Requisitos
 
-- Python 3 (sin dependencias externas).
+- Python 3. La línea de comandos no tiene dependencias externas; la interfaz gráfica usa
+  Qt 6 (PySide6): `sudo dnf install python3-pyside6` en Fedora.
 - Acceso al nodo `hidraw` del ratón. Instala la regla udev una vez:
 
 ```sh
@@ -16,21 +17,47 @@ sudo cp udev/70-redragon-m916.rules /etc/udev/rules.d/
 sudo udevadm control --reload && sudo udevadm trigger
 ```
 
-## Uso
+## Instalación
+
+Desde el repositorio, sin instalar nada:
 
 ```sh
-./m916.py info                     # estado, batería, DPI, opciones y botones
-./m916.py dump copia.bin           # haz esto antes de cambiar nada
-./m916.py dpi 3 3200               # DPI de un nivel (múltiplos de 50, hasta 26000; --y para Y)
-./m916.py dpi-color 3 00ff00       # color del LED de un nivel
-./m916.py dpi-levels 5             # niveles DPI activos
-./m916.py dpi-active 2             # nivel en uso
-./m916.py rate 1000                # 125 / 250 / 500 / 1000 Hz
-./m916.py button 7 middle          # left|right|middle|back|forward|dpi-loop|dpi-up|dpi-down|
-                                   # scroll-left|scroll-right|report-rate|disabled|fire:P1:P2
-./m916.py option debounce 4        # opciones de un byte (valor en bruto)
-./m916.py restore copia.bin        # reescribe solo lo que cambió y verifica
-./m916.py watch                    # notificaciones en vivo (DPI, batería…)
+python3 -m m916.gui                # interfaz gráfica
+python3 -m m916 info               # línea de comandos
+```
+
+O instalado para tu usuario, con los comandos `m916` y `m916-gui` y una entrada en el menú:
+
+```sh
+pip install --user .
+install -Dm644 data/io.github.furibeh.m916-linux.desktop \
+    ~/.local/share/applications/io.github.furibeh.m916-linux.desktop
+```
+
+## Interfaz gráfica
+
+Pestañas de DPI (niveles, valores y colores), botones, rendimiento (frecuencia de sondeo,
+debounce y opciones del sensor) y copia de seguridad. Los cambios se editan en local y
+**Aplicar** escribe solo los campos modificados, verificando cada uno. Muestra la batería y
+sigue en vivo los cambios hechos desde el propio ratón, como el nivel de DPI.
+
+Para probarla sin el ratón: `python3 -m m916.gui --fake tests/fixtures/m916_flash.bin`.
+
+## Línea de comandos
+
+```sh
+m916 info                     # estado, batería, DPI, opciones y botones
+m916 dump copia.bin           # haz esto antes de cambiar nada
+m916 dpi 3 3200               # DPI de un nivel (múltiplos de 50, hasta 26000; --y para Y)
+m916 dpi-color 3 00ff00       # color del LED de un nivel
+m916 dpi-levels 5             # niveles DPI activos
+m916 dpi-active 2             # nivel en uso
+m916 rate 1000                # 125 / 250 / 500 / 1000 Hz
+m916 button 7 middle          # left|right|middle|back|forward|dpi-loop|dpi-up|dpi-down|
+                              # scroll-left|scroll-right|report-rate|disabled|fire:P1:P2
+m916 option debounce 4        # opciones de un byte (valor en bruto)
+m916 restore copia.bin        # reescribe solo lo que cambió y verifica
+m916 watch                    # notificaciones en vivo (DPI, batería…)
 ```
 
 Cada escritura se verifica volviendo a leer. Si el ratón está dormido, la herramienta pide
@@ -43,7 +70,14 @@ python3 -m unittest discover -s tests
 ```
 
 Los tests simulan el ratón con un volcado real de la flash (`tests/fixtures/m916_flash.bin`),
-así que no hace falta hardware.
+así que no hace falta hardware. Los de la interfaz se saltan si PySide6 no está instalado.
+
+## Estructura
+
+- `m916/protocol.py`: transporte HID y acceso a la flash.
+- `m916/config.py`: modelo de la configuración (decodificar, codificar, validar y diferencias).
+- `m916/cli.py` y `m916/gui.py`: las dos interfaces, sobre el mismo modelo.
+- `m916/fake.py`: ratón simulado para tests y desarrollo.
 
 ## Ingeniería inversa
 
@@ -66,10 +100,9 @@ tools/ghidra/make_flatpak_shim.sh
 ## Estado
 
 Funciona: lectura completa, DPI, colores, número de niveles y nivel activo, report rate,
-botones básicos, opciones de un byte, volcado/restauración y notificaciones.
+botones básicos, opciones de un byte, volcado/restauración, notificaciones e interfaz gráfica.
 
-Pendiente: atajos y macros en botones, significado de algunas opciones, LEDs y una interfaz
-gráfica.
+Pendiente: atajos y macros en botones, significado de algunas opciones y LEDs.
 
 ## Licencia
 

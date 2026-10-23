@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Simulated receiver + mouse backed by a flash image, for tests and GUI development."""
+import os
 import socket
 import threading
 
@@ -17,7 +18,7 @@ class FakeMouse:
         threading.Thread(target=self._serve, daemon=True).start()
 
     def mouse(self):
-        return Mouse("fake", fd=self._host.fileno())
+        return Mouse("fake", fd=os.dup(self._host.fileno()))
 
     def notify(self, flags):
         pkt = bytearray([REPORT_ID, CMD_STATUS_CHANGED, 0, 0, 0, 0x0A, flags]).ljust(16, b"\0")

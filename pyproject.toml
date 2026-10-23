@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "m916-linux"
+dynamic = ["version"]
+description = "Linux configuration tool for the Redragon M916-PRO-1K mouse"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+requires-python = ">=3.9"
+authors = [{ name = "furibeh" }]
+
+[project.optional-dependencies]
+gui = ["PySide6>=6.5"]
+
+[project.scripts]
+m916 = "m916.cli:main"
+
+[project.gui-scripts]
+m916-gui = "m916.gui:main"
+
+[project.urls]
+Homepage = "https://github.com/furibeh/m916-linux"
+
+[tool.setuptools]
+packages = ["m916"]
+
+[tool.setuptools.dynamic]
+version = { attr = "m916.__version__" }

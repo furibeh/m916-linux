@@ -34,8 +34,12 @@ STATUS_BATTERY = 0x40
 STATUS_NAMES = ["dpi", "report-rate", "config", "dpi-led", "logo-led", "led-bar", "battery"]
 
 
-class MouseAsleep(TimeoutError):
-    pass
+class MouseAsleep(Exception):
+    """No answer from the mouse: asleep, off or out of range (the receiver still answers 0x03)."""
+
+
+class ProtocolError(Exception):
+    """The mouse answered, but did not acknowledge or store what was written."""
 
 
 def checksum(data):
@@ -136,12 +140,12 @@ class Mouse:
         for i in range(0, len(data), CHUNK):
             pkt, resp = self.transact(CMD_WRITE_FLASH, addr + i, data[i:i + CHUNK])
             if resp != pkt:
-                raise IOError("write at 0x%04x not acknowledged (got %s)" % (addr + i, resp.hex(" ")))
+                raise ProtocolError("write at 0x%04x not acknowledged (got %s)" % (addr + i, resp.hex(" ")))
 
     def write_verified(self, addr, data):
         self.write_flash(addr, data)
         if self.read_flash(addr, len(data)) != bytes(data):
-            raise IOError("verification failed at 0x%04x" % addr)
+            raise ProtocolError("verification failed at 0x%04x" % addr)
 
     def write_fields(self, fields, image):
         """Write the (addr, length) ranges of `image`, verifying each one."""
