@@ -86,7 +86,7 @@ usa un valor por defecto.
 | 0x02 | Número de niveles DPI (1–8) [HW] | par |
 | 0x04 | Nivel DPI activo, empezando en 0 [HW] | par |
 | 0x06 / 0x08 | xSpindown / ySpindown [RE] | par |
-| 0x0A | silenceHeight (LOD): 1 = 1 mm, 2 = 2 mm [RE, lista `customComboBox_LOD`] | par |
+| 0x0A | silenceHeight (LOD): 1 = 1 mm, 2 = 2 mm [RE] | par |
 | 0x0C + 4·i | DPI del nivel i: `[x, y, ex, chk]` [HW] | bloque |
 | 0x2C + 4·i | Color del nivel i: `[R, G, B, chk]` [HW] | bloque |
 | 0x4C, 4E, 50, 52 | LED de DPI: modo, brillo, velocidad, activado [RE] | pares |
@@ -96,13 +96,13 @@ usa un valor por defecto.
 | 0xA7 | Barra LED activada [RE] | par |
 | 0xA9 | keyDebounceTime en ms [HW] | par |
 | 0xAB | motionSyncEnable [RE] | par |
-| 0xAD | allLedOffTime [RE] | par |
+| 0xAD | allLedOffTime, ×10 s [RE] | par |
 | 0xAF | linearCorrectionEnable [RE] | par |
 | 0xB1 | rippleControlEnable [RE] | par |
 | 0xB3 | moveOffLedEnable [RE] | par |
 | 0xB5 | sensorCustomSleepTimeEnable [RE] | par |
-| 0xB7 | sensorSleepTime [RE] | par |
-| 0xB9 | sensorPowerSavingModeEnable [RE] | par |
+| 0xB7 | sensorSleepTime, ×10 s [RE] | par |
+| 0xB9 | sensorPowerSavingModeEnable: 0 = LP, 1 = HP [RE] | par |
 | 0x100 + 0x20·k | Atajo de teclado del botón k [RE, formato confirmado en el volcado] | ver abajo |
 | 0x300 + 0x180·k | Macro del botón k [RE, formato confirmado en el volcado] | ver abajo |
 
@@ -181,21 +181,30 @@ bloque, o un bloque todo `0xFF`) se confirma pero se descarta. Para borrar una m
 escribe la forma vacía `00` + 30×`ff` + `00 55` (longitud 0, 0 pasos); los bytes de pasos
 anteriores quedan detrás, pero el firmware los ignora.
 
-## Listas de opciones de la app  [RE, `Language/0-English.xml`]
+## Opciones de un byte  [RE]
 
-Valores de los desplegables; falta confirmar en el IL a qué dirección escribe cada uno.
+Qué escribe cada control de la app (manejadores `_3In1.customComboBox_*`,
+`FormMain.customComboBox_*` y `customCheckBox_*`) y los valores de sus listas en
+`Language/*.xml`. Los valores de las listas son decimales salvo que lleven `0x`
+(`ValueConvert.StringToInt`).
 
-- `customComboBox_PowerSaveTime` (apagado de luces en reposo, probablemente `allLedOffTime`):
-  1 = 10 s, 3 = 30 s, 6 = 1 min, 30, 60, 90, 120, 150, 180, 210, 240 (unidades de 10 s).
-- `customComboBox_FullPerformance` (tiempo en alto rendimiento, probablemente
-  `sensorSleepTime`): 3 = 30 s, 6 = 1 min, 12, 30, 60, 90 (unidades de 10 s).
-- `customComboBox_ModeSelect`: 0 LP (bajo consumo), 1 HP (alto rendimiento), 0x10 con cable.
-- `customComboBox_DPIEffect` (LED de DPI): 0 apagado, 1 fijo, 2 parpadeo.
-- `customComboBox_LEDMode`: 0 apagado, 1 arcoíris en movimiento, 2 color fijo, 3 arcoíris
-  fijo, 4 neón, 5 arcoíris parpadeante, 6 multicolor fijo.
+| Control | Campo | Valores |
+|---|---|---|
+| LOD | 0x0A `silenceHeight` | 1 = 1 mm, 2 = 2 mm [HW] |
+| Modo (`ModeSelect`) | 0xB9 `sensorPowerSavingModeEnable` | 0 = LP (bajo consumo), 1 = HP (alto rendimiento); la opción "con cable" (10) no se escribe |
+| Casilla `FullPerformance` | 0xB5 `sensorCustomSleepTimeEnable` | 0/1; activa la lista siguiente |
+| Lista `FullPerformance` | 0xB7 `sensorSleepTime` | ×10 s: 3, 6, 12, 30, 60, 90 (30 s … 15 min) |
+| `PowerSaveTime` (luces en reposo) | 0xAD `allLedOffTime` | ×10 s: 1, 3, 6, 30, 60, 90, 120, 150, 180, 210, 240 (10 s … 40 min) |
+| Efecto del LED de DPI | 0x52 activado, 0x4C modo | apagado: activado = 0 y el modo no cambia; 1 fijo, 2 parpadeo [HW] |
+| Brillo del LED de DPI | 0x4E | niveles 1–10 → 16, 30, 60, 90, 128, 150, 180, 210, 230, 255 (`DPIIndexToBrightness`) [HW] |
+| Velocidad del LED de DPI | 0x50 | 1–5 |
+| `LEDMode` (barra LED; el M916-PRO-1K no la tiene) | 0xA7 activado, 0xA0 modo | 0 apagado, 1 arcoíris en movimiento, 2 color fijo, 3 arcoíris fijo, 4 neón, 5 arcoíris parpadeante, 6 multicolor fijo |
+
+La app solo muestra el brillo con el efecto fijo y la velocidad con el parpadeo
+(`ValueConvert.SetDPIEffect`).
 
 ## Pendiente
 
-- Confirmar a qué campo escribe cada desplegable de la lista anterior.
+- Probar en el hardware el resto de opciones de la tabla anterior (modo del sensor y tiempos).
 - Bloque 0x54–0x5F y los 3 bytes extra de la respuesta online.
 - Comando 0x01 (EncryptionData): ¿es necesario en algún caso?

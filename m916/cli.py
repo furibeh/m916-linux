@@ -52,7 +52,7 @@ def cmd_info(m, args):
               % (mark, i + 1, lv.x, "" if lv.x == lv.y else " (Y %d)" % lv.y, *lv.color))
     print("options:")
     for name, value in conf.options.items():
-        print("  %-18s %d" % (name, value))
+        print("  %-22s %s" % (name, cfg.describe_option(name, value)))
     print("buttons:")
     for k in range(cfg.KEY_COUNT):
         print("  %2d: %s" % (k + 1, conf.describe_button(k)))
@@ -250,7 +250,12 @@ def build_parser():
     p = sub.add_parser("dpi-active", help="select the active DPI level")
     p.add_argument("level", type=int)
     p.set_defaults(func=cmd_dpi_active)
-    p = sub.add_parser("option", help="set a raw single-byte option")
+    p = sub.add_parser("option", help="set a single-byte option (raw value, see 'info')",
+                       epilog="lod: 1 = 1 mm, 2 = 2 mm; sensor-mode: 0 = LP, 1 = HP; "
+                              "led-off-time and full-performance-time in units of 10 s; "
+                              "dpi-led-mode: 1 steady, 2 flicker; dpi-led-brightness: %s; "
+                              "dpi-led-speed: 1..5"
+                              % "/".join(map(str, cfg.DPI_LED_BRIGHTNESS)))
     p.add_argument("name", choices=sorted(cfg.OPTIONS))
     p.add_argument("value", type=int)
     p.set_defaults(func=cmd_option)

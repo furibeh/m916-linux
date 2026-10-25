@@ -150,6 +150,32 @@ class GuiTest(unittest.TestCase):
         dialog._accept()
         self.assertEqual(dialog.macro.name, "test")
 
+    def test_sensor_and_light_options(self):
+        w = self.window
+        p, l = w.performance, w.lights
+        self.assertEqual(p.lod.currentText(), "1 mm")
+        self.assertEqual(p.mode.currentData(), 0)
+        self.assertFalse(p.full.isChecked())
+        self.assertFalse(p.full_time.isEnabled())
+        self.assertEqual(p.full_time.currentText(), "1 min")
+        self.assertEqual(l.effect.currentText(), "Parpadeo")
+        self.assertEqual(l.brightness.currentText(), "5")  # 128
+        self.assertEqual(l.speed.currentData(), 3)
+        self.assertEqual(l.off_time.currentText(), "1 min")
+        self.assertFalse(w._dirty())
+
+        p.lod.setCurrentIndex(p.lod.findData(2))
+        p.mode.setCurrentIndex(p.mode.findData(1))
+        p.full.setChecked(True)
+        l.effect.setCurrentIndex(l.effect.findData(0))   # off keeps the stored mode
+        l.off_time.setCurrentIndex(l.off_time.findData(30))
+        w.apply_btn.click()
+        self.wait_for(lambda: not w._busy)
+        changed = [i for i in range(len(self.original)) if self.flash()[i] != self.original[i]]
+        self.assertEqual(changed, [0x0A, 0x0B, 0x52, 0x53, 0xAD, 0xAE, 0xB5, 0xB6, 0xB9, 0xBA])
+        self.assertEqual(self.flash()[0x52], 0)
+        self.assertEqual(self.flash()[0xAD], 30)
+
     def test_fewer_levels_moves_active(self):
         w = self.window
         w.dpi.rows[3][0].setChecked(True)   # level 4 active

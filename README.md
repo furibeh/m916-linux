@@ -37,7 +37,8 @@ install -Dm644 data/io.github.furibeh.m916-linux.desktop \
 ## Interfaz gráfica
 
 Pestañas de DPI (niveles, valores y colores), botones, rendimiento (frecuencia de sondeo,
-debounce y opciones del sensor) y copia de seguridad. Cada botón puede ser un clic, una
+debounce, LOD, modo y opciones del sensor), luces (efecto, brillo y velocidad del LED de DPI,
+apagado en reposo) y copia de seguridad. Cada botón puede ser un clic, una
 función de DPI o scroll, disparo repetido, bloqueo de DPI, un atajo de teclado (se escribe o
 se captura pulsándolo), una tecla multimedia o una macro, con un editor que permite grabar
 pulsaciones de teclado y ratón con sus tiempos. Los cambios se editan en local y
@@ -65,7 +66,8 @@ m916 macro 8 copiar "+ctrl 10 +c 10 -c 10 -ctrl" --repeat 1
                               # +TECLA pulsa, -TECLA suelta, número = espera en ms;
                               # --repeat N (1-252), while-held, toggle o until-any
 m916 keys                     # nombres de tecla disponibles
-m916 option debounce 4        # opciones de un byte (valor en bruto)
+m916 option debounce 4        # opciones de un byte: info muestra su significado y
+                              # option --help los valores (lod, sensor-mode, dpi-led…)
 m916 restore copia.bin        # reescribe solo lo que cambió y verifica
 m916 watch                    # notificaciones en vivo (DPI, batería…)
 ```
@@ -115,8 +117,8 @@ Funciona: lectura completa, DPI, colores, número de niveles y nivel activo, rep
 todas las funciones de botón (incluidos atajos, teclas multimedia y macros), opciones de un
 byte, volcado/restauración, notificaciones e interfaz gráfica.
 
-Pendiente: mostrar con nombres reales algunas opciones (LOD, tiempos y LEDs) y las funciones
-del receptor (largo alcance, emparejamiento).
+Pendiente: las funciones del receptor (largo alcance, emparejamiento) y confirmar en el
+hardware el modo del sensor y los tiempos de reposo.
 
 ## Licencia
 

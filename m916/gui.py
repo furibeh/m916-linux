@@ -816,17 +816,24 @@ class ButtonsTab(QWidget):
         return [e for e in (row.error() for row in self.rows) if e]
 
 
-OPTION_LABELS = {
-    "motion-sync": "Motion Sync",
-    "linear-correction": "Corrección lineal (angle snapping)",
-    "ripple-control": "Ripple control",
-    "move-off-led": "Apagar LED en movimiento",
-    "sleep-custom": "Tiempo de reposo personalizado",
-    "power-saving": "Ahorro de energía del sensor",
-    "lod": "Distancia de despegue (LOD)",
-    "led-off-time": "Tiempo de apagado del LED",
-    "sleep-time": "Tiempo de reposo del sensor",
-}
+class ChoiceBox(QComboBox):
+    """Combo box over raw option values; a stored value it does not list is kept and shown."""
+
+    def __init__(self, choices):
+        super().__init__()
+        self.choices = list(choices)
+
+    def load(self, value, raw_text="valor %d"):
+        self.clear()
+        for v, text in self.choices:
+            self.addItem(text, v)
+        if self.findData(value) < 0:
+            self.addItem(raw_text % value, value)
+        self.setCurrentIndex(self.findData(value))
+
+
+def time_choices(values):
+    return [(v, cfg.format_time(v)) for v in values]
 
 
 class PerformanceTab(QWidget):
@@ -842,29 +849,33 @@ class PerformanceTab(QWidget):
         self.debounce.setRange(0, 255)
         self.debounce.setSuffix(" ms")
         form.addRow("Debounce de los botones:", self.debounce)
+        self.lod = ChoiceBox(cfg.LOD_CHOICES.items())
+        self.lod.setToolTip("Altura a la que el sensor deja de leer al levantar el ratón")
+        form.addRow("Distancia de despegue (LOD):", self.lod)
+        self.mode = ChoiceBox([(0, "Bajo consumo (LP)"), (1, "Alto rendimiento (HP)")])
+        form.addRow("Modo del sensor:", self.mode)
+        self.full = QCheckBox("Rendimiento máximo durante:")
+        self.full.setToolTip("El sensor se mantiene a máximo rendimiento este tiempo antes "
+                             "de pasar a reposo")
+        self.full_time = ChoiceBox(time_choices(cfg.FULL_PERFORMANCE_TIMES))
+        form.addRow(self.full, self.full_time)
         self.checks = {}
-        for name in sorted(cfg.BOOL_OPTIONS, key=list(OPTION_LABELS).index):
-            box = QCheckBox(OPTION_LABELS[name])
+        for name, text in (("motion-sync", "Motion Sync"),
+                           ("linear-correction", "Corrección lineal (angle snapping)"),
+                           ("ripple-control", "Ripple control")):
+            box = QCheckBox(text)
             box.toggled.connect(lambda *_: self.edited.emit())
             form.addRow(box)
             self.checks[name] = box
 
-        raw = QGroupBox("Valores internos (significado sin confirmar)")
-        raw_form = QFormLayout(raw)
-        self.raws = {}
-        for name in ("lod", "led-off-time", "sleep-time"):
-            sb = QSpinBox()
-            sb.setRange(0, 255)
-            sb.valueChanged.connect(lambda *_: self.edited.emit())
-            raw_form.addRow(OPTION_LABELS[name] + ":", sb)
-            self.raws[name] = sb
-
         layout = QVBoxLayout(self)
         layout.addWidget(main)
-        layout.addWidget(raw)
         layout.addStretch()
-        self.rate.currentIndexChanged.connect(lambda *_: self.edited.emit())
+        for combo in (self.rate, self.lod, self.mode, self.full_time):
+            combo.currentIndexChanged.connect(lambda *_: self.edited.emit())
         self.debounce.valueChanged.connect(lambda *_: self.edited.emit())
+        self.full.toggled.connect(self.full_time.setEnabled)
+        self.full.toggled.connect(lambda *_: self.edited.emit())
 
     def load(self, conf):
         self.rate.clear()
@@ -875,21 +886,98 @@ class PerformanceTab(QWidget):
             hz = cfg.RATE_HZ.get(code)
             self.rate.addItem("%d Hz" % hz if hz else "código 0x%02x" % code, code)
         self.rate.setCurrentIndex(self.rate.findData(conf.report_rate))
-        self.debounce.setValue(conf.options["debounce"])
+        opts = conf.options
+        self.debounce.setValue(opts["debounce"])
+        self.lod.load(opts["lod"])
+        self.mode.load(opts["sensor-mode"])
+        self.full_time.load(opts["full-performance-time"], "%d × 10 s")
+        self.full.setChecked(bool(opts["full-performance"]))
+        self.full_time.setEnabled(self.full.isChecked())
         for name, box in self.checks.items():
-            box.setChecked(bool(conf.options[name]))
-        for name, sb in self.raws.items():
-            sb.setValue(conf.options[name])
+            box.setChecked(bool(opts[name]))
 
     def store(self, conf):
         conf.report_rate = self.rate.currentData()
-        conf.options["debounce"] = self.debounce.value()
+        opts = conf.options
+        opts["debounce"] = self.debounce.value()
+        opts["lod"] = self.lod.currentData()
+        opts["sensor-mode"] = self.mode.currentData()
+        opts["full-performance-time"] = self.full_time.currentData()
+        store_bool(opts, "full-performance", self.full.isChecked())
         for name, box in self.checks.items():
-            # Keep the stored non-zero value if the box was not touched
-            if bool(conf.options[name]) != box.isChecked():
-                conf.options[name] = int(box.isChecked())
-        for name, sb in self.raws.items():
-            conf.options[name] = sb.value()
+            store_bool(opts, name, box.isChecked())
+
+
+def store_bool(opts, name, checked):
+    # Keep the stored non-zero value if the box was not touched
+    if bool(opts[name]) != checked:
+        opts[name] = int(checked)
+
+
+DPI_LED_OFF = 0
+
+
+class LightsTab(QWidget):
+    edited = Signal()
+
+    def __init__(self):
+        super().__init__()
+        dpi = QGroupBox("LED de DPI")
+        form = QFormLayout(dpi)
+        self.effect = ChoiceBox([(DPI_LED_OFF, "Apagado"), (1, "Fijo"), (2, "Parpadeo")])
+        form.addRow("Efecto:", self.effect)
+        self.brightness = ChoiceBox((b, "%d" % (i + 1))
+                                    for i, b in enumerate(cfg.DPI_LED_BRIGHTNESS))
+        form.addRow("Brillo (1–10):", self.brightness)
+        self.speed = ChoiceBox((v, "%d" % v) for v in cfg.DPI_LED_SPEEDS)
+        form.addRow("Velocidad (1–5):", self.speed)
+        note = QLabel("El LED muestra el color de cada nivel de DPI (pestaña DPI). El brillo se "
+                      "aplica al efecto fijo y la velocidad al parpadeo.")
+        note.setWordWrap(True)
+        note.setEnabled(False)
+        form.addRow(note)
+
+        power = QGroupBox("Ahorro de energía")
+        pform = QFormLayout(power)
+        self.off_time = ChoiceBox(time_choices(cfg.LED_OFF_TIMES))
+        pform.addRow("Apagar las luces en reposo tras:", self.off_time)
+        self.move_off = QCheckBox("Apagar las luces mientras se mueve el ratón")
+        pform.addRow(self.move_off)
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(dpi)
+        layout.addWidget(power)
+        layout.addStretch()
+        for combo in (self.effect, self.brightness, self.speed, self.off_time):
+            combo.currentIndexChanged.connect(lambda *_: self.edited.emit())
+        self.effect.currentIndexChanged.connect(self._update)
+        self.move_off.toggled.connect(lambda *_: self.edited.emit())
+
+    def _update(self):
+        effect = self.effect.currentData()
+        self.brightness.setEnabled(effect == 1)
+        self.speed.setEnabled(effect == 2)
+
+    def load(self, conf):
+        opts = conf.options
+        # Off is "disabled", whatever mode is stored (_3In1.customComboBox_DPIEffect)
+        self.effect.load(opts["dpi-led-mode"] if opts["dpi-led"] else DPI_LED_OFF, "modo %d")
+        self.brightness.load(opts["dpi-led-brightness"])
+        self.speed.load(opts["dpi-led-speed"])
+        self.off_time.load(opts["led-off-time"], "%d × 10 s")
+        self.move_off.setChecked(bool(opts["move-off-led"]))
+        self._update()
+
+    def store(self, conf):
+        opts = conf.options
+        effect = self.effect.currentData()
+        store_bool(opts, "dpi-led", effect != DPI_LED_OFF)
+        if effect != DPI_LED_OFF:
+            opts["dpi-led-mode"] = effect
+        opts["dpi-led-brightness"] = self.brightness.currentData()
+        opts["dpi-led-speed"] = self.speed.currentData()
+        opts["led-off-time"] = self.off_time.currentData()
+        store_bool(opts, "move-off-led", self.move_off.isChecked())
 
 
 class BackupTab(QWidget):
@@ -970,11 +1058,14 @@ class MainWindow(QMainWindow):
         self.dpi = DpiTab()
         self.buttons = ButtonsTab()
         self.performance = PerformanceTab()
+        self.lights = LightsTab()
+        self.config_tabs = (self.dpi, self.buttons, self.performance, self.lights)
         self.backup = BackupTab()
         self.tabs = QTabWidget()
         self.tabs.addTab(self.dpi, QIcon.fromTheme("input-mouse"), "DPI")
         self.tabs.addTab(self.buttons, QIcon.fromTheme("input-keyboard"), "Botones")
         self.tabs.addTab(self.performance, QIcon.fromTheme("speedometer"), "Rendimiento")
+        self.tabs.addTab(self.lights, QIcon.fromTheme("lighttable"), "Luces")
         self.tabs.addTab(self.backup, QIcon.fromTheme("document-save"), "Copia de seguridad")
 
         self.reload_btn = QPushButton(QIcon.fromTheme("view-refresh"), "Recargar")
@@ -995,7 +1086,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
         self.resize(640, 560)
 
-        for tab in (self.dpi, self.buttons, self.performance):
+        for tab in self.config_tabs:
             tab.edited.connect(self._edited)
         self.reload_btn.clicked.connect(lambda: self._submit("load"))
         self.revert_btn.clicked.connect(self._revert)
@@ -1022,7 +1113,7 @@ class MainWindow(QMainWindow):
 
     def _current_config(self):
         conf = cfg.Config.decode(self.image)
-        for tab in (self.dpi, self.buttons, self.performance):
+        for tab in self.config_tabs:
             tab.store(conf)
         return conf
 
@@ -1045,7 +1136,7 @@ class MainWindow(QMainWindow):
     def _load_widgets(self, image):
         self._loading = True
         conf = cfg.Config.decode(image)
-        for tab in (self.dpi, self.buttons, self.performance):
+        for tab in self.config_tabs:
             tab.load(conf)
         self._loading = False
         bad = cfg.bad_checks(image)

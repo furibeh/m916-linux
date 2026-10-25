@@ -28,19 +28,49 @@ PRESS, RELEASE = 0x80, 0x40
 
 # Single-byte settings stored as [value, 0x55 - value] (MouseConfigParser)
 OPTIONS = {
-    "lod": 0x0A,
-    "debounce": 0xA9,
+    "lod": 0x0A,                    # silenceHeight
+    "dpi-led-mode": 0x4C,           # DPILed.mode
+    "dpi-led-brightness": 0x4E,     # DPILed.brightness
+    "dpi-led-speed": 0x50,          # DPILed.breathSpeed
+    "dpi-led": 0x52,                # DPILed.enable
+    "debounce": 0xA9,               # keyDebounceTime, ms
     "motion-sync": 0xAB,
-    "led-off-time": 0xAD,
+    "led-off-time": 0xAD,           # allLedOffTime, x 10 s
     "linear-correction": 0xAF,
     "ripple-control": 0xB1,
     "move-off-led": 0xB3,
-    "sleep-custom": 0xB5,
-    "sleep-time": 0xB7,
-    "power-saving": 0xB9,
+    "full-performance": 0xB5,       # sensorCustomSleepTimeEnable
+    "full-performance-time": 0xB7,  # sensorSleepTime, x 10 s
+    "sensor-mode": 0xB9,            # sensorPowerSavingModeEnable: 0 LP, 1 HP
 }
-BOOL_OPTIONS = {"motion-sync", "linear-correction", "ripple-control", "move-off-led",
-                "sleep-custom", "power-saving"}
+BOOL_OPTIONS = {"dpi-led", "motion-sync", "linear-correction", "ripple-control", "move-off-led",
+                "full-performance"}
+
+# Choices offered by the original app (Language/*.xml combo boxes and _3In1/FormMain
+# handlers); other stored values are kept as they are
+LOD_CHOICES = {1: "1 mm", 2: "2 mm"}
+SENSOR_MODES = {0: "LP", 1: "HP"}
+DPI_LED_MODES = {1: "steady", 2: "flicker"}
+FULL_PERFORMANCE_TIMES = [3, 6, 12, 30, 60, 90]                    # x 10 s
+LED_OFF_TIMES = [1, 3, 6, 30, 60, 90, 120, 150, 180, 210, 240]   # x 10 s
+DPI_LED_BRIGHTNESS = [16, 30, 60, 90, 128, 150, 180, 210, 230, 255]  # levels 1-10
+DPI_LED_SPEEDS = range(1, 6)
+
+
+def format_time(tens):
+    """Duration stored in units of 10 s."""
+    s = tens * 10
+    return "%d min" % (s // 60) if s >= 60 and s % 60 == 0 else "%d s" % s
+
+
+def describe_option(name, value):
+    text = {"lod": LOD_CHOICES.get(value), "sensor-mode": SENSOR_MODES.get(value),
+            "dpi-led-mode": DPI_LED_MODES.get(value), "debounce": "%d ms" % value,
+            "led-off-time": format_time(value), "full-performance-time": format_time(value),
+            }.get(name)
+    if name == "dpi-led-brightness" and value in DPI_LED_BRIGHTNESS:
+        text = "level %d" % (DPI_LED_BRIGHTNESS.index(value) + 1)
+    return "%d (%s)" % (value, text) if text else str(value)
 
 RATES = {1000: 0x01, 500: 0x02, 250: 0x04, 125: 0x08, 2000: 0x10, 4000: 0x20}
 RATE_HZ = {v: k for k, v in RATES.items()}
