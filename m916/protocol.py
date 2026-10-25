@@ -152,10 +152,6 @@ class Mouse:
         for addr, length in fields:
             self.write_verified(addr, image[addr:addr + length])
 
-    def restore_chunks(self, current, image):
-        """10-byte chunks where a full flash image differs from the current flash."""
-        return [a for a in range(0, FLASH_SIZE, CHUNK) if current[a:a + CHUNK] != image[a:a + CHUNK]]
-
     def version(self):
         _, r = self.transact(CMD_READ_VERSION)
         return r[6:6 + r[5]]

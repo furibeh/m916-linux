@@ -4,7 +4,7 @@ shortcut block and one macro block per button."""
 from dataclasses import dataclass, field
 
 from . import keys
-from .protocol import FLASH_SIZE, checksum, with_check
+from .protocol import CHUNK, FLASH_SIZE, checksum, with_check
 
 CONFIG_SIZE = 0xC0
 MAX_DPI_LEVELS = 8
@@ -78,6 +78,9 @@ REPEAT_UNTIL_ANY = 255     # until any button is pressed
 REPEAT_MODES = {"toggle": REPEAT_TOGGLE, "while-held": REPEAT_WHILE_HELD,
                 "until-any": REPEAT_UNTIL_ANY}
 REPEAT_COUNT_MAX = 252
+
+# What the original app writes to delete a macro (empty name, no steps)
+EMPTY_MACRO = bytes([0]) + b"\xff" * MACRO_NAME_MAX + with_check([0])
 
 
 def dpi_decode(lo, ex):
@@ -405,6 +408,26 @@ def changed_fields(old, new):
         # Growing to reach the new active level: write the count first
         fields.sort(key=lambda f: f[0] != OFF_DPI_COUNT)
     return blocks + fields
+
+
+def restore_writes(current, image):
+    """(address, data) writes that turn the `current` flash into the full `image`.
+
+    The mouse only stores a macro block written from its start as a valid macro, or as the
+    empty form the original app uses to delete one: other writes there are acknowledged and
+    dropped. So macro blocks are compared by the macro they hold, not byte by byte (an erased
+    block in a backup and a deleted macro are the same), and rewritten whole."""
+    writes = []
+    for a in range(0, OFF_MACROS, CHUNK):
+        end = min(a + CHUNK, OFF_MACROS)
+        if current[a:end] != image[a:end]:
+            writes.append((a, image[a:end]))
+    for k in range(KEY_COUNT):
+        a = macro_addr(k)
+        macro = Macro.decode(image[a:a + MACRO_SIZE])
+        if Macro.decode(current[a:a + MACRO_SIZE]) != macro:
+            writes.append((a, macro.encode() if macro else EMPTY_MACRO))
+    return writes
 
 
 def read_image(m, progress=None):

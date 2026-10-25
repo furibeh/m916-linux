@@ -132,6 +132,27 @@ class M916Test(unittest.TestCase):
         self.assertEqual(cli.parse_action("scroll-up"), (0x0B, 1, 0))
         self.assertEqual(cli.parse_action("key:volume-up")[0].raw(), bytes([0x82, 0xE9, 0]))
 
+    def test_restore_after_macro(self):
+        # The mouse ignores raw 0xFF writes in the macro area: an erased block in the backup
+        # must be restored as a deleted macro, and then count as equal
+        self.run_cmd(cli.cmd_macro, button=6, name="hola", repeat=1, steps=["+h 20 -h 20"])
+        self.assertIsNotNone(cfg.Macro.decode(self.fake.flash[cfg.macro_addr(5):]))
+        with tempfile.NamedTemporaryFile(suffix=".bin") as f:
+            f.write(self.original)
+            f.flush()
+            self.run_cmd(cli.cmd_restore, file=f.name, yes=True)
+            out = self.run_cmd(cli.cmd_restore, file=f.name, yes=True)
+        self.assertIn("nothing to do", out)
+        block = self.fake.flash[cfg.macro_addr(5):cfg.macro_addr(6)]
+        self.assertEqual(block[:0x21], cfg.EMPTY_MACRO)
+        self.assertEqual(self.fake.flash[:cfg.OFF_MACROS], self.original[:cfg.OFF_MACROS])
+
+    def test_fake_drops_partial_macro_writes(self):
+        a = cfg.macro_addr(4)
+        self.mouse.write_flash(a + 1, b"\xff")
+        self.mouse.write_flash(a, b"\xff" * cfg.MACRO_SIZE)
+        self.assertEqual(bytes(self.fake.flash[a:a + 7]), b"\x06jitter")
+
     def test_restore(self):
         self.run_cmd(cli.cmd_dpi_color, level=1, color="123456")
         with tempfile.NamedTemporaryFile(suffix=".bin") as f:

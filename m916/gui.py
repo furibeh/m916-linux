@@ -157,14 +157,14 @@ class DeviceWorker(QObject):
         elif name == "restore":
             image = args[0]
             current = m.read_flash(0, FLASH_SIZE, lambda d, t: self.progress.emit(d, 2 * t))
-            chunks = m.restore_chunks(current, image)
-            for i, addr in enumerate(chunks):
-                m.write_flash(addr, image[addr:addr + 10])
-                self.progress.emit(FLASH_SIZE + FLASH_SIZE * (i + 1) // len(chunks), 2 * FLASH_SIZE)
-            if chunks and m.read_flash(0, FLASH_SIZE) != image:
+            writes = cfg.restore_writes(current, image)
+            for i, (addr, data) in enumerate(writes):
+                m.write_flash(addr, data)
+                self.progress.emit(FLASH_SIZE + FLASH_SIZE * (i + 1) // len(writes), 2 * FLASH_SIZE)
+            if writes and cfg.restore_writes(m.read_flash(0, FLASH_SIZE), image):
                 raise ProtocolError("La verificación falló tras restaurar")
             self.progress.emit(1, 1)
-            self.job_done.emit(name, len(chunks))
+            self.job_done.emit(name, len(writes))
             self.config_loaded.emit(cfg.read_image(m))
 
 

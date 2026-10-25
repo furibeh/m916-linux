@@ -8,12 +8,17 @@ from .protocol import (CMD_BATTERY, CMD_DEVICE_ONLINE, CMD_READ_FLASH, CMD_READ_
                        CMD_STATUS_CHANGED, CMD_WRITE_FLASH, REPORT_ID, Mouse, checksum)
 
 
+# Macro area (config.OFF_MACROS, 16 blocks of config.MACRO_SIZE)
+MACRO_START, MACRO_SIZE = 0x300, 0x180
+
+
 class FakeMouse:
     """Answers the vendor protocol like the real hardware (verified on 3554:F5D5)."""
 
     def __init__(self, flash):
         self.flash = bytearray(flash)
         self.asleep = False
+        self._macro = None  # (block address, bytes received so far)
         self._host, self._dev = socket.socketpair(socket.AF_UNIX, socket.SOCK_SEQPACKET)
         threading.Thread(target=self._serve, daemon=True).start()
 
@@ -41,7 +46,10 @@ class FakeMouse:
             if cmd == CMD_READ_FLASH:
                 resp[6:16] = bytes(self.flash[addr:addr + n]).ljust(10, b"\0")
             elif cmd == CMD_WRITE_FLASH:
-                self.flash[addr:addr + n] = pkt[6:6 + n]
+                if addr >= MACRO_START:
+                    self._write_macro(addr, pkt[6:6 + n])
+                else:
+                    self.flash[addr:addr + n] = pkt[6:6 + n]
             elif cmd == CMD_READ_VERSION:
                 resp[5:8] = b"\x02\x02\x00"
             elif cmd == CMD_DEVICE_ONLINE:
@@ -50,6 +58,26 @@ class FakeMouse:
                 resp[5:10] = b"\x02\x64\x00\x10\x48"
             resp[16] = checksum(resp[:16])
             self._dev.send(bytes(resp))
+
+    def _write_macro(self, addr, data):
+        """Like the firmware: a macro block is only stored once it has been written from its
+        start as a whole, checksummed block; any other write is acknowledged and dropped."""
+        if (addr - MACRO_START) % MACRO_SIZE == 0:
+            self._macro = (addr, bytearray())
+        if not self._macro or addr != self._macro[0] + len(self._macro[1]):
+            self._macro = None
+            return
+        start, block = self._macro
+        block += data
+        if len(block) >= 0x21:
+            n = block[0x1F]
+            end = 0x20 + 5 * n
+            if block[0] > 30 or n > 70:
+                self._macro = None
+            elif len(block) > end:
+                if block[end] == checksum(block[0x1F:end]):
+                    self.flash[start:start + end + 1] = block[:end + 1]
+                self._macro = None
 
     def close(self):
         self._host.close()

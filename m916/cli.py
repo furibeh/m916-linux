@@ -75,17 +75,17 @@ def cmd_restore(m, args):
         sys.exit("%s is %d bytes, expected %d" % (args.file, len(image), FLASH_SIZE))
     print("reading current flash to compare...")
     current = m.read_flash(0, FLASH_SIZE, progress_printer("read"))
-    chunks = m.restore_chunks(current, image)
-    if not chunks:
+    writes = cfg.restore_writes(current, image)
+    if not writes:
         print("flash already matches the image, nothing to do")
         return
-    print("%d chunk(s) differ: %s" % (len(chunks), ", ".join("0x%04x" % a for a in chunks[:20])
-                                     + (" ..." if len(chunks) > 20 else "")))
+    print("%d block(s) differ: %s" % (len(writes), ", ".join("0x%04x" % a for a, _ in writes[:20])
+                                     + (" ..." if len(writes) > 20 else "")))
     if not args.yes and input("write them? [y/N] ").strip().lower() != "y":
         return
-    for a in chunks:
-        m.write_flash(a, image[a:a + 10])
-    if m.read_flash(0, FLASH_SIZE, progress_printer("verify")) != image:
+    for a, data in writes:
+        m.write_flash(a, data)
+    if cfg.restore_writes(m.read_flash(0, FLASH_SIZE, progress_printer("verify")), image):
         sys.exit("verification failed after restore")
     print("restored and verified")
 

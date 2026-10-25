@@ -175,6 +175,12 @@ chk      0x55 - suma(bytes 0x1F .. 0x1F+5n)
 Ejemplo del volcado ("jitter"): `84 01 00 00 0a` = pulsar botón izquierdo y esperar 10 ms;
 `44 01 00 00 0a` = soltar y esperar 10 ms.
 
+**Escritura** [HW]: el firmware solo guarda un bloque de macro si se escribe desde su inicio
+y forma una macro con checksum correcto. Cualquier otra escritura en esa zona (a mitad de
+bloque, o un bloque todo `0xFF`) se confirma pero se descarta. Para borrar una macro, la app
+escribe la forma vacía `00` + 30×`ff` + `00 55` (longitud 0, 0 pasos); los bytes de pasos
+anteriores quedan detrás, pero el firmware los ignora.
+
 ## Listas de opciones de la app  [RE, `Language/0-English.xml`]
 
 Valores de los desplegables; falta confirmar en el IL a qué dirección escribe cada uno.
