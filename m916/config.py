@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Settings stored in the flash (ProtocolDataParser layout): the first 0xC0 bytes, plus one
 shortcut block and one macro block per button."""
+import re
 from dataclasses import dataclass, field
 
 from . import keys
@@ -107,6 +108,7 @@ REPEAT_WHILE_HELD = 254    # until the button is released
 REPEAT_UNTIL_ANY = 255     # until any button is pressed
 REPEAT_MODES = {"toggle": REPEAT_TOGGLE, "while-held": REPEAT_WHILE_HELD,
                 "until-any": REPEAT_UNTIL_ANY}
+REPEAT_NAMES = {v: k for k, v in REPEAT_MODES.items()}
 REPEAT_COUNT_MAX = 252
 
 # What the original app writes to delete a macro (empty name, no steps)
@@ -159,8 +161,8 @@ class Event:
             x, y = (self.code & 0xFF), self.code >> 8
             text = "move(%d,%d)" % (x - 256 * (x > 127), y - 256 * (y > 127))
         else:
-            text = ("+" if self.press else "-") + keys.name(self.kind, self.code)
-        return text + (" %d" % self.delay if self.delay else "")
+            text = keys.name(self.kind, self.code)
+        return ("+" if self.press else "-") + text + (" %d" % self.delay if self.delay else "")
 
 
 def combo_events(codes):
@@ -185,12 +187,22 @@ def format_combo(events):
     return "+".join(keys.name(kind, code) for kind, code in codes)
 
 
+MOVE_STEP = re.compile(r"([+-]?)move\((-?\d+),(-?\d+)\)")
+
+
 def parse_steps(text):
     """Macro steps from "+ctrl 10 +c 10 -c 10 -ctrl": +KEY press, -KEY release, and a number
-    is the delay in ms after the previous step."""
+    is the delay in ms after the previous step. Also reads what format_steps() writes for
+    pointer moves ("+move(5,-3)", -128..127) and unnamed codes ("+key:0x99")."""
     steps = []
-    for token in text.replace(",", " ").split():
-        if token[0] in "+-" and len(token) > 1:
+    for token in re.findall(r"[+-]?move\([^)]*\)|[^\s,]+", text):
+        move = MOVE_STEP.fullmatch(re.sub(r"\s", "", token))
+        if move:
+            x, y = int(move.group(2)), int(move.group(3))
+            if not (-128 <= x <= 127 and -128 <= y <= 127):
+                raise ValueError("bad macro step %r (moves are -128..127)" % token)
+            steps.append(Event(move.group(1) != "-", keys.MOVE, (x & 0xFF) | (y & 0xFF) << 8))
+        elif token[0] in "+-" and len(token) > 1:
             kind, code = keys.lookup(token[1:])
             steps.append(Event(token[0] == "+", kind, code))
         elif token.isdigit() and steps:

@@ -111,6 +111,15 @@ class M916Test(unittest.TestCase):
         with self.assertRaises(ValueError):
             cfg.parse_combo("a+b+c+d")
 
+    def test_steps_roundtrip(self):
+        text = "+ctrl 10 +c 10 -c 10 -ctrl +move(5,-3) 20 -move(0,0) +key:0x99 -media:0x0123"
+        steps = cfg.parse_steps(text.replace("move(5,-3)", "move(5, -3)"))
+        self.assertEqual(steps[4], cfg.Event(True, 5, 0xFD05, 20))
+        self.assertEqual(cfg.format_steps(steps), text.replace("0x0123", "0x123"))
+        self.assertEqual(cfg.parse_steps(cfg.format_steps(steps)), steps)
+        with self.assertRaises(ValueError):
+            cfg.parse_steps("+move(200,0)")
+
     def test_cli_shortcut_writes_block_first(self):
         writes = []
         write_flash = self.mouse.write_flash

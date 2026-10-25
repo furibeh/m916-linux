@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Key names for shortcut and macro events (HID usages, see docs/PROTOCOL.md)."""
+import re
 
 # Event kinds, the low nibble of the first byte of an event (DriverLib.HID_CODE_TYPE)
 MODIFIER, KEY, MEDIA, POWER, MOUSE, MOVE = range(6)
@@ -79,9 +80,13 @@ def lookup(name):
         return MEDIA, MEDIA_KEYS[name]
     if name in MOUSE_BUTTONS:
         return MOUSE, MOUSE_BUTTONS[name]
+    kind, _, code = name.partition(":")  # name() of a code without a name, e.g. "key:0x99"
+    if kind in _KINDS and re.fullmatch(r"0x[0-9a-f]{1,4}", code):
+        return _KINDS[kind], int(code, 16)
     raise KeyError("unknown key name %r" % name)
 
 
+_KINDS = {n: k for k, n in KIND_NAMES.items() if k != MOVE}
 _NAMES = {}
 for _table, _kind in ((MODIFIERS, MODIFIER), (KEYS, KEY), (MEDIA_KEYS, MEDIA),
                       (MOUSE_BUTTONS, MOUSE)):
