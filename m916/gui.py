@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QButtonGroup, QC
                                QStackedWidget, QTabWidget, QTableWidget, QTableWidgetItem,
                                QVBoxLayout, QWidget)
 
-from . import __version__, config as cfg, keys
+from . import __version__, config as cfg, keys, profile
 from .protocol import (FLASH_SIZE, STATUS_BATTERY, STATUS_DPI, Mouse, MouseAsleep, ProtocolError,
                        find_devices)
 
@@ -714,6 +714,7 @@ class ButtonRow:
     def load(self, value, conf):
         self._loading = True
         self.raw = tuple(value)
+        self.raw_events = conf.shortcuts.get(self.index)  # kept for shortcuts shown as OTHER
         self.macro, self.repeat = None, 1
         other = self.combo.findData(OTHER)
         if other >= 0:
@@ -763,6 +764,8 @@ class ButtonRow:
         k = self.index
         if self.error() or key == OTHER:
             conf.buttons[k] = self.raw
+            if self.raw[0] == cfg.KEY_SHORTCUT and self.raw_events:
+                conf.shortcuts[k] = self.raw_events
         elif key == FIRE:
             conf.buttons[k] = (cfg.KEY_FIRE, self.interval.value(), self.shots.value())
         elif key == DPI_LOCK:
@@ -983,6 +986,8 @@ class LightsTab(QWidget):
 class BackupTab(QWidget):
     dump_requested = Signal(str)
     restore_requested = Signal(str)
+    profile_save_requested = Signal(str)
+    profile_load_requested = Signal(str)
 
     def __init__(self):
         super().__init__()
@@ -998,13 +1003,37 @@ class BackupTab(QWidget):
         buttons.addWidget(self.dump_btn)
         buttons.addWidget(self.restore_btn)
         buttons.addStretch()
+        backup = QGroupBox("Copia completa")
+        box = QVBoxLayout(backup)
+        box.addWidget(text)
+        box.addLayout(buttons)
+        box.addWidget(self.bar)
+
+        text = QLabel("Un perfil guarda la configuración (DPI, botones, macros y opciones) en "
+                      "un archivo JSON legible que se puede editar a mano: por ejemplo, uno para "
+                      "juegos y otro para oficina. Se guarda lo que ves en pantalla. Al cargarlo, "
+                      "sus valores aparecen como cambios sin aplicar; lo que el perfil no "
+                      "incluya se queda como está.")
+        text.setWordWrap(True)
+        self.save_profile_btn = QPushButton(QIcon.fromTheme("document-save-as"), "Guardar perfil…")
+        self.load_profile_btn = QPushButton(QIcon.fromTheme("document-open"), "Cargar perfil…")
+        buttons = QHBoxLayout()
+        buttons.addWidget(self.save_profile_btn)
+        buttons.addWidget(self.load_profile_btn)
+        buttons.addStretch()
+        profiles = QGroupBox("Perfiles")
+        box = QVBoxLayout(profiles)
+        box.addWidget(text)
+        box.addLayout(buttons)
+
         layout = QVBoxLayout(self)
-        layout.addWidget(text)
-        layout.addLayout(buttons)
-        layout.addWidget(self.bar)
+        layout.addWidget(backup)
+        layout.addWidget(profiles)
         layout.addStretch()
         self.dump_btn.clicked.connect(self._dump)
         self.restore_btn.clicked.connect(self._restore)
+        self.save_profile_btn.clicked.connect(self._save_profile)
+        self.load_profile_btn.clicked.connect(self._load_profile)
 
     def _dump(self):
         name = "m916-%s.bin" % time.strftime("%Y%m%d-%H%M")
@@ -1019,6 +1048,19 @@ class BackupTab(QWidget):
                                               os.path.expanduser("~"), "Volcado de flash (*.bin)")
         if path:
             self.restore_requested.emit(path)
+
+    def _save_profile(self):
+        path, _ = QFileDialog.getSaveFileName(self, "Guardar perfil",
+                                              os.path.join(os.path.expanduser("~"), "m916.json"),
+                                              "Perfil (*.json)")
+        if path:
+            self.profile_save_requested.emit(path)
+
+    def _load_profile(self):
+        path, _ = QFileDialog.getOpenFileName(self, "Cargar perfil", os.path.expanduser("~"),
+                                              "Perfil (*.json)")
+        if path:
+            self.profile_load_requested.emit(path)
 
     def set_busy(self, busy):
         self.dump_btn.setEnabled(not busy)
@@ -1066,7 +1108,7 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.buttons, QIcon.fromTheme("input-keyboard"), "Botones")
         self.tabs.addTab(self.performance, QIcon.fromTheme("speedometer"), "Rendimiento")
         self.tabs.addTab(self.lights, QIcon.fromTheme("lighttable"), "Luces")
-        self.tabs.addTab(self.backup, QIcon.fromTheme("document-save"), "Copia de seguridad")
+        self.tabs.addTab(self.backup, QIcon.fromTheme("document-save"), "Copias y perfiles")
 
         self.reload_btn = QPushButton(QIcon.fromTheme("view-refresh"), "Recargar")
         self.revert_btn = QPushButton(QIcon.fromTheme("edit-undo"), "Descartar cambios")
@@ -1093,6 +1135,8 @@ class MainWindow(QMainWindow):
         self.apply_btn.clicked.connect(self._apply)
         self.backup.dump_requested.connect(lambda p: self._submit("dump", p))
         self.backup.restore_requested.connect(self._restore)
+        self.backup.profile_save_requested.connect(self.save_profile)
+        self.backup.profile_load_requested.connect(self.load_profile)
 
         worker.state_changed.connect(self._state_changed)
         worker.info.connect(self._info)
@@ -1131,6 +1175,8 @@ class MainWindow(QMainWindow):
         self.tabs.setEnabled(self.image is not None)
         for btn in (self.backup.dump_btn, self.backup.restore_btn):
             btn.setEnabled(self.state == STATE_ONLINE and not self._busy)
+        for btn in (self.backup.save_profile_btn, self.backup.load_profile_btn):
+            btn.setEnabled(self.image is not None and not self._busy)
         self.setWindowTitle("Redragon M916-PRO-1K" + (" *" if dirty else ""))
 
     def _load_widgets(self, image):
@@ -1184,6 +1230,32 @@ class MainWindow(QMainWindow):
                                       "\n\nLos cambios sin aplicar se perderán. ¿Continuar?" % path)
         if answer == QMessageBox.StandardButton.Yes:
             self._submit("restore", image)
+
+    def save_profile(self, path):
+        errors = self.buttons.errors()
+        if errors:
+            QMessageBox.warning(self, "Guardar perfil", "Corrige primero los botones:\n\n"
+                                + "\n".join(errors))
+            return
+        try:
+            profile.save(path, self._current_config())
+        except OSError as e:
+            QMessageBox.critical(self, "Guardar perfil", str(e))
+            return
+        self.statusBar().showMessage("Perfil guardado en %s" % path, 8000)
+
+    def load_profile(self, path):
+        """Show the profile as unapplied changes on top of what is on screen."""
+        conf = self._current_config()
+        try:
+            profile.apply(conf, profile.load(path))
+        except profile.ProfileError as e:
+            QMessageBox.warning(self, "Perfil no válido", "No se ha cargado %s:\n\n%s"
+                                % (path, "\n".join(e.errors)))
+            return
+        self._load_widgets(conf.encode(self.image))
+        self._update_actions()
+        self.statusBar().showMessage("Perfil cargado: revisa los cambios y pulsa Aplicar", 8000)
 
     # --- worker signals ------------------------------------------------------------------
     def _state_changed(self, state, path):

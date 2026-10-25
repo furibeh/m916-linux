@@ -19,6 +19,9 @@ GUI usa PySide6 (Qt 6).
   valida y calcula qué campos cambiaron (`changed_fields`) y qué escribir al restaurar
   (`restore_writes`). Las dos interfaces se apoyan en él: la lógica va aquí, no en la CLI ni
   en la GUI.
+- `m916/profile.py`: perfiles JSON (`docs/PROFILES.md`) sobre el modelo de `config.py`:
+  `dumps`/`save` y `apply`, que valida y acepta perfiles parciales. Si añades un campo al
+  modelo, añádelo también aquí y en la documentación del formato.
 - `m916/keys.py`: nombres de tecla, usos HID y códigos evdev de Linux.
 - `m916/cli.py`: `python3 -m m916 …`.
 - `m916/gui.py`: `python3 -m m916.gui`. Un único hilo (`DeviceWorker`) es dueño del dispositivo.

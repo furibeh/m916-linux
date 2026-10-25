@@ -38,12 +38,14 @@ install -Dm644 data/io.github.furibeh.m916-linux.desktop \
 
 Pestañas de DPI (niveles, valores y colores), botones, rendimiento (frecuencia de sondeo,
 debounce, LOD, modo y opciones del sensor), luces (efecto, brillo y velocidad del LED de DPI,
-apagado en reposo) y copia de seguridad. Cada botón puede ser un clic, una
+apagado en reposo) y copias y perfiles. Cada botón puede ser un clic, una
 función de DPI o scroll, disparo repetido, bloqueo de DPI, un atajo de teclado (se escribe o
 se captura pulsándolo), una tecla multimedia o una macro, con un editor que permite grabar
 pulsaciones de teclado y ratón con sus tiempos. Los cambios se editan en local y
 **Aplicar** escribe solo los campos modificados, verificando cada uno. Muestra la batería y
-sigue en vivo los cambios hechos desde el propio ratón, como el nivel de DPI.
+sigue en vivo los cambios hechos desde el propio ratón, como el nivel de DPI. Los perfiles
+JSON se guardan y se cargan desde la pestaña **Copias y perfiles**: al cargar uno, sus valores
+aparecen como cambios sin aplicar.
 
 Para probarla sin el ratón: `python3 -m m916.gui --fake tests/fixtures/m916_flash.bin`.
 
@@ -69,11 +71,46 @@ m916 keys                     # nombres de tecla disponibles
 m916 option debounce 4        # opciones de un byte: info muestra su significado y
                               # option --help los valores (lod, sensor-mode, dpi-led…)
 m916 restore copia.bin        # reescribe solo lo que cambió y verifica
+m916 profile save juegos.json # guarda la configuración como perfil JSON
+m916 profile load juegos.json # aplica un perfil (--dry-run para ver qué cambiaría)
 m916 watch                    # notificaciones en vivo (DPI, batería…)
 ```
 
 Cada escritura se verifica volviendo a leer. Si el ratón está dormido, la herramienta pide
 moverlo y espera hasta 10 s.
+
+## Perfiles
+
+Además de la copia completa, la configuración se puede guardar como un perfil JSON legible y
+editable, por ejemplo uno para juegos y otro para oficina. Al cargar un perfil solo se
+escriben los campos que cambian, y lo que el perfil no incluye se queda como está. Este perfil
+parcial solo toca la frecuencia, dos niveles de DPI y tres botones:
+
+```json
+{
+  "format": "m916-profile",
+  "version": 1,
+  "model": "Redragon M916-PRO-1K",
+  "report_rate": 1000,
+  "dpi": {
+    "count": 2,
+    "active": 1,
+    "levels": [
+      {"x": 800, "y": 800, "color": "#00ff00"},
+      {"x": 1600, "y": 1600, "color": "#ff0000"}
+    ]
+  },
+  "buttons": {
+    "6": {"action": "dpi-lock", "dpi": 400},
+    "7": {"action": "shortcut", "keys": "ctrl+c"},
+    "8": {"action": "macro", "name": "copiar", "repeat": 1,
+          "steps": ["+ctrl 10", "+c 10", "-c 10", "-ctrl"]}
+  }
+}
+```
+
+`m916 profile save` escribe un perfil completo. El formato completo (opciones, disparo
+repetido, teclas multimedia, macros y validación) está en [docs/PROFILES.md](docs/PROFILES.md).
 
 ## Tests
 
@@ -89,6 +126,7 @@ así que no hace falta hardware. Los de la interfaz se saltan si PySide6 no est�
 - `m916/protocol.py`: transporte HID y acceso a la flash.
 - `m916/config.py`: modelo de la configuración (decodificar, codificar, validar y diferencias),
   incluidos los bloques de atajos y macros.
+- `m916/profile.py`: perfiles JSON (guardar, validar y aplicar sobre el modelo).
 - `m916/keys.py`: nombres de teclas, códigos HID y correspondencia con los códigos de Linux.
 - `m916/cli.py` y `m916/gui.py`: las dos interfaces, sobre el mismo modelo.
 - `m916/fake.py`: ratón simulado para tests y desarrollo.
@@ -115,7 +153,7 @@ tools/ghidra/make_flatpak_shim.sh
 
 Funciona: lectura completa, DPI, colores, número de niveles y nivel activo, report rate,
 todas las funciones de botón (incluidos atajos, teclas multimedia y macros), opciones de un
-byte, volcado/restauración, notificaciones e interfaz gráfica.
+byte, volcado/restauración, perfiles JSON, notificaciones e interfaz gráfica.
 
 Pendiente: las funciones del receptor (largo alcance, emparejamiento) y confirmar en el
 hardware el modo del sensor y los tiempos de reposo.

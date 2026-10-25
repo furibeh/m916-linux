@@ -188,6 +188,60 @@ class GuiTest(unittest.TestCase):
         self.wait_for(lambda: self.window.dpi.active.checkedId() == 3)
         self.assertFalse(self.window._dirty())
 
+    def test_profiles(self):
+        import json
+        import tempfile
+        from m916 import config as cfg
+        w = self.window
+        with tempfile.TemporaryDirectory() as tmp:
+            # Saved from the screen, unapplied edits included
+            w.dpi.rows[0][2].setValue(1200)
+            saved = os.path.join(tmp, "oficina.json")
+            w.save_profile(saved)
+            with open(saved) as f:
+                self.assertEqual(json.load(f)["dpi"]["levels"][0]["x"], 1200)
+            w.revert_btn.click()
+
+            path = os.path.join(tmp, "juegos.json")
+            with open(path, "w") as f:
+                json.dump({"format": "m916-profile", "version": 1,
+                           "model": "Redragon M916-PRO-1K", "report_rate": 500,
+                           "buttons": {"7": {"action": "macro", "name": "hola",
+                                             "steps": ["+h 20", "-h"]},
+                                       "8": {"action": "shortcut",
+                                             "events": ["+ctrl", "+a", "-ctrl", "-a"]}}}, f)
+            w.load_profile(path)
+        # Shown as unapplied changes: nothing written yet
+        self.assertEqual(w.performance.rate.currentText(), "500 Hz")
+        self.assertEqual(w.buttons.rows[6].macro.name, "hola")
+        self.assertTrue(w._dirty())
+        self.assertTrue(w.apply_btn.isEnabled())
+        self.assertEqual(self.flash(), self.original)
+        w.apply_btn.click()
+        self.wait_for(lambda: not w._busy)
+        flash = self.flash()
+        self.assertEqual(flash[0], cfg.RATES[500])
+        self.assertEqual(cfg.Macro.decode(flash[cfg.macro_addr(6):]).name, "hola")
+        self.assertEqual(cfg.format_steps(cfg.decode_shortcut(flash[cfg.shortcut_addr(7):])),
+                         "+ctrl +a -ctrl -a")
+        self.assertFalse(w._dirty())
+
+    def test_invalid_profile_changes_nothing(self):
+        import json
+        import tempfile
+        from unittest import mock
+        from PySide6.QtWidgets import QMessageBox
+        w = self.window
+        with tempfile.NamedTemporaryFile("w", suffix=".json") as f:
+            json.dump({"format": "m916-profile", "version": 1, "model": "Redragon M916-PRO-1K",
+                       "report_rate": 500, "buttons": {"7": "jump"}}, f)
+            f.flush()
+            with mock.patch.object(QMessageBox, "warning") as warning:
+                w.load_profile(f.name)
+        self.assertIn("unknown action 'jump'", warning.call_args[0][2])
+        self.assertEqual(w.performance.rate.currentText(), "1000 Hz")
+        self.assertFalse(w._dirty())
+
 
 if __name__ == "__main__":
     unittest.main()
