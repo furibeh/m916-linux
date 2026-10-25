@@ -6,14 +6,28 @@ por ejemplo una para juegos y otra para oficina, y cambiar entre ellas. No susti
 completa (`m916 dump`), que guarda la memoria entera byte a byte.
 
 ```sh
-m916 profile save juegos.json          # guarda la configuración actual
-m916 profile load juegos.json --dry-run  # muestra cuántos campos cambiarían
-m916 profile load juegos.json          # escribe solo lo que cambia y lo verifica
+m916 profile save juegos -m "Para jugar"  # guarda la configuración actual
+m916 profile list                         # perfiles guardados, con su descripción
+m916 profile load juegos --dry-run        # muestra cuántos campos cambiarían
+m916 profile load juegos                  # escribe solo lo que cambia y lo verifica
 ```
 
-En la interfaz gráfica están en la pestaña **Copias y perfiles**. *Guardar perfil…* guarda lo
-que se ve en pantalla, incluidos los cambios sin aplicar. *Cargar perfil…* rellena los
-controles como cambios sin aplicar: revísalos y pulsa **Aplicar** o **Descartar cambios**.
+## Dónde se guardan
+
+Los perfiles van por defecto a `~/.config/m916/profiles/` (o a
+`$XDG_CONFIG_HOME/m916/profiles/` si esa variable está definida), que se crea al guardar el
+primero. En la CLI:
+
+- Un nombre sin `/` y sin `.json` (`juegos`) es `juegos.json` en esa carpeta.
+- Una ruta con `/` o terminada en `.json` (`./juegos.json`, `~/perfiles/oficina.json`) se usa
+  tal cual, así que un perfil puede estar en cualquier sitio.
+- `m916 profile list` muestra los perfiles de la carpeta con su descripción (`description`,
+  que se pone con `profile save -m TEXTO`) y no necesita el ratón conectado.
+
+En la interfaz gráfica están en la pestaña **Copias y perfiles**, y los diálogos se abren en
+esa carpeta. *Guardar perfil…* guarda lo que se ve en pantalla, incluidos los cambios sin
+aplicar. *Cargar perfil…* rellena los controles como cambios sin aplicar: revísalos y pulsa
+**Aplicar** o **Descartar cambios**.
 
 La lógica está en `m916/profile.py`.
 
@@ -93,7 +107,7 @@ La lógica está en `m916/profile.py`.
 
 `format` (`"m916-profile"`), `version` (`1`) y `model` (`"Redragon M916-PRO-1K"`) son
 obligatorios. Si la versión o el modelo no coinciden, el perfil se rechaza. `description` es
-opcional y se ignora al cargar.
+opcional: la muestra `m916 profile list` y se ignora al cargar.
 
 ### Perfiles parciales
 

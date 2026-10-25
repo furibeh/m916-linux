@@ -71,8 +71,9 @@ m916 keys                     # nombres de tecla disponibles
 m916 option debounce 4        # opciones de un byte: info muestra su significado y
                               # option --help los valores (lod, sensor-mode, dpi-led…)
 m916 restore copia.bin        # reescribe solo lo que cambió y verifica
-m916 profile save juegos.json # guarda la configuración como perfil JSON
-m916 profile load juegos.json # aplica un perfil (--dry-run para ver qué cambiaría)
+m916 profile save juegos      # guarda la configuración como perfil JSON
+m916 profile load juegos      # aplica un perfil (--dry-run para ver qué cambiaría)
+m916 profile list             # perfiles guardados en ~/.config/m916/profiles
 m916 watch                    # notificaciones en vivo (DPI, batería…)
 ```
 
@@ -109,6 +110,8 @@ parcial solo toca la frecuencia, dos niveles de DPI y tres botones:
 }
 ```
 
+Los perfiles se guardan en `~/.config/m916/profiles/`: en la CLI basta con el nombre
+(`m916 profile load juegos`), aunque también se puede dar cualquier ruta terminada en `.json`.
 `m916 profile save` escribe un perfil completo. El formato completo (opciones, disparo
 repetido, teclas multimedia, macros y validación) está en [docs/PROFILES.md](docs/PROFILES.md).
 

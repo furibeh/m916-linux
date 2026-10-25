@@ -3,6 +3,7 @@
 
 Unlike a flash dump, a profile may leave sections out: loading it only changes what it has."""
 import json
+import os
 import re
 
 from . import config as cfg, keys
@@ -48,9 +49,11 @@ def button_dict(conf, k):
     return {"raw": list(value)}
 
 
-def to_dict(conf):
+def to_dict(conf, description=None):
     """Whole profile of `conf`; an unknown report rate code is left out."""
     data = {"format": FORMAT, "version": VERSION, "model": MODEL}
+    if description:
+        data["description"] = description
     if conf.report_rate in cfg.RATE_HZ:
         data["report_rate"] = cfg.RATE_HZ[conf.report_rate]
     data["dpi"] = {"count": conf.dpi_count, "active": conf.dpi_active + 1,
@@ -77,13 +80,53 @@ def _encode(value, indent=0, col=0):
     return "{\n%s\n%s}" % (",\n".join(items), " " * indent)
 
 
-def dumps(conf):
-    return _encode(to_dict(conf)) + "\n"
+def dumps(conf, description=None):
+    return _encode(to_dict(conf, description)) + "\n"
 
 
-def save(path, conf):
+def save(path, conf, description=None):
+    """Write the profile; the profiles directory is created when needed."""
+    if os.path.dirname(os.path.abspath(path)) == profiles_dir():
+        os.makedirs(profiles_dir(), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
-        f.write(dumps(conf))
+        f.write(dumps(conf, description))
+
+
+# --- profiles directory ------------------------------------------------------------------
+
+def profiles_dir():
+    """$XDG_CONFIG_HOME/m916/profiles, by default ~/.config/m916/profiles."""
+    base = os.environ.get("XDG_CONFIG_HOME") or os.path.join(os.path.expanduser("~"), ".config")
+    return os.path.join(os.path.abspath(base), "m916", "profiles")
+
+
+def resolve(name):
+    """Path of a profile: a bare name ("juegos") is a file in profiles_dir(); anything with a
+    "/" or ending in .json is a path as given."""
+    if "/" in name or name.endswith(".json"):
+        return name
+    return os.path.join(profiles_dir(), name + ".json")
+
+
+def list_profiles():
+    """(name, path, description or None) of the profiles in profiles_dir(), by name; the
+    description of an unreadable file says so."""
+    try:
+        files = sorted(f for f in os.listdir(profiles_dir()) if f.endswith(".json"))
+    except FileNotFoundError:
+        return []
+    profiles = []
+    for f in files:
+        path = os.path.join(profiles_dir(), f)
+        try:
+            data = load(path)
+            description = data.get("description") if isinstance(data, dict) else None
+            if not isinstance(data, dict) or data.get("format") != FORMAT:
+                description = "(not an M916 profile)"
+        except ProfileError:
+            description = "(unreadable)"
+        profiles.append((f[:-len(".json")], path, description))
+    return profiles
 
 
 # --- loading -----------------------------------------------------------------------------

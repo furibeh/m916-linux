@@ -8,6 +8,7 @@ import os
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from m916 import cli, config as cfg, profile  # noqa: E402
@@ -162,7 +163,7 @@ class ProfileMouseTest(unittest.TestCase):
         other = FakeMouse(custom_image(self.original))
         try:
             m = other.mouse()
-            self.run_cmd(cli.cmd_profile_save, mouse=m, file=self.path)
+            self.run_cmd(cli.cmd_profile_save, mouse=m, file=self.path, description=None)
             expected = cfg.read_image(m)
         finally:
             other.close()
@@ -215,6 +216,69 @@ class ProfileMouseTest(unittest.TestCase):
         with self.assertRaises(SystemExit) as cm:
             cli.main(["-d", "/nonexistent", "profile", "load", self.path])
         self.assertIn("unsupported profile version 3", str(cm.exception.code))
+
+
+class ProfilesDirTest(unittest.TestCase):
+    """Bare names live in $XDG_CONFIG_HOME/m916/profiles."""
+
+    def setUp(self):
+        with open(FIXTURE, "rb") as f:
+            self.original = f.read()
+        self.fake = FakeMouse(self.original)
+        self.mouse = self.fake.mouse()
+        self.tmp = tempfile.TemporaryDirectory()
+        env = mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": self.tmp.name})
+        env.start()
+        self.addCleanup(env.stop)
+        self.dir = os.path.join(self.tmp.name, "m916", "profiles")
+
+    def tearDown(self):
+        self.fake.close()
+        self.tmp.cleanup()
+
+    def run_main(self, *argv):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
+            cli.main(["-d", "/nonexistent", *argv])
+        return out.getvalue()
+
+    def run_cmd(self, func, **kwargs):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
+            func(self.mouse, argparse.Namespace(**kwargs))
+        return out.getvalue()
+
+    def test_dir_and_resolve(self):
+        self.assertEqual(profile.profiles_dir(), self.dir)
+        self.assertEqual(profile.resolve("juegos"), os.path.join(self.dir, "juegos.json"))
+        self.assertEqual(profile.resolve("juegos.json"), "juegos.json")
+        self.assertEqual(profile.resolve("perfiles/juegos"), "perfiles/juegos")
+        with mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": "", "HOME": "/home/u"}):
+            self.assertEqual(profile.profiles_dir(), "/home/u/.config/m916/profiles")
+
+    def test_save_list_and_load_by_name(self):
+        self.assertIn("no profiles in %s" % self.dir, self.run_main("profile", "list"))
+        out = self.run_cmd(cli.cmd_profile_save, file="juegos", description="Para jugar")
+        path = os.path.join(self.dir, "juegos.json")
+        self.assertIn("saved to %s" % path, out)
+        with open(path) as f:
+            self.assertEqual(json.load(f)["description"], "Para jugar")
+        self.run_cmd(cli.cmd_profile_save, file="oficina", description=None)
+        with open(os.path.join(self.dir, "roto.json"), "w") as f:
+            f.write("{")
+        with open(os.path.join(self.dir, "notas.txt"), "w") as f:
+            f.write("not a profile")
+        # Listing does not need the mouse (-d /nonexistent)
+        out = self.run_main("profile", "list")
+        self.assertEqual(out.splitlines()[1:], ["  juegos   Para jugar", "  oficina",
+                                                "  roto     (unreadable)"])
+        out = self.run_cmd(cli.cmd_profile_load, file="juegos", dry_run=False)
+        self.assertIn("nothing to do", out)
+
+    def test_load_missing_name(self):
+        with self.assertRaises(SystemExit) as cm:
+            self.run_main("profile", "load", "nada")
+        self.assertIn(os.path.join(self.dir, "nada.json"), str(cm.exception.code))
 
 
 if __name__ == "__main__":

@@ -1013,7 +1013,9 @@ class BackupTab(QWidget):
                       "un archivo JSON legible que se puede editar a mano: por ejemplo, uno para "
                       "juegos y otro para oficina. Se guarda lo que ves en pantalla. Al cargarlo, "
                       "sus valores aparecen como cambios sin aplicar; lo que el perfil no "
-                      "incluya se queda como está.")
+                      "incluya se queda como está. Por defecto se guardan en %s, donde también "
+                      "los encuentra <tt>m916 profile list</tt>."
+                      % profile.profiles_dir().replace(os.path.expanduser("~"), "~", 1))
         text.setWordWrap(True)
         self.save_profile_btn = QPushButton(QIcon.fromTheme("document-save-as"), "Guardar perfil…")
         self.load_profile_btn = QPushButton(QIcon.fromTheme("document-open"), "Cargar perfil…")
@@ -1049,15 +1051,25 @@ class BackupTab(QWidget):
         if path:
             self.restore_requested.emit(path)
 
+    @staticmethod
+    def _profiles_dir():
+        try:
+            os.makedirs(profile.profiles_dir(), exist_ok=True)
+        except OSError:
+            return os.path.expanduser("~")
+        return profile.profiles_dir()
+
     def _save_profile(self):
         path, _ = QFileDialog.getSaveFileName(self, "Guardar perfil",
-                                              os.path.join(os.path.expanduser("~"), "m916.json"),
+                                              os.path.join(self._profiles_dir(), "perfil.json"),
                                               "Perfil (*.json)")
         if path:
+            if not path.endswith(".json"):
+                path += ".json"
             self.profile_save_requested.emit(path)
 
     def _load_profile(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Cargar perfil", os.path.expanduser("~"),
+        path, _ = QFileDialog.getOpenFileName(self, "Cargar perfil", self._profiles_dir(),
                                               "Perfil (*.json)")
         if path:
             self.profile_load_requested.emit(path)

@@ -198,16 +198,17 @@ def cmd_macro(m, args):
 
 
 def cmd_profile_save(m, args):
+    path = profile.resolve(args.file)
     image, conf = load(m)
-    profile.save(args.file, conf)
+    profile.save(path, conf, args.description)
     if conf.report_rate not in cfg.RATE_HZ:
         print("warning: unknown report rate code 0x%02x left out" % conf.report_rate)
-    print("profile saved to %s" % args.file)
+    print("profile saved to %s" % path)
 
 
 def cmd_profile_load(m, args):
     try:
-        data = profile.load(args.file)
+        data = profile.load(profile.resolve(args.file))
         image, conf = load(m)
         profile.apply(conf, data)
     except profile.ProfileError as e:
@@ -222,6 +223,17 @@ def cmd_profile_load(m, args):
         return
     m.write_fields(fields, new)
     print("profile applied and verified")
+
+
+def cmd_profile_list(m, args):
+    profiles = profile.list_profiles()
+    if not profiles:
+        print("no profiles in %s (save one with: m916 profile save NAME)" % profile.profiles_dir())
+        return
+    print("profiles in %s:" % profile.profiles_dir())
+    width = max(len(name) for name, _, _ in profiles)
+    for name, _, description in profiles:
+        print(("  %-*s  %s" % (width, name, description or "")).rstrip())
 
 
 def cmd_keys(m, args):
@@ -303,17 +315,21 @@ def build_parser():
                    help="times to run (1..%d), or %s" % (cfg.REPEAT_COUNT_MAX,
                                                         "|".join(cfg.REPEAT_MODES)))
     p.set_defaults(func=cmd_macro)
-    p = sub.add_parser("profile", help="save or load the configuration as a JSON profile",
-                       epilog="a profile may leave sections out; loading it only writes the "
-                              "fields that change (see docs/PROFILES.md)")
+    p = sub.add_parser("profile", help="save, load or list JSON profiles",
+                       epilog="a bare NAME is NAME.json in %s; a path with '/' or ending in "
+                              ".json is used as given. A profile may leave sections out; "
+                              "loading it only writes the fields that change "
+                              "(see docs/PROFILES.md)" % profile.profiles_dir())
     psub = p.add_subparsers(dest="profile_command", required=True)
     p = psub.add_parser("save", help="save the current configuration")
-    p.add_argument("file")
+    p.add_argument("file", metavar="NAME|FILE")
+    p.add_argument("-m", "--description", help="text shown by 'profile list'")
     p.set_defaults(func=cmd_profile_save)
     p = psub.add_parser("load", help="apply a profile (only the fields that change)")
-    p.add_argument("file")
+    p.add_argument("file", metavar="NAME|FILE")
     p.add_argument("-n", "--dry-run", action="store_true", help="only show what would change")
     p.set_defaults(func=cmd_profile_load)
+    psub.add_parser("list", help="list the saved profiles").set_defaults(func=cmd_profile_list)
     sub.add_parser("keys", help="list key names for shortcuts and macros").set_defaults(func=cmd_keys)
     sub.add_parser("watch", help="print status notifications").set_defaults(func=cmd_watch)
     return ap
@@ -322,13 +338,13 @@ def build_parser():
 def main(argv=None):
     ap = build_parser()
     args = ap.parse_args(argv)
-    if args.command == "keys":
+    if args.command == "keys" or getattr(args, "profile_command", None) == "list":
         return args.func(None, args)
     if args.command == "button":
         parse_action(args.action)  # fail before touching the device
     if args.command == "profile" and args.profile_command == "load":
         try:
-            profile.check(profile.load(args.file))
+            profile.check(profile.load(profile.resolve(args.file)))
         except profile.ProfileError as e:
             sys.exit("error: " + "\n  ".join(e.errors))
 
