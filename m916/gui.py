@@ -8,13 +8,15 @@ import time
 
 from PySide6.QtCore import QObject, QThread, Qt, Signal
 from PySide6.QtGui import QColor, QIcon
-from PySide6.QtWidgets import (QApplication, QButtonGroup, QCheckBox, QColorDialog, QComboBox,
-                               QFileDialog, QFormLayout, QGridLayout, QGroupBox, QHBoxLayout,
-                               QLabel, QMainWindow, QMessageBox, QProgressBar, QPushButton,
-                               QRadioButton, QScrollArea, QSpinBox, QTabWidget, QVBoxLayout,
-                               QWidget)
+from PySide6.QtWidgets import (QAbstractItemView, QApplication, QButtonGroup, QCheckBox,
+                               QColorDialog, QComboBox, QDialog, QDialogButtonBox, QFileDialog,
+                               QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout,
+                               QHeaderView, QLabel, QLineEdit, QMainWindow, QMessageBox,
+                               QProgressBar, QPushButton, QRadioButton, QScrollArea, QSpinBox,
+                               QStackedWidget, QTabWidget, QTableWidget, QTableWidgetItem,
+                               QVBoxLayout, QWidget)
 
-from . import __version__, config as cfg
+from . import __version__, config as cfg, keys
 from .protocol import (FLASH_SIZE, STATUS_BATTERY, STATUS_DPI, Mouse, MouseAsleep, ProtocolError,
                        find_devices)
 
@@ -27,7 +29,7 @@ class DeviceWorker(QObject):
 
     state_changed = Signal(str, str)        # state, device path
     info = Signal(object)                   # {"firmware": bytes, "battery": (lvl, chg, mv)}
-    config_loaded = Signal(object)          # CONFIG_SIZE image
+    config_loaded = Signal(object)          # image from cfg.read_image()
     progress = Signal(int, int)
     job_done = Signal(str, object)
     job_failed = Signal(str, str)
@@ -138,7 +140,7 @@ class DeviceWorker(QObject):
             if not m.online():
                 raise MouseAsleep("sin respuesta")
             self.info.emit({"firmware": m.version(), "battery": m.battery()})
-            self.config_loaded.emit(m.read_flash(0, cfg.CONFIG_SIZE))
+            self.config_loaded.emit(cfg.read_image(m))
         elif name == "battery":
             self.info.emit({"battery": m.battery()})
         elif name == "active":
@@ -163,7 +165,7 @@ class DeviceWorker(QObject):
                 raise ProtocolError("La verificación falló tras restaurar")
             self.progress.emit(1, 1)
             self.job_done.emit(name, len(chunks))
-            self.config_loaded.emit(m.read_flash(0, cfg.CONFIG_SIZE))
+            self.config_loaded.emit(cfg.read_image(m))
 
 
 class DpiSpinBox(QSpinBox):
@@ -305,63 +307,478 @@ BUTTON_LABELS = [
     ("dpi-loop", "DPI: ciclo"),
     ("dpi-up", "DPI: subir"),
     ("dpi-down", "DPI: bajar"),
+    ("scroll-up", "Scroll: arriba"),
+    ("scroll-down", "Scroll: abajo"),
     ("scroll-left", "Scroll horizontal: izquierda"),
     ("scroll-right", "Scroll horizontal: derecha"),
     ("report-rate", "Cambiar frecuencia de sondeo"),
 ]
-FIRE = "fire"
-OTHER = "other"
+FIRE, DPI_LOCK, SHORTCUT, MEDIA, MACRO, OTHER = "fire", "dpi-lock", "shortcut", "media", "macro", "other"
+SPECIAL_LABELS = [(FIRE, "Disparo repetido"), (DPI_LOCK, "Bloqueo de DPI"),
+                  (SHORTCUT, "Atajo de teclado"), (MEDIA, "Tecla multimedia"), (MACRO, "Macro")]
+
+MEDIA_LABELS = {
+    "play-pause": "Reproducir/pausa", "next": "Siguiente pista", "previous": "Pista anterior",
+    "stop": "Detener", "mute": "Silenciar", "volume-up": "Subir volumen",
+    "volume-down": "Bajar volumen", "media-player": "Reproductor multimedia", "email": "Correo",
+    "calculator": "Calculadora", "my-computer": "Mi equipo", "www-search": "Buscar",
+    "www-home": "Navegador: inicio", "www-back": "Navegador: atrás",
+    "www-forward": "Navegador: adelante", "www-stop": "Navegador: detener",
+    "www-refresh": "Navegador: recargar", "www-favorites": "Favoritos",
+}
+
+QT_KEY_NAMES = {
+    Qt.Key.Key_Control: "ctrl", Qt.Key.Key_Shift: "shift", Qt.Key.Key_Alt: "alt",
+    Qt.Key.Key_Meta: "super", Qt.Key.Key_AltGr: "ralt", Qt.Key.Key_Return: "enter",
+    Qt.Key.Key_Enter: "kpenter", Qt.Key.Key_Escape: "esc", Qt.Key.Key_Tab: "tab",
+    Qt.Key.Key_Backspace: "backspace", Qt.Key.Key_Space: "space", Qt.Key.Key_Delete: "delete",
+    Qt.Key.Key_Insert: "insert", Qt.Key.Key_Home: "home", Qt.Key.Key_End: "end",
+    Qt.Key.Key_PageUp: "pageup", Qt.Key.Key_PageDown: "pagedown", Qt.Key.Key_Left: "left",
+    Qt.Key.Key_Right: "right", Qt.Key.Key_Up: "up", Qt.Key.Key_Down: "down",
+    Qt.Key.Key_Print: "printscreen", Qt.Key.Key_Pause: "pause", Qt.Key.Key_Menu: "menu",
+    Qt.Key.Key_CapsLock: "capslock", Qt.Key.Key_VolumeMute: "mute",
+    Qt.Key.Key_VolumeUp: "volume-up", Qt.Key.Key_VolumeDown: "volume-down",
+    Qt.Key.Key_MediaPlay: "play-pause", Qt.Key.Key_MediaTogglePlayPause: "play-pause",
+    Qt.Key.Key_MediaNext: "next", Qt.Key.Key_MediaPrevious: "previous",
+    Qt.Key.Key_MediaStop: "stop",
+}
+MOUSE_NAMES = {Qt.MouseButton.LeftButton: "mouse-left", Qt.MouseButton.RightButton: "mouse-right",
+               Qt.MouseButton.MiddleButton: "mouse-middle", Qt.MouseButton.BackButton: "mouse-back",
+               Qt.MouseButton.ForwardButton: "mouse-forward"}
+
+
+def key_event_name(event):
+    """Key name (see keys.py) of a QKeyEvent: the physical key when Qt reports the evdev scan
+    code, since the mouse sends positions and the layout is applied by the computer."""
+    scan = event.nativeScanCode()
+    if scan > 8 and scan - 8 in keys.EVDEV:
+        return keys.EVDEV[scan - 8]
+    key = event.key()
+    if Qt.Key.Key_A <= key <= Qt.Key.Key_Z or Qt.Key.Key_0 <= key <= Qt.Key.Key_9:
+        return chr(key).lower()
+    if Qt.Key.Key_F1 <= key <= Qt.Key.Key_F24:
+        return "f%d" % (key - Qt.Key.Key_F1 + 1)
+    return QT_KEY_NAMES.get(Qt.Key(key))
+
+
+class ShortcutEdit(QLineEdit):
+    """Key combination as text ("ctrl+shift+t"); while capturing, the keys pressed fill it."""
+    capture_finished = Signal()
+
+    def __init__(self):
+        super().__init__()
+        self.setPlaceholderText("p. ej. ctrl+c")
+        self.capturing = False
+        self._held = set()
+        self.textChanged.connect(self._validate)
+
+    def events(self):
+        try:
+            return cfg.parse_combo(self.text())
+        except (KeyError, ValueError):
+            return None
+
+    def _validate(self):
+        ok = self.events() is not None
+        self.setStyleSheet("" if ok else "QLineEdit { color: palette(link-visited); }")
+        self.setToolTip("" if ok else "Combinación no válida: usa nombres como ctrl, shift, alt, "
+                                      "super, a–z, 0–9, f1–f24, enter, esc, tab, space… "
+                                      "(hasta %d teclas)" % cfg.SHORTCUT_KEYS_MAX)
+
+    def start_capture(self):
+        self.capturing = True
+        self._held.clear()
+        self._names = []
+        self.setText("")
+        self.setPlaceholderText("Pulsa la combinación…")
+        self.setFocus()
+        self.grabKeyboard()
+
+    def _stop_capture(self):
+        self.capturing = False
+        self.releaseKeyboard()
+        self.setPlaceholderText("p. ej. ctrl+c")
+        self.capture_finished.emit()
+
+    def keyPressEvent(self, event):
+        if not self.capturing:
+            return super().keyPressEvent(event)
+        name = key_event_name(event)
+        if event.isAutoRepeat() or not name:
+            return
+        self._held.add(name)
+        if name not in self._names and len(self._names) < cfg.SHORTCUT_KEYS_MAX:
+            self._names.append(name)
+            self.setText("+".join(self._names))
+
+    def keyReleaseEvent(self, event):
+        if not self.capturing:
+            return super().keyReleaseEvent(event)
+        if event.isAutoRepeat():
+            return
+        self._held.discard(key_event_name(event))
+        if not self._held and self._names:
+            self._stop_capture()
+
+    def focusOutEvent(self, event):
+        if self.capturing:
+            self._stop_capture()
+        super().focusOutEvent(event)
+
+
+class RecordArea(QLabel):
+    """Records key and mouse button presses/releases with the time between them."""
+    recorded = Signal(object)  # (ms since the previous one, cfg.Event)
+
+    def __init__(self):
+        super().__init__("Pulsa teclas o botones del ratón aquí")
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setMinimumHeight(48)
+        self.setFrameShape(QFrame.Shape.StyledPanel)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.last = None
+
+    def _add(self, press, name):
+        if not name:
+            return
+        now = time.monotonic()
+        delay = 0 if self.last is None else min(0xFFFF, round((now - self.last) * 1000))
+        self.last = now
+        kind, code = keys.lookup(name)
+        self.recorded.emit((delay, cfg.Event(press, kind, code)))
+
+    def keyPressEvent(self, event):
+        if not event.isAutoRepeat():
+            self._add(True, key_event_name(event))
+
+    def keyReleaseEvent(self, event):
+        if not event.isAutoRepeat():
+            self._add(False, key_event_name(event))
+
+    def mousePressEvent(self, event):
+        self.setFocus()
+        self._add(True, MOUSE_NAMES.get(event.button()))
+
+    def mouseReleaseEvent(self, event):
+        self._add(False, MOUSE_NAMES.get(event.button()))
+
+
+class MacroDialog(QDialog):
+    REPEAT_COUNT = "count"
+
+    def __init__(self, parent, macro, repeat):
+        super().__init__(parent)
+        self.setWindowTitle("Editar macro")
+        self.resize(520, 520)
+        self.name = QLineEdit(macro.name if macro else "")
+        self.name.setMaxLength(cfg.MACRO_NAME_MAX)
+        self.mode = QComboBox()
+        self.mode.addItem("Repetir un número de veces", self.REPEAT_COUNT)
+        self.mode.addItem("Mientras se mantenga pulsado", cfg.REPEAT_WHILE_HELD)
+        self.mode.addItem("Hasta volver a pulsar el botón", cfg.REPEAT_TOGGLE)
+        self.mode.addItem("Hasta pulsar cualquier botón", cfg.REPEAT_UNTIL_ANY)
+        self.times = QSpinBox()
+        self.times.setRange(1, cfg.REPEAT_COUNT_MAX)
+        self.times.setSuffix(" veces")
+        if repeat in cfg.REPEAT_MODES.values():
+            self.mode.setCurrentIndex(self.mode.findData(repeat))
+        else:
+            self.times.setValue(repeat)
+        self.mode.currentIndexChanged.connect(
+            lambda: self.times.setVisible(self.mode.currentData() == self.REPEAT_COUNT))
+        self.times.setVisible(self.mode.currentData() == self.REPEAT_COUNT)
+        repeat_row = QHBoxLayout()
+        repeat_row.addWidget(self.mode, 1)
+        repeat_row.addWidget(self.times)
+        form = QFormLayout()
+        form.addRow("Nombre:", self.name)
+        form.addRow("Ejecución:", repeat_row)
+
+        self.table = QTableWidget(0, 3)
+        self.table.setHorizontalHeaderLabels(["Acción", "Tecla o botón", "Espera (ms)"])
+        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.table.verticalHeader().setVisible(False)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        for step in (macro.steps if macro else []):
+            self._add_row(step)
+
+        add = QPushButton(QIcon.fromTheme("list-add"), "Añadir")
+        remove = QPushButton(QIcon.fromTheme("list-remove"), "Quitar")
+        up = QPushButton(QIcon.fromTheme("go-up"), "Subir")
+        down = QPushButton(QIcon.fromTheme("go-down"), "Bajar")
+        self.record = QPushButton(QIcon.fromTheme("media-record"), "Grabar")
+        self.record.setCheckable(True)
+        clear = QPushButton(QIcon.fromTheme("edit-clear"), "Vaciar")
+        tools = QHBoxLayout()
+        for w in (add, remove, up, down, clear):
+            tools.addWidget(w)
+        tools.addStretch()
+        tools.addWidget(self.record)
+        self.area = RecordArea()
+        self.area.setVisible(False)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok
+                                   | QDialogButtonBox.StandardButton.Cancel)
+        layout = QVBoxLayout(self)
+        layout.addLayout(form)
+        layout.addWidget(self.table)
+        layout.addLayout(tools)
+        layout.addWidget(self.area)
+        hint = QLabel("Nombres de tecla: ctrl, shift, alt, super, a–z, 0–9, f1–f24, enter, esc, "
+                      "space, mouse-left, mouse-right… Máximo %d pasos." % cfg.MACRO_STEPS_MAX)
+        hint.setWordWrap(True)
+        hint.setEnabled(False)
+        layout.addWidget(hint)
+        layout.addWidget(buttons)
+
+        add.clicked.connect(lambda: self._add_row(cfg.Event(True, keys.KEY, keys.KEYS["a"], 10),
+                                                  self.table.currentRow() + 1 or None))
+        remove.clicked.connect(lambda: self.table.removeRow(self.table.currentRow()))
+        up.clicked.connect(lambda: self._move(-1))
+        down.clicked.connect(lambda: self._move(1))
+        clear.clicked.connect(lambda: self.table.setRowCount(0))
+        self.record.toggled.connect(self._toggle_record)
+        self.area.recorded.connect(self._recorded)
+        buttons.accepted.connect(self._accept)
+        buttons.rejected.connect(self.reject)
+
+    def _add_row(self, step, row=None):
+        row = self.table.rowCount() if row is None else row
+        self.table.insertRow(row)
+        action = QComboBox()
+        action.addItems(["Pulsar", "Soltar"])
+        action.setCurrentIndex(0 if step.press else 1)
+        self.table.setCellWidget(row, 0, action)
+        self.table.setItem(row, 1, QTableWidgetItem(keys.name(step.kind, step.code)))
+        delay = QSpinBox()
+        delay.setRange(0, 0xFFFF)
+        delay.setValue(step.delay)
+        delay.setToolTip("Milisegundos de espera antes del paso siguiente")
+        self.table.setCellWidget(row, 2, delay)
+
+    def _row_step(self, row):
+        press = self.table.cellWidget(row, 0).currentIndex() == 0
+        kind, code = keys.lookup(self.table.item(row, 1).text())
+        return cfg.Event(press, kind, code, self.table.cellWidget(row, 2).value())
+
+    def _move(self, delta):
+        row = self.table.currentRow()
+        if row < 0 or not 0 <= row + delta < self.table.rowCount():
+            return
+        try:
+            step = self._row_step(row)
+        except KeyError:
+            return
+        self.table.removeRow(row)
+        self._add_row(step, row + delta)
+        self.table.selectRow(row + delta)
+
+    def _toggle_record(self, on):
+        self.area.setVisible(on)
+        self.area.last = None
+        self.record.setText("Detener" if on else "Grabar")
+        if on:
+            self.area.setFocus()
+
+    def _recorded(self, item):
+        delay, step = item
+        last = self.table.rowCount() - 1
+        if last >= 0 and delay:
+            self.table.cellWidget(last, 2).setValue(delay)
+        if self.table.rowCount() < cfg.MACRO_STEPS_MAX:
+            self._add_row(step)
+            self.table.scrollToBottom()
+
+    def steps(self):
+        return [self._row_step(r) for r in range(self.table.rowCount())]
+
+    def repeat(self):
+        mode = self.mode.currentData()
+        return self.times.value() if mode == self.REPEAT_COUNT else mode
+
+    def _accept(self):
+        try:
+            macro = cfg.Macro(self.name.text().strip(), self.steps())
+        except KeyError as e:
+            QMessageBox.warning(self, "Macro no válida", str(e))
+            return
+        errors = macro.errors()
+        if errors:
+            QMessageBox.warning(self, "Macro no válida", "\n".join(errors))
+            return
+        self.macro = macro
+        self.accept()
 
 
 class ButtonRow:
     def __init__(self, grid, row, index, edited):
+        self.index = index
+        self.edited = edited
         self.raw = (0, 0, 0)
+        self.macro = None
+        self.repeat = 1
+        self.current = None
+        self._loading = False
         self.combo = QComboBox()
-        for key, text in BUTTON_LABELS:
+        for key, text in BUTTON_LABELS + SPECIAL_LABELS:
             self.combo.addItem(text, key)
-        self.combo.addItem("Disparo repetido", FIRE)
-        self.p1, self.p2 = QSpinBox(), QSpinBox()
-        for sb, tip in ((self.p1, "Parámetro 1 (¿intervalo?)"), (self.p2, "Parámetro 2 (¿repeticiones?)")):
-            sb.setRange(0, 255)
-            sb.setToolTip(tip + ": significado sin confirmar")
-            sb.valueChanged.connect(lambda *_: edited())
+        self.combo.insertSeparator(len(BUTTON_LABELS))
+
+        self.pages = QStackedWidget()
+        self.pages.addWidget(QWidget())
+        self.page = {}
+
+        self.interval, self.shots = QSpinBox(), QSpinBox()
+        self.interval.setRange(cfg.FIRE_INTERVAL_MIN, 255)
+        self.interval.setSuffix(" ms")
+        self.interval.setToolTip("Tiempo entre disparos")
+        self.shots.setRange(0, cfg.FIRE_TIMES_MAX)
+        self.shots.setSuffix(" disparos")
+        self.shots.setSpecialValueText("Mientras se pulse")
+        self.shots.setToolTip("Disparos por pulsación; 0 repite mientras se mantenga pulsado")
+        self._add_page(FIRE, QLabel("Cada"), self.interval, self.shots)
+
+        self.lock_dpi = DpiSpinBox()
+        self.lock_dpi.setMaximum(256 * cfg.DPI_STEP)
+        self.lock_dpi.setToolTip("DPI mientras se mantiene pulsado el botón")
+        self._add_page(DPI_LOCK, self.lock_dpi)
+
+        self.shortcut = ShortcutEdit()
+        capture = QPushButton(QIcon.fromTheme("input-keyboard"), "Capturar")
+        capture.setToolTip("Pulsa este botón y después la combinación de teclas")
+        capture.clicked.connect(self.shortcut.start_capture)
+        self._add_page(SHORTCUT, self.shortcut, capture)
+
+        self.media = QComboBox()
+        for name, text in MEDIA_LABELS.items():
+            self.media.addItem(text, name)
+        self._add_page(MEDIA, self.media)
+
+        self.macro_label = QLabel()
+        edit_macro = QPushButton(QIcon.fromTheme("document-edit"), "Editar…")
+        edit_macro.clicked.connect(self.edit_macro)
+        self._add_page(MACRO, self.macro_label, edit_macro)
+
+        self.other_label = QLabel()
+        self.other_label.setEnabled(False)
+        self._add_page(OTHER, self.other_label)
+
         grid.addWidget(QLabel("Botón %d" % (index + 1)), row, 0)
         grid.addWidget(self.combo, row, 1)
-        grid.addWidget(self.p1, row, 2)
-        grid.addWidget(self.p2, row, 3)
-        self.combo.currentIndexChanged.connect(self._update)
-        self.combo.currentIndexChanged.connect(lambda *_: edited())
+        grid.addWidget(self.pages, row, 2)
+        for w in (self.interval, self.shots, self.lock_dpi):
+            w.valueChanged.connect(lambda *_: edited())
+        self.shortcut.textChanged.connect(lambda *_: edited())
+        self.media.currentIndexChanged.connect(lambda *_: edited())
+        self.combo.currentIndexChanged.connect(self._selected)
 
-    def _update(self):
-        fire = self.combo.currentData() == FIRE
-        self.p1.setVisible(fire)
-        self.p2.setVisible(fire)
+    def _add_page(self, key, *widgets):
+        page = QWidget()
+        box = QHBoxLayout(page)
+        box.setContentsMargins(0, 0, 0, 0)
+        for w in widgets:
+            box.addWidget(w)
+        box.addStretch()
+        self.page[key] = self.pages.addWidget(page)
 
-    def load(self, value):
+    def _selected(self):
+        key = self.combo.currentData()
+        previous, self.current = self.current, key
+        self.pages.setCurrentIndex(self.page.get(key, 0))
+        if not self._loading:
+            if key == SHORTCUT and not self.shortcut.text():
+                self.shortcut.start_capture()
+            if key == MACRO and self.macro is None and not self.edit_macro():
+                # Cancelled before defining anything: go back to the previous function
+                self.combo.setCurrentIndex(self.combo.findData(previous))
+                return
+        self.edited()
+
+    def edit_macro(self):
+        dialog = MacroDialog(self.combo.window(), self.macro, self.repeat)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return False
+        self.macro, self.repeat = dialog.macro, dialog.repeat()
+        self._show_macro()
+        self.edited()
+        return True
+
+    def _show_macro(self):
+        if self.macro:
+            self.macro_label.setText("<b>%s</b> · %d pasos · %s" % (
+                self.macro.name, len(self.macro.steps), REPEAT_TEXT.get(
+                    self.repeat, "%d veces" % self.repeat)))
+        else:
+            self.macro_label.setText("Sin definir")
+
+    def load(self, value, conf):
+        self._loading = True
         self.raw = tuple(value)
+        self.macro, self.repeat = None, 1
         other = self.combo.findData(OTHER)
         if other >= 0:
             self.combo.removeItem(other)
+        t, p1, p2 = self.raw
         key = next((k for k, v in cfg.BUTTON_ACTIONS.items() if v == self.raw), None)
+        combo = cfg.format_combo(conf.shortcuts[self.index]) \
+            if t == cfg.KEY_SHORTCUT and self.index in conf.shortcuts else None
         if key:
-            self.combo.setCurrentIndex(self.combo.findData(key))
-        elif self.raw[0] == cfg.KEY_FIRE:
-            self.p1.setValue(self.raw[1])
-            self.p2.setValue(self.raw[2])
-            self.combo.setCurrentIndex(self.combo.findData(FIRE))
+            pass
+        elif t == cfg.KEY_FIRE:
+            key = FIRE
+            self.interval.setValue(p1)
+            self.shots.setValue(p2)
+        elif t == cfg.KEY_DPI_LOCK:
+            key = DPI_LOCK
+            self.lock_dpi.setValue((p1 + 1) * cfg.DPI_STEP)
+        elif combo in keys.MEDIA_KEYS:
+            key = MEDIA
+            self.media.setCurrentIndex(self.media.findData(combo))
+        elif combo:
+            key = SHORTCUT
+            self.shortcut.setText(combo)
+        elif t == cfg.KEY_MACRO and self.index in conf.macros and p1 == self.index:
+            key = MACRO
+            self.macro, self.repeat = conf.macros[self.index], p2
         else:
-            # Shortcut, macro or unknown: keep it as is, not editable yet
-            self.combo.addItem("Sin cambios: %s" % cfg.describe_key(*self.raw), OTHER)
-            self.combo.setCurrentIndex(self.combo.count() - 1)
-        self._update()
+            # Unknown or unreadable: keep it as is
+            key = OTHER
+            self.combo.addItem("Sin cambios", OTHER)
+            self.other_label.setText(conf.describe_button(self.index))
+        self._show_macro()
+        self.combo.setCurrentIndex(self.combo.findData(key))
+        self._selected()
+        self._loading = False
 
-    def value(self):
+    def error(self):
         key = self.combo.currentData()
-        if key == FIRE:
-            return (cfg.KEY_FIRE, self.p1.value(), self.p2.value())
-        if key == OTHER:
-            return self.raw
-        return cfg.BUTTON_ACTIONS[key]
+        if key == SHORTCUT and self.shortcut.events() is None:
+            return "botón %d: el atajo de teclado no es válido" % (self.index + 1)
+        if key == MACRO and self.macro is None:
+            return "botón %d: falta definir la macro" % (self.index + 1)
+        return None
+
+    def store(self, conf):
+        key = self.combo.currentData()
+        k = self.index
+        if self.error() or key == OTHER:
+            conf.buttons[k] = self.raw
+        elif key == FIRE:
+            conf.buttons[k] = (cfg.KEY_FIRE, self.interval.value(), self.shots.value())
+        elif key == DPI_LOCK:
+            conf.buttons[k] = (cfg.KEY_DPI_LOCK, self.lock_dpi.value() // cfg.DPI_STEP - 1, 0)
+        elif key == SHORTCUT:
+            conf.set_shortcut(k, self.shortcut.events())
+        elif key == MEDIA:
+            conf.set_shortcut(k, cfg.parse_combo(self.media.currentData()))
+        elif key == MACRO:
+            conf.set_macro(k, self.macro, self.repeat)
+        else:
+            conf.buttons[k] = cfg.BUTTON_ACTIONS[key]
+
+
+REPEAT_TEXT = {cfg.REPEAT_WHILE_HELD: "mientras se pulse", cfg.REPEAT_TOGGLE: "hasta volver a pulsar",
+               cfg.REPEAT_UNTIL_ANY: "hasta pulsar otro botón", 1: "una vez"}
 
 
 class ButtonsTab(QWidget):
@@ -372,14 +789,15 @@ class ButtonsTab(QWidget):
         inner = QWidget()
         grid = QGridLayout(inner)
         self.rows = [ButtonRow(grid, k, k, self.edited.emit) for k in range(cfg.KEY_COUNT)]
-        grid.setColumnStretch(4, 1)
+        grid.setColumnStretch(2, 1)
         grid.setRowStretch(cfg.KEY_COUNT, 1)
         scroll = QScrollArea()
         scroll.setWidget(inner)
         scroll.setWidgetResizable(True)
         note = QLabel("Los números son posiciones en la memoria del ratón; los botones 1–5 son "
-                      "izquierdo, derecho, central, atrás y adelante. Los atajos de teclado y "
-                      "las macros aún no se pueden editar y se conservan tal cual.")
+                      "izquierdo, derecho, central, atrás y adelante. Los atajos se guardan como "
+                      "teclas físicas: el ratón envía la posición y tu distribución de teclado "
+                      "decide el carácter.")
         note.setWordWrap(True)
         note.setEnabled(False)
         layout = QVBoxLayout(self)
@@ -388,10 +806,14 @@ class ButtonsTab(QWidget):
 
     def load(self, conf):
         for row, value in zip(self.rows, conf.buttons):
-            row.load(value)
+            row.load(value, conf)
 
     def store(self, conf):
-        conf.buttons = [row.value() for row in self.rows]
+        for row in self.rows:
+            row.store(conf)
+
+    def errors(self):
+        return [e for e in (row.error() for row in self.rows) if e]
 
 
 OPTION_LABELS = {
@@ -526,7 +948,7 @@ class MainWindow(QMainWindow):
     def __init__(self, worker):
         super().__init__()
         self.worker = worker
-        self.image = None      # CONFIG_SIZE bytes as stored in the mouse
+        self.image = None      # cfg.read_image() of what is stored in the mouse
         self.state = STATE_DISCONNECTED
         self._loading = False
         self._busy = False
@@ -649,7 +1071,7 @@ class MainWindow(QMainWindow):
                                 "En los niveles %s, X e Y deben estar ambos por debajo o ambos "
                                 "por encima de 12 800 DPI (y de 25 600)." % ", ".join(map(str, bands)))
             return
-        errors = conf.validate()
+        errors = self.buttons.errors() + conf.validate()
         if errors:
             QMessageBox.warning(self, "Configuración no válida", "\n".join(errors))
             return

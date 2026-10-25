@@ -78,7 +78,7 @@ class M916Test(unittest.TestCase):
         self.assertIn("report rate  : 1000 Hz", out)
         self.assertIn("* 2:  2000 DPI  colour #0000ff", out)
         self.assertIn("5: 26000 DPI", out)
-        self.assertIn("12: fire (p1=10, p2=3)", out)
+        self.assertIn("12: fire (every 10 ms, 3 shots)", out)
         self.assertNotIn("warning", out)
 
     def test_writes_touch_only_expected_bytes(self):
@@ -89,6 +89,48 @@ class M916Test(unittest.TestCase):
         self.run_cmd(cli.cmd_option, name="debounce", value=4)
         self.assertEqual(self.changed(), [0x00, 0x01, 0x14, 0x15, 0x17, 0x35, 0x37,
                                           0x78, 0x79, 0x7B, 0xA9, 0xAA])
+
+    def test_shortcut_and_macro_codec(self):
+        image = self.original
+        # Ctrl+C as written by the Windows app in block 4, and its "jitter" macro
+        self.assertEqual(cfg.encode_shortcut(cfg.parse_combo("ctrl+c")),
+                         image[0x180:0x18E])
+        macro = cfg.Macro.decode(image[cfg.macro_addr(4):cfg.macro_addr(5)])
+        self.assertEqual(macro.name, "jitter")
+        self.assertEqual(cfg.format_steps(macro.steps[:2]), "+mouse-left 10 -mouse-left 10")
+        encoded = macro.encode()
+        self.assertEqual(encoded, image[cfg.macro_addr(4):cfg.macro_addr(4) + len(encoded)])
+        self.assertEqual(cfg.parse_steps("+ctrl 5 5 -ctrl"),
+                         [cfg.Event(True, 0, 1, 10), cfg.Event(False, 0, 1)])
+        self.assertEqual(cfg.format_combo(cfg.parse_combo("shift+alt+f4")), "shift+alt+f4")
+        with self.assertRaises(ValueError):
+            cfg.parse_combo("a+b+c+d")
+
+    def test_cli_shortcut_writes_block_first(self):
+        writes = []
+        write_flash = self.mouse.write_flash
+        self.mouse.write_flash = lambda a, d: (writes.append(a), write_flash(a, d))
+        self.run_cmd(cli.cmd_button, button=7, action="key:ctrl+c")
+        self.assertEqual(writes, [cfg.shortcut_addr(6), 0x78])
+        out = self.run_cmd(cli.cmd_info)
+        self.assertIn("7: shortcut ctrl+c", out)
+
+    def test_cli_macro(self):
+        self.run_cmd(cli.cmd_macro, button=8, name="copy", repeat=cfg.REPEAT_TOGGLE,
+                     steps=["+ctrl 10 +c 10 -c 10 -ctrl"])
+        flash = bytes(self.fake.flash)
+        self.assertEqual(flash[0x7C:0x80], bytes([6, 7, 253, 0x55 - 6 - 7 - 253 & 0xFF]))
+        block = flash[cfg.macro_addr(7):cfg.macro_addr(8)]
+        self.assertEqual(block[:5], b"\x04copy")
+        self.assertEqual(block[0x1F:0x2A].hex(" "), "04 80 01 00 00 0a 81 06 00 00 0a")
+        out = self.run_cmd(cli.cmd_info)
+        self.assertIn("8: macro 'copy', until pressed again: +ctrl 10 +c 10 -c 10 -ctrl", out)
+
+    def test_cli_actions(self):
+        self.assertEqual(cli.parse_action("fire:20:0"), (4, 20, 0))
+        self.assertEqual(cli.parse_action("dpi-lock:800"), (0x0A, 15, 0))
+        self.assertEqual(cli.parse_action("scroll-up"), (0x0B, 1, 0))
+        self.assertEqual(cli.parse_action("key:volume-up")[0].raw(), bytes([0x82, 0xE9, 0]))
 
     def test_restore(self):
         self.run_cmd(cli.cmd_dpi_color, level=1, color="123456")

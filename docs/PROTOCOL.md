@@ -86,7 +86,7 @@ usa un valor por defecto.
 | 0x02 | Número de niveles DPI (1–8) [HW] | par |
 | 0x04 | Nivel DPI activo, empezando en 0 [HW] | par |
 | 0x06 / 0x08 | xSpindown / ySpindown [RE] | par |
-| 0x0A | silenceHeight (LOD) [RE; valor 1 observado] | par |
+| 0x0A | silenceHeight (LOD): 1 = 1 mm, 2 = 2 mm [RE, lista `customComboBox_LOD`] | par |
 | 0x0C + 4·i | DPI del nivel i: `[x, y, ex, chk]` [HW] | bloque |
 | 0x2C + 4·i | Color del nivel i: `[R, G, B, chk]` [HW] | bloque |
 | 0x4C, 4E, 50, 52 | LED de DPI: modo, brillo, velocidad, activado [RE] | pares |
@@ -125,16 +125,27 @@ Los sensores que no son el 3395 usan las tablas de `driver_sensor.h`.
 | 1 | Botón de ratón | p1: 1 izq., 2 der., 4 central, 8 atrás, 0x10 adelante [HW] |
 | 2 | DPI | p1: 1 ciclo, 2 subir, 3 bajar [HW] |
 | 3 | Scroll horizontal | p1: 1 izquierda, 2 derecha [RE] |
-| 4 | Disparo repetido | Observado `p1=10, p2=3`; significado exacto [?] |
-| 5 | Atajo de teclado | p1/p2 **desconocidos** [?] |
-| 6 | Macro | p1/p2 **desconocidos** (¿índice y repeticiones?) [?] |
+| 4 | Disparo repetido | p1: intervalo en ms (10–255); p2: disparos (0–3, 0 = mientras se pulse) [RE] |
+| 5 | Atajo de teclado o tecla multimedia | p1 = p2 = 0; los eventos van en el bloque de atajo del botón [RE] |
+| 6 | Macro | p1: índice del propio botón (su bloque de macro); p2: repetición, ver abajo [RE] |
 | 7 | Cambiar report rate | [HW] |
-| 8 | Lámpara decorativa | [RE] |
+| 8 | Luces | p1: 0 todas, 3 barra LED, 4 cambiar efecto (la app no lo ofrece en este modelo) [RE] |
 | 9 | Cambiar configuración | [RE] |
-| 0xA | Bloqueo de DPI | [RE] |
+| 0xA | Bloqueo de DPI | p1 = dpi/50 − 1 [RE] |
+| 0xB | Scroll vertical | p1: 1 arriba, 2 abajo [RE] |
 
 Los slots 1–16 son posiciones en la flash. La correspondencia física solo está confirmada
 para los 5 primeros.
+
+Origen [RE]: IL de `CustomKeyFunction.customSubKeyFunction_Main_ButtonSelect`,
+`customSubKeyFunction_Sub_ButtonSelect` y `UpdateMacro`, y la lista `KeyFunction` /
+`SubKeyFunction` de `Language/*.xml`, donde `value` es un número de 16 bits del que p1 es el byte
+bajo y p2 el alto (`LanguageFile.SetLanguage`). Las funciones `KeyFunMapDriver.Set*Key` de la
+DLL de .NET no se usan.
+
+**p2 de las macros** (`FormMain.customButton_Save_Click`): 1–252 = número de veces,
+253 = hasta volver a pulsar el botón, 254 = mientras se mantenga pulsado, 255 = hasta pulsar
+cualquier botón.
 
 ### Atajos de teclado  (32 bytes)  [RE + volcado]
 
@@ -146,6 +157,11 @@ HID_CODE_TYPE: 0 modificador (bitmask), 1 tecla normal (uso HID), 2 multimedia,
 chk = 0x55 - suma(bytes 0..3n)
 ```
 Ejemplo del volcado (Ctrl+C): `04 80 01 00 81 06 00 41 06 00 40 01 00 c1`.
+
+La app (`ValueConvert.App_AddShortCutKey`) admite hasta 3 teclas: las pulsa en orden y las
+suelta en orden inverso. Una tecla multimedia (`App_AddMultiMedia`) son dos eventos de tipo 2
+con el uso de la página Consumer en `código` (byte bajo) y `código2` (alto), p. ej. Silenciar:
+`02 82 e2 00 42 e2 00 cb`.
 
 ### Macros  (0x180 bytes)  [RE + volcado]
 
@@ -159,10 +175,21 @@ chk      0x55 - suma(bytes 0x1F .. 0x1F+5n)
 Ejemplo del volcado ("jitter"): `84 01 00 00 0a` = pulsar botón izquierdo y esperar 10 ms;
 `44 01 00 00 0a` = soltar y esperar 10 ms.
 
+## Listas de opciones de la app  [RE, `Language/0-English.xml`]
+
+Valores de los desplegables; falta confirmar en el IL a qué dirección escribe cada uno.
+
+- `customComboBox_PowerSaveTime` (apagado de luces en reposo, probablemente `allLedOffTime`):
+  1 = 10 s, 3 = 30 s, 6 = 1 min, 30, 60, 90, 120, 150, 180, 210, 240 (unidades de 10 s).
+- `customComboBox_FullPerformance` (tiempo en alto rendimiento, probablemente
+  `sensorSleepTime`): 3 = 30 s, 6 = 1 min, 12, 30, 60, 90 (unidades de 10 s).
+- `customComboBox_ModeSelect`: 0 LP (bajo consumo), 1 HP (alto rendimiento), 0x10 con cable.
+- `customComboBox_DPIEffect` (LED de DPI): 0 apagado, 1 fijo, 2 parpadeo.
+- `customComboBox_LEDMode`: 0 apagado, 1 arcoíris en movimiento, 2 color fijo, 3 arcoíris
+  fijo, 4 neón, 5 arcoíris parpadeante, 6 multicolor fijo.
+
 ## Pendiente
 
-- p1/p2 de las funciones de atajo (5) y macro (6): hace falta un volcado de una configuración
-  guardada por la app de Windows.
-- Significado de los valores de LOD, `allLedOffTime`, `sensorSleepTime` y del modo de LED.
+- Confirmar a qué campo escribe cada desplegable de la lista anterior.
 - Bloque 0x54–0x5F y los 3 bytes extra de la respuesta online.
 - Comando 0x01 (EncryptionData): ¿es necesario en algún caso?

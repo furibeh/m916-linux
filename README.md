@@ -37,7 +37,10 @@ install -Dm644 data/io.github.furibeh.m916-linux.desktop \
 ## Interfaz gráfica
 
 Pestañas de DPI (niveles, valores y colores), botones, rendimiento (frecuencia de sondeo,
-debounce y opciones del sensor) y copia de seguridad. Los cambios se editan en local y
+debounce y opciones del sensor) y copia de seguridad. Cada botón puede ser un clic, una
+función de DPI o scroll, disparo repetido, bloqueo de DPI, un atajo de teclado (se escribe o
+se captura pulsándolo), una tecla multimedia o una macro, con un editor que permite grabar
+pulsaciones de teclado y ratón con sus tiempos. Los cambios se editan en local y
 **Aplicar** escribe solo los campos modificados, verificando cada uno. Muestra la batería y
 sigue en vivo los cambios hechos desde el propio ratón, como el nivel de DPI.
 
@@ -54,7 +57,14 @@ m916 dpi-levels 5             # niveles DPI activos
 m916 dpi-active 2             # nivel en uso
 m916 rate 1000                # 125 / 250 / 500 / 1000 Hz
 m916 button 7 middle          # left|right|middle|back|forward|dpi-loop|dpi-up|dpi-down|
-                              # scroll-left|scroll-right|report-rate|disabled|fire:P1:P2
+                              # scroll-up|scroll-down|scroll-left|scroll-right|report-rate|disabled
+m916 button 7 key:ctrl+c      # atajo de hasta 3 teclas, o tecla multimedia: key:volume-up
+m916 button 7 fire:20:3       # disparo repetido: cada 20 ms, 3 disparos (0 = mientras se pulse)
+m916 button 7 dpi-lock:400    # DPI fijo mientras se mantiene pulsado
+m916 macro 8 copiar "+ctrl 10 +c 10 -c 10 -ctrl" --repeat 1
+                              # +TECLA pulsa, -TECLA suelta, número = espera en ms;
+                              # --repeat N (1-252), while-held, toggle o until-any
+m916 keys                     # nombres de tecla disponibles
 m916 option debounce 4        # opciones de un byte (valor en bruto)
 m916 restore copia.bin        # reescribe solo lo que cambió y verifica
 m916 watch                    # notificaciones en vivo (DPI, batería…)
@@ -75,7 +85,9 @@ así que no hace falta hardware. Los de la interfaz se saltan si PySide6 no est�
 ## Estructura
 
 - `m916/protocol.py`: transporte HID y acceso a la flash.
-- `m916/config.py`: modelo de la configuración (decodificar, codificar, validar y diferencias).
+- `m916/config.py`: modelo de la configuración (decodificar, codificar, validar y diferencias),
+  incluidos los bloques de atajos y macros.
+- `m916/keys.py`: nombres de teclas, códigos HID y correspondencia con los códigos de Linux.
 - `m916/cli.py` y `m916/gui.py`: las dos interfaces, sobre el mismo modelo.
 - `m916/fake.py`: ratón simulado para tests y desarrollo.
 
@@ -100,9 +112,11 @@ tools/ghidra/make_flatpak_shim.sh
 ## Estado
 
 Funciona: lectura completa, DPI, colores, número de niveles y nivel activo, report rate,
-botones básicos, opciones de un byte, volcado/restauración, notificaciones e interfaz gráfica.
+todas las funciones de botón (incluidos atajos, teclas multimedia y macros), opciones de un
+byte, volcado/restauración, notificaciones e interfaz gráfica.
 
-Pendiente: atajos y macros en botones, significado de algunas opciones y LEDs.
+Pendiente: mostrar con nombres reales algunas opciones (LOD, tiempos y LEDs) y las funciones
+del receptor (largo alcance, emparejamiento).
 
 ## Licencia
 

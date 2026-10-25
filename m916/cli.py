@@ -19,7 +19,7 @@ def progress_printer(label):
 
 
 def load(m):
-    image = m.read_flash(0, cfg.CONFIG_SIZE)
+    image = cfg.read_image(m)
     return image, cfg.Config.decode(image)
 
 
@@ -54,8 +54,8 @@ def cmd_info(m, args):
     for name, value in conf.options.items():
         print("  %-18s %d" % (name, value))
     print("buttons:")
-    for k, key in enumerate(conf.buttons):
-        print("  %2d: %s" % (k + 1, cfg.describe_key(*key)))
+    for k in range(cfg.KEY_COUNT):
+        print("  %2d: %s" % (k + 1, conf.describe_button(k)))
     bad = cfg.bad_checks(image)
     if bad:
         print("warning: bad check bytes at", ", ".join(hex(o) for o in bad))
@@ -140,21 +140,69 @@ def cmd_option(m, args):
     print("%s set to %d" % (args.name, args.value))
 
 
-def cmd_button(m, args):
-    if not 1 <= args.button <= cfg.KEY_COUNT:
+def button_slot(n):
+    if not 1 <= n <= cfg.KEY_COUNT:
         sys.exit("button must be 1..%d" % cfg.KEY_COUNT)
-    if args.action.startswith("fire:"):
-        try:
-            _, p1, p2 = args.action.split(":")
-            value = (cfg.KEY_FIRE, int(p1), int(p2))
-        except ValueError:
-            sys.exit("use fire:P1:P2, e.g. fire:10:3")
-    else:
-        value = cfg.BUTTON_ACTIONS[args.action]
+    return n - 1
+
+
+def parse_action(action):
+    """(type, p1, p2) or a list of shortcut events for an action argument."""
+    kind, _, arg = action.partition(":")
+    try:
+        if kind == "fire":
+            interval, times = arg.split(":")
+            return (cfg.KEY_FIRE, int(interval), int(times))
+        if kind == "dpi-lock":
+            return (cfg.KEY_DPI_LOCK, int(arg) // cfg.DPI_STEP - 1, 0)
+        if kind == "key":
+            return cfg.parse_combo(arg)
+    except (ValueError, KeyError) as e:
+        sys.exit("bad action %r: %s" % (action, e))
+    if action not in cfg.BUTTON_ACTIONS:
+        sys.exit("unknown action %r" % action)
+    return cfg.BUTTON_ACTIONS[action]
+
+
+def cmd_button(m, args):
+    k = button_slot(args.button)
+    value = parse_action(args.action)
     image, conf = load(m)
-    conf.buttons[args.button - 1] = value
+    if isinstance(value, list):
+        conf.set_shortcut(k, value)
+    else:
+        conf.buttons[k] = value
     apply(m, image, conf)
-    print("button %d set to %s" % (args.button, cfg.describe_key(*value)))
+    print("button %d set to %s" % (args.button, conf.describe_button(k)))
+
+
+def parse_repeat(text):
+    if text in cfg.REPEAT_MODES:
+        return cfg.REPEAT_MODES[text]
+    if text.isdigit() and 1 <= int(text) <= cfg.REPEAT_COUNT_MAX:
+        return int(text)
+    raise argparse.ArgumentTypeError("use 1..%d or %s" % (cfg.REPEAT_COUNT_MAX,
+                                                         "|".join(cfg.REPEAT_MODES)))
+
+
+def cmd_macro(m, args):
+    k = button_slot(args.button)
+    try:
+        macro = cfg.Macro(args.name, cfg.parse_steps(" ".join(args.steps)))
+    except (ValueError, KeyError) as e:
+        sys.exit("error: %s" % e)
+    image, conf = load(m)
+    conf.set_macro(k, macro, args.repeat)
+    apply(m, image, conf)
+    print("button %d set to %s" % (args.button, conf.describe_button(k)))
+
+
+def cmd_keys(m, args):
+    from . import keys
+    print("modifiers:", " ".join(keys.MODIFIERS))
+    print("keys     :", " ".join(keys.KEYS))
+    print("media    :", " ".join(keys.MEDIA_KEYS))
+    print("mouse    :", " ".join(keys.MOUSE_BUTTONS))
 
 
 def cmd_watch(m, args):
@@ -206,10 +254,24 @@ def build_parser():
     p.add_argument("name", choices=sorted(cfg.OPTIONS))
     p.add_argument("value", type=int)
     p.set_defaults(func=cmd_option)
-    p = sub.add_parser("button", help="assign a function to a button slot")
+    p = sub.add_parser("button", help="assign a function to a button slot",
+                       epilog="actions: %s, fire:INTERVAL_MS:SHOTS (0 shots = while held), "
+                              "dpi-lock:DPI, key:COMBO (e.g. key:ctrl+c, key:mute; see 'keys')"
+                              % ", ".join(cfg.BUTTON_ACTIONS))
     p.add_argument("button", type=int, help="slot 1..16 (see info)")
-    p.add_argument("action", help="|".join(cfg.BUTTON_ACTIONS) + "|fire:P1:P2")
+    p.add_argument("action")
     p.set_defaults(func=cmd_button)
+    p = sub.add_parser("macro", help="assign a macro to a button slot",
+                       epilog="steps: +KEY presses, -KEY releases, a number is the delay in ms "
+                              "after the previous step, e.g. \"+ctrl 10 +c 10 -c 10 -ctrl\"")
+    p.add_argument("button", type=int, help="slot 1..16 (see info)")
+    p.add_argument("name", help="up to %d characters" % cfg.MACRO_NAME_MAX)
+    p.add_argument("steps", nargs="+")
+    p.add_argument("-r", "--repeat", type=parse_repeat, default=1,
+                   help="times to run (1..%d), or %s" % (cfg.REPEAT_COUNT_MAX,
+                                                        "|".join(cfg.REPEAT_MODES)))
+    p.set_defaults(func=cmd_macro)
+    sub.add_parser("keys", help="list key names for shortcuts and macros").set_defaults(func=cmd_keys)
     sub.add_parser("watch", help="print status notifications").set_defaults(func=cmd_watch)
     return ap
 
@@ -217,9 +279,10 @@ def build_parser():
 def main(argv=None):
     ap = build_parser()
     args = ap.parse_args(argv)
-    if args.command == "button" and args.action not in cfg.BUTTON_ACTIONS \
-            and not args.action.startswith("fire:"):
-        ap.error("unknown action %r" % args.action)
+    if args.command == "keys":
+        return args.func(None, args)
+    if args.command == "button":
+        parse_action(args.action)  # fail before touching the device
 
     path = args.device
     if not path:
