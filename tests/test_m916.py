@@ -190,5 +190,16 @@ class M916Test(unittest.TestCase):
         self.assertEqual(self.mouse.poll_notifications(), [])
 
 
+class PackagingTest(unittest.TestCase):
+    ROOT = os.path.join(os.path.dirname(__file__), "..")
+
+    def test_desktop_icon_is_shipped(self):
+        with open(os.path.join(self.ROOT, "data", "io.github.furibeh.m916-linux.desktop")) as f:
+            entry = dict(line.strip().split("=", 1) for line in f if "=" in line)
+        self.assertEqual(entry["Icon"], "io.github.furibeh.m916-linux")
+        self.assertTrue(os.path.isfile(os.path.join(self.ROOT, "m916", "icons",
+                                                    entry["Icon"] + ".svg")))
+
+
 if __name__ == "__main__":
     unittest.main()

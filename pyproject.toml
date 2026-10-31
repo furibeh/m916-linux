@@ -29,3 +29,6 @@ packages = ["m916"]
 
 [tool.setuptools.dynamic]
 version = { attr = "m916.__version__" }
+
+[tool.setuptools.package-data]
+m916 = ["icons/*.svg"]

@@ -34,6 +34,8 @@ O instalado para tu usuario, con los comandos `m916` y `m916-gui` y una entrada 
 pip install --user .
 install -Dm644 data/io.github.furibeh.m916-linux.desktop \
     ~/.local/share/applications/io.github.furibeh.m916-linux.desktop
+install -Dm644 m916/icons/io.github.furibeh.m916-linux.svg \
+    ~/.local/share/icons/hicolor/scalable/apps/io.github.furibeh.m916-linux.svg
 ```
 
 ## Interfaz gráfica

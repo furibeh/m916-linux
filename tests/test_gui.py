@@ -242,6 +242,12 @@ class GuiTest(unittest.TestCase):
         self.assertEqual(w.performance.rate.currentText(), "1000 Hz")
         self.assertFalse(w._dirty())
 
+    def test_app_icon(self):
+        from m916 import gui
+        self.assertEqual(gui.APP_ID, "io.github.furibeh.m916-linux")
+        self.assertFalse(gui.app_icon().isNull())
+        self.assertFalse(gui.app_icon().pixmap(48, 48).isNull())
+
 
 if __name__ == "__main__":
     unittest.main()

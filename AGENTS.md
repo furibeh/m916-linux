@@ -31,6 +31,8 @@ GUI usa PySide6 (Qt 6).
   incluidas sus rarezas (ver más abajo).
 - `tests/`: `unittest`, con `tests/fixtures/m916_flash.bin` (volcado real).
 - `tools/`: utilidades de ingeniería inversa. El instalador oficial **no** está en el repo.
+- `m916/icons/`: icono de la aplicación (SVG). `APP_ID` en `gui.py`, el `.desktop` de `data/`
+  y el nombre del SVG deben coincidir.
 - `.github/workflows/tests.yml`: tests en Fedora con PySide6 y en Python 3.9 sin PySide6.
 
 ## Comandos

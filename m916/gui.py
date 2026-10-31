@@ -21,6 +21,13 @@ from .protocol import (FLASH_SIZE, STATUS_BATTERY, STATUS_DPI, Mouse, MouseAslee
                        find_devices)
 
 STATE_DISCONNECTED, STATE_ASLEEP, STATE_ONLINE = "disconnected", "asleep", "online"
+APP_ID = "io.github.furibeh.m916-linux"
+
+
+def app_icon():
+    """The theme icon if installed, else the SVG shipped inside the package."""
+    bundled = os.path.join(os.path.dirname(__file__), "icons", APP_ID + ".svg")
+    return QIcon.fromTheme(APP_ID, QIcon(bundled))
 
 
 class DeviceWorker(QObject):
@@ -1357,7 +1364,8 @@ def main(argv=None):
 
     app = QApplication([sys.argv[0]] + qt_args)
     app.setApplicationName("m916-linux")
-    app.setDesktopFileName("io.github.furibeh.m916-linux")
+    app.setDesktopFileName(APP_ID)
+    app.setWindowIcon(app_icon())
 
     fake = None
     if args.fake:
