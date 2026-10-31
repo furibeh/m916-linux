@@ -1,0 +1,26 @@
+name: tests
+
+on: [push, pull_request]
+
+jobs:
+  fedora:
+    name: Fedora (CLI + GUI)
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+      - run: dnf install -y python3 python3-pyside6
+      - run: python3 -m unittest discover -s tests -v
+
+  python39-cli:
+    name: Python 3.9 without PySide6
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+      - run: python -m unittest discover -s tests -v
+      - run: python -m m916 --help

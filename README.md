@@ -1,5 +1,7 @@
 # m916-linux
 
+[![tests](https://github.com/furibeh/m916-linux/actions/workflows/tests.yml/badge.svg)](https://github.com/furibeh/m916-linux/actions/workflows/tests.yml)
+
 Herramienta para configurar en Linux el ratón **Redragon M916-PRO-1K** sin el programa
 oficial de Windows. Habla con el ratón por `hidraw` con el mismo protocolo que el configurador
 original, reconstruido por ingeniería inversa (ver [docs/PROTOCOL.md](docs/PROTOCOL.md)).
