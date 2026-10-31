@@ -7,6 +7,7 @@ import os
 import re
 
 from . import config as cfg, keys
+from .i18n import _
 
 FORMAT = "m916-profile"
 VERSION = 1
@@ -122,9 +123,9 @@ def list_profiles():
             data = load(path)
             description = data.get("description") if isinstance(data, dict) else None
             if not isinstance(data, dict) or data.get("format") != FORMAT:
-                description = "(not an M916 profile)"
+                description = _("(not an M916 profile)")
         except ProfileError:
-            description = "(unreadable)"
+            description = _("(unreadable)")
         profiles.append((f[:-len(".json")], path, description))
     return profiles
 
@@ -137,7 +138,7 @@ def load(path):
         with open(path, encoding="utf-8") as f:
             return json.load(f)
     except json.JSONDecodeError as e:
-        raise ProfileError(["%s: invalid JSON: %s" % (path, e)])
+        raise ProfileError([_("%(file)s: invalid JSON: %(error)s") % {"file": path, "error": e}])
     except (OSError, UnicodeDecodeError) as e:
         raise ProfileError(["%s: %s" % (path, e)])
 
@@ -159,39 +160,41 @@ class _Loader:
     def obj(self, where, value, allowed, required=()):
         """True if `value` is an object with only `allowed` keys and all `required` ones."""
         if not isinstance(value, dict):
-            self.error(where, "must be an object")
+            self.error(where, _("must be an object"))
             return False
         ok = True
         for key in value:
             if key not in allowed:
-                self.error(where, "unknown field %r (expected %s)"
-                           % (key, ", ".join(sorted(allowed))))
+                self.error(where, _("unknown field %(field)r (expected %(expected)s)")
+                           % {"field": key, "expected": ", ".join(sorted(allowed))})
                 ok = False
         for key in required:
             if key not in value:
-                self.error(where, "missing field %r" % key)
+                self.error(where, _("missing field %r") % key)
                 ok = False
         return ok
 
     def int(self, where, value, lo=None, hi=None):
         if not _is_int(value):
-            self.error(where, "must be an integer, not %s" % json.dumps(value))
+            self.error(where, _("must be an integer, not %s") % json.dumps(value))
             return None
         if lo is not None and not lo <= value <= hi:
-            self.error(where, "must be %d..%d" % (lo, hi))
+            self.error(where, _("must be %(min)d..%(max)d") % {"min": lo, "max": hi})
             return None
         return value
 
     def header(self, data):
         if data.get("format") != FORMAT:
-            self.error("", "not an M916 profile (\"format\" must be %r)" % FORMAT)
+            self.error("", _("not an M916 profile (\"format\" must be %r)") % FORMAT)
             return False
         if data.get("version") != VERSION:
-            self.error("version", "unsupported profile version %s (this program reads %d)"
-                       % (json.dumps(data.get("version")), VERSION))
+            self.error("version", _("unsupported profile version %(found)s (this program reads "
+                                    "%(supported)d)")
+                       % {"found": json.dumps(data.get("version")), "supported": VERSION})
             return False
         if data.get("model") != MODEL:
-            self.error("model", "profile is for %s, not %s" % (json.dumps(data.get("model")), MODEL))
+            self.error("model", _("profile is for %(found)s, not %(model)s")
+                       % {"found": json.dumps(data.get("model")), "model": MODEL})
             return False
         return True
 
@@ -200,7 +203,7 @@ class _Loader:
                 or not self.header(data):
             return
         if "description" in data and not isinstance(data["description"], str):
-            self.error("description", "must be a string")
+            self.error("description", _("must be a string"))
         if "report_rate" in data:
             self.report_rate(data["report_rate"])
         if "dpi" in data:
@@ -214,7 +217,7 @@ class _Loader:
         if _is_int(hz) and hz in cfg.RATES:
             self.conf.report_rate = cfg.RATES[hz]
         else:
-            self.error("report_rate", "must be one of %s Hz" % ", ".join(map(str, sorted(cfg.RATES))))
+            self.error("report_rate", _("must be one of %s Hz") % ", ".join(map(str, sorted(cfg.RATES))))
 
     def dpi(self, dpi):
         conf = self.conf
@@ -223,7 +226,7 @@ class _Loader:
         if "levels" in dpi:
             levels = dpi["levels"]
             if not isinstance(levels, list) or len(levels) > cfg.MAX_DPI_LEVELS:
-                self.error("dpi.levels", "must be a list of up to %d levels" % cfg.MAX_DPI_LEVELS)
+                self.error("dpi.levels", _("must be a list of up to %d levels") % cfg.MAX_DPI_LEVELS)
             else:
                 for i, level in enumerate(levels):
                     if level is not None:
@@ -251,16 +254,16 @@ class _Loader:
             if isinstance(color, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", color):
                 level.color = tuple(bytes.fromhex(color[1:]))
             else:
-                self.error(where + ".color", "must be \"#rrggbb\", not %s" % json.dumps(color))
+                self.error(where + ".color", _("must be \"#rrggbb\", not %s") % json.dumps(color))
 
     def options(self, options):
         if not isinstance(options, dict):
-            self.error("options", "must be an object")
+            self.error("options", _("must be an object"))
             return
         for name, value in options.items():
             where = "options.%s" % name
             if name not in cfg.OPTIONS:
-                self.error(where, "unknown option (expected %s)" % ", ".join(sorted(cfg.OPTIONS)))
+                self.error(where, _("unknown option (expected %s)") % ", ".join(sorted(cfg.OPTIONS)))
             elif isinstance(value, bool) and name in cfg.BOOL_OPTIONS:
                 self.conf.options[name] = int(value)
             else:
@@ -270,12 +273,12 @@ class _Loader:
 
     def buttons(self, buttons):
         if not isinstance(buttons, dict):
-            self.error("buttons", "must be an object")
+            self.error("buttons", _("must be an object"))
             return
         for key, value in buttons.items():
             where = "buttons.%s" % key
             if not (key.isdigit() and 1 <= int(key) <= cfg.KEY_COUNT):
-                self.error(where, "buttons are numbered 1..%d" % cfg.KEY_COUNT)
+                self.error(where, _("buttons are numbered 1..%d") % cfg.KEY_COUNT)
                 continue
             try:
                 self.button(where, int(key) - 1, value)
@@ -286,9 +289,9 @@ class _Loader:
         conf = self.conf
         if isinstance(value, str):
             if value not in cfg.BUTTON_ACTIONS:
-                self.error(where, "unknown action %r (expected %s, or an object for fire, "
-                                  "dpi-lock, shortcut, media and macro)"
-                           % (value, ", ".join(cfg.BUTTON_ACTIONS)))
+                self.error(where, _("unknown action %(action)r (expected %(expected)s, or an "
+                                    "object for fire, dpi-lock, shortcut, media and macro)")
+                           % {"action": value, "expected": ", ".join(cfg.BUTTON_ACTIONS)})
                 return
             conf.buttons[k] = cfg.BUTTON_ACTIONS[value]
             return
@@ -299,7 +302,7 @@ class _Loader:
                         _is_int(v) and 0 <= v <= 255 for v in raw):
                     conf.buttons[k] = tuple(raw)
                 else:
-                    self.error(where + ".raw", "must be [type, p1, p2] with values 0..255")
+                    self.error(where + ".raw", _("must be [type, p1, p2] with values 0..255"))
             return
         if not self.obj(where, value, {"action", "interval", "shots", "dpi", "keys", "events",
                                        "key", "name", "repeat", "steps"}, ("action",)):
@@ -311,8 +314,8 @@ class _Loader:
                   "media": ({"key"}, {"key"}),
                   "macro": ({"name", "repeat", "steps"}, {"name", "steps"})}
         if action not in fields:
-            self.error(where + ".action", "unknown action %s (expected %s)"
-                       % (json.dumps(action), ", ".join(fields)))
+            self.error(where + ".action", _("unknown action %(action)s (expected %(expected)s)")
+                       % {"action": json.dumps(action), "expected": ", ".join(fields)})
             return
         allowed, required = fields[action]
         if not self.obj(where, value, allowed | {"action"}, required):
@@ -329,17 +332,17 @@ class _Loader:
         dpi = self.int(where + ".dpi", value["dpi"], cfg.DPI_MIN, 256 * cfg.DPI_STEP)
         if dpi is not None:
             if dpi % cfg.DPI_STEP:
-                self.error(where + ".dpi", "must be a multiple of %d" % cfg.DPI_STEP)
+                self.error(where + ".dpi", _("must be a multiple of %d") % cfg.DPI_STEP)
             else:
                 self.conf.buttons[k] = (cfg.KEY_DPI_LOCK, dpi // cfg.DPI_STEP - 1, 0)
 
     def button_shortcut(self, where, k, value):
         if ("keys" in value) == ("events" in value):
-            self.error(where, "a shortcut has either \"keys\" or \"events\"")
+            self.error(where, _("a shortcut has either \"keys\" or \"events\""))
             return
         if "keys" in value:
             if not isinstance(value["keys"], str):
-                self.error(where + ".keys", "must be a string such as \"ctrl+c\"")
+                self.error(where + ".keys", _("must be a string such as \"ctrl+c\""))
                 return
             events = cfg.parse_combo(value["keys"])
         else:
@@ -347,10 +350,10 @@ class _Loader:
             if events is None:
                 return
             if any(e.delay for e in events):
-                self.error(where + ".events", "shortcut events have no delays")
+                self.error(where + ".events", _("shortcut events have no delays"))
                 return
             if not 1 <= len(events) <= 2 * cfg.SHORTCUT_KEYS_MAX:
-                self.error(where + ".events", "a shortcut has 1..%d events"
+                self.error(where + ".events", _("a shortcut has 1..%d events")
                            % (2 * cfg.SHORTCUT_KEYS_MAX))
                 return
         self.conf.set_shortcut(k, events)
@@ -358,8 +361,8 @@ class _Loader:
     def button_media(self, where, k, value):
         name = value["key"]
         if not isinstance(name, str) or keys.lookup(name)[0] != keys.MEDIA:
-            self.error(where + ".key", "%s is not a media key (expected %s)"
-                       % (json.dumps(name), ", ".join(keys.MEDIA_KEYS)))
+            self.error(where + ".key", _("%(key)s is not a media key (expected %(expected)s)")
+                       % {"key": json.dumps(name), "expected": ", ".join(keys.MEDIA_KEYS)})
             return
         self.conf.set_shortcut(k, cfg.combo_events([keys.lookup(name)]))
 
@@ -368,11 +371,11 @@ class _Loader:
         if repeat in cfg.REPEAT_MODES:
             repeat = cfg.REPEAT_MODES[repeat]
         elif not (_is_int(repeat) and 1 <= repeat <= cfg.REPEAT_COUNT_MAX):
-            self.error(where + ".repeat", "must be 1..%d or one of %s"
-                       % (cfg.REPEAT_COUNT_MAX, ", ".join(cfg.REPEAT_MODES)))
+            self.error(where + ".repeat", _("must be 1..%(max)d or one of %(modes)s")
+                       % {"max": cfg.REPEAT_COUNT_MAX, "modes": ", ".join(cfg.REPEAT_MODES)})
             return
         if not isinstance(value["name"], str):
-            self.error(where + ".name", "must be a string")
+            self.error(where + ".name", _("must be a string"))
             return
         steps = self.steps(where + ".steps", value["steps"])
         if steps is None:
@@ -387,7 +390,7 @@ class _Loader:
     def steps(self, where, value):
         """Events from a list of steps such as ["+ctrl 10", "+c", "-c", "-ctrl"]."""
         if not isinstance(value, list) or not all(isinstance(s, str) for s in value):
-            self.error(where, "must be a list of steps such as [\"+ctrl 10\", \"-ctrl\"]")
+            self.error(where, _("must be a list of steps such as [\"+ctrl 10\", \"-ctrl\"]"))
             return None
         try:
             return cfg.parse_steps(" ".join(value))
@@ -413,7 +416,7 @@ def check(data):
     """Check the profile without a mouse: format, names and types. Ranges that depend on the
     rest of the configuration are only checked by apply()."""
     conf = cfg.Config(report_rate=cfg.RATES[1000], dpi_count=1, dpi_active=0,
-                      levels=[cfg.DpiLevel(800, 800, (0, 0, 0)) for _ in range(cfg.MAX_DPI_LEVELS)],
+                      levels=[cfg.DpiLevel(800, 800, (0, 0, 0)) for _level in range(cfg.MAX_DPI_LEVELS)],
                       options={name: 0 for name in cfg.OPTIONS},
                       buttons=[(0, 0, 0)] * cfg.KEY_COUNT)
     loader = _Loader(conf)

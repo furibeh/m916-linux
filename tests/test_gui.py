@@ -6,6 +6,7 @@ import time
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+os.environ["LANGUAGE"] = "en"  # tests compare the English source strings
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 try:
@@ -158,7 +159,7 @@ class GuiTest(unittest.TestCase):
         self.assertFalse(p.full.isChecked())
         self.assertFalse(p.full_time.isEnabled())
         self.assertEqual(p.full_time.currentText(), "1 min")
-        self.assertEqual(l.effect.currentText(), "Parpadeo")
+        self.assertEqual(l.effect.currentText(), "Blinking")
         self.assertEqual(l.brightness.currentText(), "5")  # 128
         self.assertEqual(l.speed.currentData(), 3)
         self.assertEqual(l.off_time.currentText(), "1 min")
@@ -247,6 +248,12 @@ class GuiTest(unittest.TestCase):
         self.assertEqual(gui.APP_ID, "io.github.furibeh.m916-linux")
         self.assertFalse(gui.app_icon().isNull())
         self.assertFalse(gui.app_icon().pixmap(48, 48).isNull())
+
+    def test_english_source_strings(self):
+        w = self.window
+        self.assertEqual([w.tabs.tabText(i) for i in range(w.tabs.count())],
+                         ["DPI", "Buttons", "Performance", "Lights", "Backups and profiles"])
+        self.assertEqual(w.apply_btn.text(), "Apply")
 
 
 if __name__ == "__main__":

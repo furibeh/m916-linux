@@ -5,6 +5,7 @@ import sys
 import time
 
 from . import config as cfg, profile
+from .i18n import _, ngettext
 from .protocol import FLASH_SIZE, STATUS_NAMES, CMD_STATUS_CHANGED, REPORT_ID, Mouse, \
     MouseAsleep, ProtocolError, find_devices
 
@@ -18,6 +19,13 @@ def progress_printer(label):
     return report
 
 
+def print_fields(rows, width):
+    """Print (label, value) rows with the colons aligned, at least `width` wide."""
+    width = max([width] + [len(label) for label, _value in rows])
+    for label, value in rows:
+        print("%-*s: %s" % (width, label, value))
+
+
 def load(m):
     image = cfg.read_image(m)
     return image, cfg.Config.decode(image)
@@ -26,77 +34,84 @@ def load(m):
 def apply(m, image, conf):
     errors = conf.validate()
     if errors:
-        sys.exit("error: " + "; ".join(errors))
+        sys.exit(_("error: %s") % "; ".join(errors))
     new = conf.encode(image)
     m.write_fields(cfg.changed_fields(image, new), new)
 
 
 def level_index(conf, level):
     if not 1 <= level <= cfg.MAX_DPI_LEVELS:
-        sys.exit("DPI level must be 1..%d" % cfg.MAX_DPI_LEVELS)
+        sys.exit(_("DPI level must be 1..%d") % cfg.MAX_DPI_LEVELS)
     return level - 1
 
 
 def cmd_info(m, args):
-    print("device   :", m.path)
-    print("firmware :", m.version().hex(" "))
+    version = m.version().hex(" ")
     level, charging, mv = m.battery()
-    print("battery  : %d%%%s, %d mV" % (level, " (charging)" if charging else "", mv))
+    print_fields([(_("device"), m.path), (_("firmware"), version),
+                  (_("battery"), "%d%%%s, %d mV" % (level, _(" (charging)") if charging else "", mv))],
+                 9)
     image, conf = load(m)
     rate = cfg.RATE_HZ.get(conf.report_rate)
-    print("report rate  : %s Hz" % (rate or "raw 0x%02x" % conf.report_rate))
-    print("DPI levels   : %d (active: %d)" % (conf.dpi_count, conf.dpi_active + 1))
+    print_fields([(_("report rate"), "%s Hz" % (rate or _("raw 0x%02x") % conf.report_rate)),
+                  (_("DPI levels"), _("%(count)d (active: %(active)d)")
+                   % {"count": conf.dpi_count, "active": conf.dpi_active + 1})],
+                 13)
     for i, lv in enumerate(conf.levels):
         mark = "*" if i == conf.dpi_active else (" " if i < conf.dpi_count else "-")
-        print("  %s %d: %5d DPI%s  colour #%02x%02x%02x"
-              % (mark, i + 1, lv.x, "" if lv.x == lv.y else " (Y %d)" % lv.y, *lv.color))
-    print("options:")
+        print("  %s %d: %5d DPI%s  %s #%02x%02x%02x"
+              % (mark, i + 1, lv.x, "" if lv.x == lv.y else " (Y %d)" % lv.y, _("colour"), *lv.color))
+    print(_("options:"))
     for name, value in conf.options.items():
         print("  %-22s %s" % (name, cfg.describe_option(name, value)))
-    print("buttons:")
+    print(_("buttons:"))
     for k in range(cfg.KEY_COUNT):
         print("  %2d: %s" % (k + 1, conf.describe_button(k)))
     bad = cfg.bad_checks(image)
     if bad:
-        print("warning: bad check bytes at", ", ".join(hex(o) for o in bad))
+        print(_("warning: bad check bytes at %s") % ", ".join(hex(o) for o in bad))
 
 
 def cmd_dump(m, args):
-    data = m.read_flash(0, FLASH_SIZE, progress_printer("read"))
+    data = m.read_flash(0, FLASH_SIZE, progress_printer(_("read")))
     with open(args.file, "wb") as f:
         f.write(data)
-    print("saved %d bytes to %s" % (len(data), args.file))
+    print(_("saved %(size)d bytes to %(file)s") % {"size": len(data), "file": args.file})
 
 
 def cmd_restore(m, args):
     with open(args.file, "rb") as f:
         image = f.read()
     if len(image) != FLASH_SIZE:
-        sys.exit("%s is %d bytes, expected %d" % (args.file, len(image), FLASH_SIZE))
-    print("reading current flash to compare...")
-    current = m.read_flash(0, FLASH_SIZE, progress_printer("read"))
+        sys.exit(_("%(file)s is %(size)d bytes, expected %(expected)d")
+                 % {"file": args.file, "size": len(image), "expected": FLASH_SIZE})
+    print(_("reading current flash to compare..."))
+    current = m.read_flash(0, FLASH_SIZE, progress_printer(_("read")))
     writes = cfg.restore_writes(current, image)
     if not writes:
-        print("flash already matches the image, nothing to do")
+        print(_("flash already matches the image, nothing to do"))
         return
-    print("%d block(s) differ: %s" % (len(writes), ", ".join("0x%04x" % a for a, _ in writes[:20])
-                                     + (" ..." if len(writes) > 20 else "")))
-    if not args.yes and input("write them? [y/N] ").strip().lower() != "y":
+    blocks = ", ".join("0x%04x" % a for a, _data in writes[:20]) + (" ..." if len(writes) > 20 else "")
+    print(ngettext("%(count)d block differs: %(blocks)s", "%(count)d blocks differ: %(blocks)s",
+                   len(writes)) % {"count": len(writes), "blocks": blocks})
+    # TRANSLATORS: the answer to "[y/N]" questions; "y" is also accepted
+    yes = ("y", _("y"))
+    if not args.yes and input(_("write them? [y/N] ")).strip().lower() not in yes:
         return
     for a, data in writes:
         m.write_flash(a, data)
-    if cfg.restore_writes(m.read_flash(0, FLASH_SIZE, progress_printer("verify")), image):
-        sys.exit("verification failed after restore")
-    print("restored and verified")
+    if cfg.restore_writes(m.read_flash(0, FLASH_SIZE, progress_printer(_("verify"))), image):
+        sys.exit(_("verification failed after restore"))
+    print(_("restored and verified"))
 
 
 def cmd_rate(m, args):
     if args.hz > 1000:
-        print("note: %d Hz may need the 4K dongle; this is a 1K model" % args.hz)
+        print(_("note: %d Hz may need the 4K dongle; this is a 1K model") % args.hz)
     image, conf = load(m)
     conf.report_rate = cfg.RATES[args.hz]
     apply(m, image, conf)
-    print("report rate set to %d Hz" % args.hz)
+    print(_("report rate set to %d Hz") % args.hz)
 
 
 def cmd_dpi(m, args):
@@ -105,17 +120,18 @@ def cmd_dpi(m, args):
     conf.levels[i].x = args.dpi
     conf.levels[i].y = args.dpi if args.y is None else args.y
     apply(m, image, conf)
-    print("DPI level %d set to %d" % (args.level, args.dpi))
+    print(_("DPI level %(level)d set to %(dpi)d") % {"level": args.level, "dpi": args.dpi})
 
 
 def cmd_dpi_color(m, args):
     hexstr = args.color.lstrip("#")
     if len(hexstr) != 6:
-        sys.exit("colour must be RRGGBB")
+        sys.exit(_("colour must be RRGGBB"))
     image, conf = load(m)
     conf.levels[level_index(conf, args.level)].color = tuple(bytes.fromhex(hexstr))
     apply(m, image, conf)
-    print("DPI level %d colour set to #%s" % (args.level, hexstr.lower()))
+    print(_("DPI level %(level)d colour set to #%(color)s") % {"level": args.level,
+                                                            "color": hexstr.lower()})
 
 
 def cmd_dpi_levels(m, args):
@@ -123,32 +139,32 @@ def cmd_dpi_levels(m, args):
     conf.dpi_count = args.count
     conf.dpi_active = min(conf.dpi_active, args.count - 1)
     apply(m, image, conf)
-    print("%d DPI levels enabled" % args.count)
+    print(ngettext("%d DPI level enabled", "%d DPI levels enabled", args.count) % args.count)
 
 
 def cmd_dpi_active(m, args):
     image, conf = load(m)
     conf.dpi_active = level_index(conf, args.level)
     apply(m, image, conf)
-    print("active DPI level set to %d" % args.level)
+    print(_("active DPI level set to %d") % args.level)
 
 
 def cmd_option(m, args):
     image, conf = load(m)
     conf.options[args.name] = args.value
     apply(m, image, conf)
-    print("%s set to %d" % (args.name, args.value))
+    print(_("%(option)s set to %(value)d") % {"option": args.name, "value": args.value})
 
 
 def button_slot(n):
     if not 1 <= n <= cfg.KEY_COUNT:
-        sys.exit("button must be 1..%d" % cfg.KEY_COUNT)
+        sys.exit(_("button must be 1..%d") % cfg.KEY_COUNT)
     return n - 1
 
 
 def parse_action(action):
     """(type, p1, p2) or a list of shortcut events for an action argument."""
-    kind, _, arg = action.partition(":")
+    kind, _sep, arg = action.partition(":")
     try:
         if kind == "fire":
             interval, times = arg.split(":")
@@ -158,9 +174,9 @@ def parse_action(action):
         if kind == "key":
             return cfg.parse_combo(arg)
     except (ValueError, KeyError) as e:
-        sys.exit("bad action %r: %s" % (action, e))
+        sys.exit(_("bad action %(action)r: %(error)s") % {"action": action, "error": e})
     if action not in cfg.BUTTON_ACTIONS:
-        sys.exit("unknown action %r" % action)
+        sys.exit(_("unknown action %r") % action)
     return cfg.BUTTON_ACTIONS[action]
 
 
@@ -173,7 +189,8 @@ def cmd_button(m, args):
     else:
         conf.buttons[k] = value
     apply(m, image, conf)
-    print("button %d set to %s" % (args.button, conf.describe_button(k)))
+    print(_("button %(button)d set to %(action)s") % {"button": args.button,
+                                                    "action": conf.describe_button(k)})
 
 
 def parse_repeat(text):
@@ -181,8 +198,8 @@ def parse_repeat(text):
         return cfg.REPEAT_MODES[text]
     if text.isdigit() and 1 <= int(text) <= cfg.REPEAT_COUNT_MAX:
         return int(text)
-    raise argparse.ArgumentTypeError("use 1..%d or %s" % (cfg.REPEAT_COUNT_MAX,
-                                                         "|".join(cfg.REPEAT_MODES)))
+    raise argparse.ArgumentTypeError(_("use 1..%(max)d or %(modes)s")
+                                     % {"max": cfg.REPEAT_COUNT_MAX, "modes": "|".join(cfg.REPEAT_MODES)})
 
 
 def cmd_macro(m, args):
@@ -190,11 +207,12 @@ def cmd_macro(m, args):
     try:
         macro = cfg.Macro(args.name, cfg.parse_steps(" ".join(args.steps)))
     except (ValueError, KeyError) as e:
-        sys.exit("error: %s" % e)
+        sys.exit(_("error: %s") % e)
     image, conf = load(m)
     conf.set_macro(k, macro, args.repeat)
     apply(m, image, conf)
-    print("button %d set to %s" % (args.button, conf.describe_button(k)))
+    print(_("button %(button)d set to %(action)s") % {"button": args.button,
+                                                    "action": conf.describe_button(k)})
 
 
 def cmd_profile_save(m, args):
@@ -202,8 +220,8 @@ def cmd_profile_save(m, args):
     image, conf = load(m)
     profile.save(path, conf, args.description)
     if conf.report_rate not in cfg.RATE_HZ:
-        print("warning: unknown report rate code 0x%02x left out" % conf.report_rate)
-    print("profile saved to %s" % path)
+        print(_("warning: unknown report rate code 0x%02x left out") % conf.report_rate)
+    print(_("profile saved to %s") % path)
 
 
 def cmd_profile_load(m, args):
@@ -212,46 +230,47 @@ def cmd_profile_load(m, args):
         image, conf = load(m)
         profile.apply(conf, data)
     except profile.ProfileError as e:
-        sys.exit("error: " + "\n  ".join(e.errors))
+        sys.exit(_("error: %s") % "\n  ".join(e.errors))
     new = conf.encode(image)
     fields = cfg.changed_fields(image, new)
     if not fields:
-        print("the mouse already matches the profile, nothing to do")
+        print(_("the mouse already matches the profile, nothing to do"))
         return
-    print("%d field(s) to write: %s" % (len(fields), ", ".join("0x%04x" % a for a, _ in fields)))
+    addrs = ", ".join("0x%04x" % a for a, _length in fields)
+    print(ngettext("%(count)d field to write: %(addrs)s", "%(count)d fields to write: %(addrs)s",
+                   len(fields)) % {"count": len(fields), "addrs": addrs})
     if args.dry_run:
         return
     m.write_fields(fields, new)
-    print("profile applied and verified")
+    print(_("profile applied and verified"))
 
 
 def cmd_profile_list(m, args):
     profiles = profile.list_profiles()
     if not profiles:
-        print("no profiles in %s (save one with: m916 profile save NAME)" % profile.profiles_dir())
+        print(_("no profiles in %s (save one with: m916 profile save NAME)") % profile.profiles_dir())
         return
-    print("profiles in %s:" % profile.profiles_dir())
-    width = max(len(name) for name, _, _ in profiles)
-    for name, _, description in profiles:
+    print(_("profiles in %s:") % profile.profiles_dir())
+    width = max(len(name) for name, _path, _desc in profiles)
+    for name, _path, description in profiles:
         print(("  %-*s  %s" % (width, name, description or "")).rstrip())
 
 
 def cmd_keys(m, args):
     from . import keys
-    print("modifiers:", " ".join(keys.MODIFIERS))
-    print("keys     :", " ".join(keys.KEYS))
-    print("media    :", " ".join(keys.MEDIA_KEYS))
-    print("mouse    :", " ".join(keys.MOUSE_BUTTONS))
+    print_fields([(_("modifiers"), " ".join(keys.MODIFIERS)), (_("keys"), " ".join(keys.KEYS)),
+                  (_("media"), " ".join(keys.MEDIA_KEYS)), (_("mouse"), " ".join(keys.MOUSE_BUTTONS))],
+                 9)
 
 
 def cmd_watch(m, args):
-    print("listening for status notifications (Ctrl+C to stop)")
+    print(_("listening for status notifications (Ctrl+C to stop)"))
     try:
         while True:
             resp = m.read_report(None)
             if resp and len(resp) >= 17 and resp[0] == REPORT_ID and resp[1] == CMD_STATUS_CHANGED:
                 flags = [n for b, n in enumerate(STATUS_NAMES) if resp[6] >> b & 1]
-                print(time.strftime("%H:%M:%S"), "changed:", ", ".join(flags) or "none",
+                print(time.strftime("%H:%M:%S"), _("changed:"), ", ".join(flags) or _("none"),
                       "| raw", resp[6:16].hex(" "))
     except KeyboardInterrupt:
         pass
@@ -259,79 +278,79 @@ def cmd_watch(m, args):
 
 def build_parser():
     ap = argparse.ArgumentParser(prog="m916",
-                                 description="Linux configuration tool for the Redragon M916-PRO-1K.")
-    ap.add_argument("-d", "--device", help="hidraw node (default: auto-detect)")
+                                 description=_("Linux configuration tool for the Redragon M916-PRO-1K."))
+    ap.add_argument("-d", "--device", help=_("hidraw node (default: auto-detect)"))
     sub = ap.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("info", help="show device status and configuration").set_defaults(func=cmd_info)
-    p = sub.add_parser("dump", help="save the whole flash to a file")
+    sub.add_parser("info", help=_("show device status and configuration")).set_defaults(func=cmd_info)
+    p = sub.add_parser("dump", help=_("save the whole flash to a file"))
     p.add_argument("file")
     p.set_defaults(func=cmd_dump)
-    p = sub.add_parser("restore", help="write back a flash image (only changed chunks)")
+    p = sub.add_parser("restore", help=_("write back a flash image (only changed chunks)"))
     p.add_argument("file")
-    p.add_argument("-y", "--yes", action="store_true", help="do not ask for confirmation")
+    p.add_argument("-y", "--yes", action="store_true", help=_("do not ask for confirmation"))
     p.set_defaults(func=cmd_restore)
-    p = sub.add_parser("rate", help="set the report rate")
+    p = sub.add_parser("rate", help=_("set the report rate"))
     p.add_argument("hz", type=int, choices=sorted(cfg.RATES))
     p.set_defaults(func=cmd_rate)
-    p = sub.add_parser("dpi", help="set the DPI of a level")
+    p = sub.add_parser("dpi", help=_("set the DPI of a level"))
     p.add_argument("level", type=int)
     p.add_argument("dpi", type=int)
-    p.add_argument("--y", type=int, help="separate Y DPI")
+    p.add_argument("--y", type=int, help=_("separate Y DPI"))
     p.set_defaults(func=cmd_dpi)
-    p = sub.add_parser("dpi-color", help="set the LED colour of a DPI level")
+    p = sub.add_parser("dpi-color", help=_("set the LED colour of a DPI level"))
     p.add_argument("level", type=int)
     p.add_argument("color", help="RRGGBB")
     p.set_defaults(func=cmd_dpi_color)
-    p = sub.add_parser("dpi-levels", help="number of enabled DPI levels")
+    p = sub.add_parser("dpi-levels", help=_("number of enabled DPI levels"))
     p.add_argument("count", type=int)
     p.set_defaults(func=cmd_dpi_levels)
-    p = sub.add_parser("dpi-active", help="select the active DPI level")
+    p = sub.add_parser("dpi-active", help=_("select the active DPI level"))
     p.add_argument("level", type=int)
     p.set_defaults(func=cmd_dpi_active)
-    p = sub.add_parser("option", help="set a single-byte option (raw value, see 'info')",
-                       epilog="lod: 1 = 1 mm, 2 = 2 mm; sensor-mode: 0 = LP, 1 = HP; "
-                              "led-off-time and full-performance-time in units of 10 s; "
-                              "dpi-led-mode: 1 steady, 2 flicker; dpi-led-brightness: %s; "
-                              "dpi-led-speed: 1..5"
+    p = sub.add_parser("option", help=_("set a single-byte option (raw value, see 'info')"),
+                       epilog=_("lod: 1 = 1 mm, 2 = 2 mm; sensor-mode: 0 = LP, 1 = HP; "
+                                "led-off-time and full-performance-time in units of 10 s; "
+                                "dpi-led-mode: 1 steady, 2 flicker; dpi-led-brightness: %s; "
+                                "dpi-led-speed: 1..5")
                               % "/".join(map(str, cfg.DPI_LED_BRIGHTNESS)))
     p.add_argument("name", choices=sorted(cfg.OPTIONS))
     p.add_argument("value", type=int)
     p.set_defaults(func=cmd_option)
-    p = sub.add_parser("button", help="assign a function to a button slot",
-                       epilog="actions: %s, fire:INTERVAL_MS:SHOTS (0 shots = while held), "
-                              "dpi-lock:DPI, key:COMBO (e.g. key:ctrl+c, key:mute; see 'keys')"
+    p = sub.add_parser("button", help=_("assign a function to a button slot"),
+                       epilog=_("actions: %s, fire:INTERVAL_MS:SHOTS (0 shots = while held), "
+                                "dpi-lock:DPI, key:COMBO (e.g. key:ctrl+c, key:mute; see 'keys')")
                               % ", ".join(cfg.BUTTON_ACTIONS))
-    p.add_argument("button", type=int, help="slot 1..16 (see info)")
+    p.add_argument("button", type=int, help=_("slot 1..16 (see info)"))
     p.add_argument("action")
     p.set_defaults(func=cmd_button)
-    p = sub.add_parser("macro", help="assign a macro to a button slot",
-                       epilog="steps: +KEY presses, -KEY releases, a number is the delay in ms "
-                              "after the previous step, e.g. \"+ctrl 10 +c 10 -c 10 -ctrl\"")
-    p.add_argument("button", type=int, help="slot 1..16 (see info)")
-    p.add_argument("name", help="up to %d characters" % cfg.MACRO_NAME_MAX)
+    p = sub.add_parser("macro", help=_("assign a macro to a button slot"),
+                       epilog=_("steps: +KEY presses, -KEY releases, a number is the delay in ms "
+                                "after the previous step, e.g. \"+ctrl 10 +c 10 -c 10 -ctrl\""))
+    p.add_argument("button", type=int, help=_("slot 1..16 (see info)"))
+    p.add_argument("name", help=_("up to %d characters") % cfg.MACRO_NAME_MAX)
     p.add_argument("steps", nargs="+")
     p.add_argument("-r", "--repeat", type=parse_repeat, default=1,
-                   help="times to run (1..%d), or %s" % (cfg.REPEAT_COUNT_MAX,
-                                                        "|".join(cfg.REPEAT_MODES)))
+                   help=_("times to run (1..%(max)d), or %(modes)s")
+                   % {"max": cfg.REPEAT_COUNT_MAX, "modes": "|".join(cfg.REPEAT_MODES)})
     p.set_defaults(func=cmd_macro)
-    p = sub.add_parser("profile", help="save, load or list JSON profiles",
-                       epilog="a bare NAME is NAME.json in %s; a path with '/' or ending in "
-                              ".json is used as given. A profile may leave sections out; "
-                              "loading it only writes the fields that change "
-                              "(see docs/PROFILES.md)" % profile.profiles_dir())
+    p = sub.add_parser("profile", help=_("save, load or list JSON profiles"),
+                       epilog=_("a bare NAME is NAME.json in %s; a path with '/' or ending in "
+                                ".json is used as given. A profile may leave sections out; "
+                                "loading it only writes the fields that change "
+                                "(see docs/PROFILES.md)") % profile.profiles_dir())
     psub = p.add_subparsers(dest="profile_command", required=True)
-    p = psub.add_parser("save", help="save the current configuration")
+    p = psub.add_parser("save", help=_("save the current configuration"))
     p.add_argument("file", metavar="NAME|FILE")
-    p.add_argument("-m", "--description", help="text shown by 'profile list'")
+    p.add_argument("-m", "--description", help=_("text shown by 'profile list'"))
     p.set_defaults(func=cmd_profile_save)
-    p = psub.add_parser("load", help="apply a profile (only the fields that change)")
+    p = psub.add_parser("load", help=_("apply a profile (only the fields that change)"))
     p.add_argument("file", metavar="NAME|FILE")
-    p.add_argument("-n", "--dry-run", action="store_true", help="only show what would change")
+    p.add_argument("-n", "--dry-run", action="store_true", help=_("only show what would change"))
     p.set_defaults(func=cmd_profile_load)
-    psub.add_parser("list", help="list the saved profiles").set_defaults(func=cmd_profile_list)
-    sub.add_parser("keys", help="list key names for shortcuts and macros").set_defaults(func=cmd_keys)
-    sub.add_parser("watch", help="print status notifications").set_defaults(func=cmd_watch)
+    psub.add_parser("list", help=_("list the saved profiles")).set_defaults(func=cmd_profile_list)
+    sub.add_parser("keys", help=_("list key names for shortcuts and macros")).set_defaults(func=cmd_keys)
+    sub.add_parser("watch", help=_("print status notifications")).set_defaults(func=cmd_watch)
     return ap
 
 
@@ -346,27 +365,27 @@ def main(argv=None):
         try:
             profile.check(profile.load(profile.resolve(args.file)))
         except profile.ProfileError as e:
-            sys.exit("error: " + "\n  ".join(e.errors))
+            sys.exit(_("error: %s") % "\n  ".join(e.errors))
 
     path = args.device
     if not path:
         devices = find_devices()
         if not devices:
-            sys.exit("Mouse not found (VID 3554, vendor collection with report ID 8).")
+            sys.exit(_("Mouse not found (VID 3554, vendor collection with report ID 8)."))
         path = devices[0]
     try:
         m = Mouse(path)
     except PermissionError:
-        sys.exit("Permission denied on %s: install udev/70-redragon-m916.rules or run with sudo."
+        sys.exit(_("Permission denied on %s: install udev/70-redragon-m916.rules or run with sudo.")
                  % path)
     try:
         # The receiver answers DeviceOnLine itself; everything else needs the mouse awake
         if args.command != "watch" and not m.online():
-            print("mouse is asleep or off: move it or click a button...", file=sys.stderr)
+            print(_("mouse is asleep or off: move it or click a button..."), file=sys.stderr)
             if not m.wait_online():
-                sys.exit("error: the mouse did not wake up")
+                sys.exit(_("error: %s") % _("the mouse did not wake up"))
         args.func(m, args)
     except (MouseAsleep, ProtocolError, OSError) as e:
-        sys.exit("error: %s" % e)
+        sys.exit(_("error: %s") % e)
     finally:
         m.close()

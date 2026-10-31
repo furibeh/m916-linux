@@ -9,6 +9,8 @@ import os
 import select
 import time
 
+from .i18n import _
+
 VID = 0x3554
 PIDS = {0xF55E: "wired", 0xF55F: "dongle", 0xF5D5: "dongle"}
 
@@ -82,7 +84,7 @@ class Mouse:
 
     def read_report(self, timeout):
         """One raw input report, or None after `timeout` seconds (None blocks)."""
-        r, _, _ = select.select([self.fd], [], [], timeout)
+        r, _w, _x = select.select([self.fd], [], [], timeout)
         if not r:
             return None
         return os.read(self.fd, 64)
@@ -103,7 +105,7 @@ class Mouse:
         pkt = bytes([REPORT_ID, cmd, 0, (addr >> 8) & 0xFF, addr & 0xFF,
                      len(data) if length is None else length]) + data.ljust(CHUNK, b"\0")
         pkt += bytes([checksum(pkt)])
-        for _ in range(retries):
+        for _attempt in range(retries):
             # The original driver keeps at least 8 ms between writes
             wait = 0.008 - (time.monotonic() - self._last_write)
             if wait > 0:
@@ -122,15 +124,15 @@ class Mouse:
                     return pkt, resp
                 if resp[1] == CMD_STATUS_CHANGED:
                     self.notifications.append(resp[6])
-        raise MouseAsleep("no response to command 0x%02x at 0x%04x (mouse asleep or off? "
-                          "move it and try again)" % (cmd, addr))
+        raise MouseAsleep(_("no response to command 0x%(cmd)02x at 0x%(addr)04x (mouse asleep or "
+                            "off? move it and try again)") % {"cmd": cmd, "addr": addr})
 
     def read_flash(self, addr, size, progress=None):
         """Read `size` bytes; `progress(done, total)` is called after each packet."""
         out = bytearray()
         while len(out) < size:
             n = min(CHUNK, size - len(out))
-            _, resp = self.transact(CMD_READ_FLASH, addr + len(out), length=n)
+            _pkt, resp = self.transact(CMD_READ_FLASH, addr + len(out), length=n)
             out += resp[6:6 + n]
             if progress:
                 progress(len(out), size)
@@ -140,12 +142,13 @@ class Mouse:
         for i in range(0, len(data), CHUNK):
             pkt, resp = self.transact(CMD_WRITE_FLASH, addr + i, data[i:i + CHUNK])
             if resp != pkt:
-                raise ProtocolError("write at 0x%04x not acknowledged (got %s)" % (addr + i, resp.hex(" ")))
+                raise ProtocolError(_("write at 0x%(addr)04x not acknowledged (got %(reply)s)")
+                                    % {"addr": addr + i, "reply": resp.hex(" ")})
 
     def write_verified(self, addr, data):
         self.write_flash(addr, data)
         if self.read_flash(addr, len(data)) != bytes(data):
-            raise ProtocolError("verification failed at 0x%04x" % addr)
+            raise ProtocolError(_("verification failed at 0x%04x") % addr)
 
     def write_fields(self, fields, image):
         """Write the (addr, length) ranges of `image`, verifying each one."""
@@ -153,12 +156,12 @@ class Mouse:
             self.write_verified(addr, image[addr:addr + length])
 
     def version(self):
-        _, r = self.transact(CMD_READ_VERSION)
+        _pkt, r = self.transact(CMD_READ_VERSION)
         return r[6:6 + r[5]]
 
     def online(self):
         """Answered by the receiver itself: True when the mouse is awake and linked."""
-        _, r = self.transact(CMD_DEVICE_ONLINE)
+        _pkt, r = self.transact(CMD_DEVICE_ONLINE)
         return r[6] == 1
 
     def wait_online(self, timeout=10.0):
@@ -171,5 +174,5 @@ class Mouse:
 
     def battery(self):
         """(level %, charging, millivolts)"""
-        _, r = self.transact(CMD_BATTERY)
+        _pkt, r = self.transact(CMD_BATTERY)
         return r[6], bool(r[7]), r[8] << 8 | r[9]

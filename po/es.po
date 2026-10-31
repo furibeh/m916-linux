@@ -1,0 +1,1511 @@
+# Spanish translation of m916-linux.
+# This file is distributed under the same license as the m916-linux package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: m916-linux\n"
+"Report-Msgid-Bugs-To: https://github.com/furibeh/m916-linux/issues\n"
+"POT-Creation-Date: 2026-10-31 16:23-0500\n"
+"PO-Revision-Date: 2026-10-31 12:00-0500\n"
+"Last-Translator: furibeh\n"
+"Language-Team: Spanish\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: m916/cli.py
+msgid " (charging)"
+msgstr " (cargando)"
+
+#: m916/cli.py
+#, python-format
+msgid "%(count)d (active: %(active)d)"
+msgstr "%(count)d (activo: %(active)d)"
+
+#: m916/cli.py
+#, python-format
+msgid "%(count)d block differs: %(blocks)s"
+msgid_plural "%(count)d blocks differ: %(blocks)s"
+msgstr[0] "difiere %(count)d bloque: %(blocks)s"
+msgstr[1] "difieren %(count)d bloques: %(blocks)s"
+
+#: m916/cli.py
+#, python-format
+msgid "%(count)d field to write: %(addrs)s"
+msgid_plural "%(count)d fields to write: %(addrs)s"
+msgstr[0] "%(count)d campo por escribir: %(addrs)s"
+msgstr[1] "%(count)d campos por escribir: %(addrs)s"
+
+#: m916/cli.py
+#, python-format
+msgid "%(file)s is %(size)d bytes, expected %(expected)d"
+msgstr "%(file)s tiene %(size)d bytes; se esperaban %(expected)d"
+
+#: m916/cli.py
+#, python-format
+msgid "%(option)s set to %(value)d"
+msgstr "%(option)s: %(value)d"
+
+#: m916/cli.py
+#, python-format
+msgid "%d DPI level enabled"
+msgid_plural "%d DPI levels enabled"
+msgstr[0] "%d nivel de DPI activado"
+msgstr[1] "%d niveles de DPI activados"
+
+#: m916/cli.py
+#, python-format
+msgid "DPI level %(level)d colour set to #%(color)s"
+msgstr "color del nivel de DPI %(level)d: #%(color)s"
+
+#: m916/cli.py
+#, python-format
+msgid "DPI level %(level)d set to %(dpi)d"
+msgstr "nivel de DPI %(level)d: %(dpi)d"
+
+#: m916/cli.py
+#, python-format
+msgid "DPI level must be 1..%d"
+msgstr "el nivel de DPI debe estar entre 1 y %d"
+
+#: m916/cli.py
+msgid "DPI levels"
+msgstr "niveles de DPI"
+
+#: m916/cli.py
+msgid "Linux configuration tool for the Redragon M916-PRO-1K."
+msgstr "Herramienta de configuración en Linux del Redragon M916-PRO-1K."
+
+#: m916/cli.py
+msgid "Mouse not found (VID 3554, vendor collection with report ID 8)."
+msgstr ""
+"No se encuentra el ratón (VID 3554, colección del fabricante con report ID "
+"8)."
+
+#: m916/cli.py
+#, python-format
+msgid ""
+"Permission denied on %s: install udev/70-redragon-m916.rules or run with "
+"sudo."
+msgstr ""
+"Sin permiso sobre %s: instala udev/70-redragon-m916.rules o ejecuta con sudo."
+
+#: m916/cli.py
+#, python-format
+msgid ""
+"a bare NAME is NAME.json in %s; a path with '/' or ending in .json is used "
+"as given. A profile may leave sections out; loading it only writes the "
+"fields that change (see docs/PROFILES.md)"
+msgstr ""
+"un NAME sin ruta es NAME.json en %s; una ruta con '/' o terminada en .json "
+"se usa tal cual. Un perfil puede omitir secciones; al cargarlo solo se "
+"escriben los campos que cambian (ver docs/PROFILES.md)"
+
+#: m916/cli.py
+#, python-format
+msgid ""
+"actions: %s, fire:INTERVAL_MS:SHOTS (0 shots = while held), dpi-lock:DPI, "
+"key:COMBO (e.g. key:ctrl+c, key:mute; see 'keys')"
+msgstr ""
+"acciones: %s, fire:INTERVALO_MS:DISPAROS (0 disparos = mientras se pulse), "
+"dpi-lock:DPI, key:COMBINACIÓN (p. ej. key:ctrl+c, key:mute; ver 'keys')"
+
+#: m916/cli.py
+#, python-format
+msgid "active DPI level set to %d"
+msgstr "nivel de DPI activo: %d"
+
+#: m916/cli.py
+msgid "apply a profile (only the fields that change)"
+msgstr "aplica un perfil (solo los campos que cambian)"
+
+#: m916/cli.py
+msgid "assign a function to a button slot"
+msgstr "asigna una función a un botón"
+
+#: m916/cli.py
+msgid "assign a macro to a button slot"
+msgstr "asigna una macro a un botón"
+
+#: m916/cli.py
+#, python-format
+msgid "bad action %(action)r: %(error)s"
+msgstr "acción no válida %(action)r: %(error)s"
+
+#: m916/cli.py
+msgid "battery"
+msgstr "batería"
+
+#: m916/cli.py
+#, python-format
+msgid "button %(button)d set to %(action)s"
+msgstr "botón %(button)d: %(action)s"
+
+#: m916/cli.py
+#, python-format
+msgid "button must be 1..%d"
+msgstr "el botón debe estar entre 1 y %d"
+
+#: m916/cli.py
+msgid "buttons:"
+msgstr "botones:"
+
+#: m916/cli.py
+msgid "changed:"
+msgstr "cambios:"
+
+#: m916/cli.py
+msgid "colour"
+msgstr "color"
+
+#: m916/cli.py
+msgid "colour must be RRGGBB"
+msgstr "el color debe ser RRGGBB"
+
+#: m916/cli.py
+msgid "device"
+msgstr "dispositivo"
+
+#: m916/cli.py
+msgid "do not ask for confirmation"
+msgstr "no pide confirmación"
+
+#: m916/cli.py
+#, python-format
+msgid "error: %s"
+msgstr "error: %s"
+
+#: m916/cli.py
+msgid "firmware"
+msgstr "firmware"
+
+#: m916/cli.py
+msgid "flash already matches the image, nothing to do"
+msgstr "la flash ya coincide con la imagen; no hay nada que hacer"
+
+#: m916/cli.py
+msgid "hidraw node (default: auto-detect)"
+msgstr "nodo hidraw (por defecto: detección automática)"
+
+#: m916/cli.py
+msgid "keys"
+msgstr "teclas"
+
+#: m916/cli.py
+msgid "list key names for shortcuts and macros"
+msgstr "lista los nombres de tecla para atajos y macros"
+
+#: m916/cli.py
+msgid "list the saved profiles"
+msgstr "lista los perfiles guardados"
+
+#: m916/cli.py
+msgid "listening for status notifications (Ctrl+C to stop)"
+msgstr "escuchando avisos de estado (Ctrl+C para salir)"
+
+#: m916/cli.py
+#, python-format
+msgid ""
+"lod: 1 = 1 mm, 2 = 2 mm; sensor-mode: 0 = LP, 1 = HP; led-off-time and full-"
+"performance-time in units of 10 s; dpi-led-mode: 1 steady, 2 flicker; dpi-"
+"led-brightness: %s; dpi-led-speed: 1..5"
+msgstr ""
+"lod: 1 = 1 mm, 2 = 2 mm; sensor-mode: 0 = LP, 1 = HP; led-off-time y full-"
+"performance-time en unidades de 10 s; dpi-led-mode: 1 fijo, 2 parpadeo; dpi-"
+"led-brightness: %s; dpi-led-speed: 1..5"
+
+#: m916/cli.py
+msgid "media"
+msgstr "multimedia"
+
+#: m916/cli.py
+msgid "modifiers"
+msgstr "modificadores"
+
+#: m916/cli.py
+msgid "mouse"
+msgstr "ratón"
+
+#: m916/cli.py
+msgid "mouse is asleep or off: move it or click a button..."
+msgstr "el ratón está dormido o apagado: muévelo o pulsa un botón..."
+
+#: m916/cli.py
+#, python-format
+msgid "no profiles in %s (save one with: m916 profile save NAME)"
+msgstr "no hay perfiles en %s (guarda uno con: m916 profile save NAME)"
+
+#: m916/cli.py
+msgid "none"
+msgstr "ninguno"
+
+#: m916/cli.py
+#, python-format
+msgid "note: %d Hz may need the 4K dongle; this is a 1K model"
+msgstr "nota: %d Hz puede necesitar el receptor 4K; este es un modelo 1K"
+
+#: m916/cli.py
+msgid "number of enabled DPI levels"
+msgstr "número de niveles de DPI activados"
+
+#: m916/cli.py
+msgid "only show what would change"
+msgstr "solo muestra lo que cambiaría"
+
+#: m916/cli.py
+msgid "options:"
+msgstr "opciones:"
+
+#: m916/cli.py
+msgid "print status notifications"
+msgstr "muestra los avisos de estado"
+
+#: m916/cli.py
+msgid "profile applied and verified"
+msgstr "perfil aplicado y verificado"
+
+#: m916/cli.py
+#, python-format
+msgid "profile saved to %s"
+msgstr "perfil guardado en %s"
+
+#: m916/cli.py
+#, python-format
+msgid "profiles in %s:"
+msgstr "perfiles en %s:"
+
+#: m916/cli.py
+#, python-format
+msgid "raw 0x%02x"
+msgstr "código 0x%02x"
+
+#: m916/cli.py
+msgid "read"
+msgstr "leyendo"
+
+#: m916/cli.py
+msgid "reading current flash to compare..."
+msgstr "leyendo la flash actual para comparar..."
+
+#: m916/cli.py
+msgid "report rate"
+msgstr "frecuencia de sondeo"
+
+#: m916/cli.py
+#, python-format
+msgid "report rate set to %d Hz"
+msgstr "frecuencia de sondeo: %d Hz"
+
+#: m916/cli.py
+msgid "restored and verified"
+msgstr "restaurada y verificada"
+
+#: m916/cli.py
+msgid "save the current configuration"
+msgstr "guarda la configuración actual"
+
+#: m916/cli.py
+msgid "save the whole flash to a file"
+msgstr "guarda toda la flash en un archivo"
+
+#: m916/cli.py
+msgid "save, load or list JSON profiles"
+msgstr "guarda, carga o lista perfiles JSON"
+
+#: m916/cli.py
+#, python-format
+msgid "saved %(size)d bytes to %(file)s"
+msgstr "guardados %(size)d bytes en %(file)s"
+
+#: m916/cli.py
+msgid "select the active DPI level"
+msgstr "elige el nivel de DPI activo"
+
+#: m916/cli.py
+msgid "separate Y DPI"
+msgstr "DPI del eje Y, si es distinto"
+
+#: m916/cli.py
+msgid "set a single-byte option (raw value, see 'info')"
+msgstr "cambia una opción de un byte (valor en bruto, ver 'info')"
+
+#: m916/cli.py
+msgid "set the DPI of a level"
+msgstr "cambia los DPI de un nivel"
+
+#: m916/cli.py
+msgid "set the LED colour of a DPI level"
+msgstr "cambia el color del LED de un nivel de DPI"
+
+#: m916/cli.py
+msgid "set the report rate"
+msgstr "cambia la frecuencia de sondeo"
+
+#: m916/cli.py
+msgid "show device status and configuration"
+msgstr "muestra el estado y la configuración del dispositivo"
+
+#: m916/cli.py
+msgid "slot 1..16 (see info)"
+msgstr "posición 1..16 (ver info)"
+
+#: m916/cli.py
+msgid ""
+"steps: +KEY presses, -KEY releases, a number is the delay in ms after the "
+"previous step, e.g. \"+ctrl 10 +c 10 -c 10 -ctrl\""
+msgstr ""
+"pasos: +TECLA pulsa, -TECLA suelta y un número es la espera en ms tras el "
+"paso anterior, p. ej. \"+ctrl 10 +c 10 -c 10 -ctrl\""
+
+#: m916/cli.py
+msgid "text shown by 'profile list'"
+msgstr "texto que muestra 'profile list'"
+
+#: m916/cli.py
+msgid "the mouse already matches the profile, nothing to do"
+msgstr "el ratón ya coincide con el perfil; no hay nada que hacer"
+
+#: m916/cli.py
+msgid "the mouse did not wake up"
+msgstr "el ratón no se ha despertado"
+
+#: m916/cli.py
+#, python-format
+msgid "times to run (1..%(max)d), or %(modes)s"
+msgstr "veces que se ejecuta (1..%(max)d), o %(modes)s"
+
+#: m916/cli.py
+#, python-format
+msgid "unknown action %r"
+msgstr "acción desconocida %r"
+
+#: m916/cli.py
+#, python-format
+msgid "up to %d characters"
+msgstr "hasta %d caracteres"
+
+#: m916/cli.py
+#, python-format
+msgid "use 1..%(max)d or %(modes)s"
+msgstr "usa 1..%(max)d o %(modes)s"
+
+#: m916/cli.py
+msgid "verification failed after restore"
+msgstr "la verificación falló tras restaurar"
+
+#: m916/cli.py
+msgid "verify"
+msgstr "verificando"
+
+#: m916/cli.py
+#, python-format
+msgid "warning: bad check bytes at %s"
+msgstr "aviso: bytes de comprobación incorrectos en %s"
+
+#: m916/cli.py
+#, python-format
+msgid "warning: unknown report rate code 0x%02x left out"
+msgstr "aviso: se omite el código de frecuencia de sondeo desconocido 0x%02x"
+
+#: m916/cli.py
+msgid "write back a flash image (only changed chunks)"
+msgstr ""
+"vuelve a escribir una imagen de la flash (solo los bloques que cambian)"
+
+#: m916/cli.py
+msgid "write them? [y/N] "
+msgstr "¿escribirlos? [s/N] "
+
+#. TRANSLATORS: the answer to "[y/N]" questions; "y" is also accepted
+#: m916/cli.py
+msgid "y"
+msgstr "s"
+
+#: m916/config.py
+#, python-format
+msgid "%d shot"
+msgid_plural "%d shots"
+msgstr[0] "%d disparo"
+msgstr[1] "%d disparos"
+
+#: m916/config.py m916/gui.py
+#, python-format
+msgid "%d time"
+msgid_plural "%d times"
+msgstr[0] "%d vez"
+msgstr[1] "%d veces"
+
+#: m916/config.py
+#, python-format
+msgid "%s must be 0..255"
+msgstr "%s debe estar entre 0 y 255"
+
+#: m916/config.py
+#, python-format
+msgid "DPI level count must be 1..%d"
+msgstr "el número de niveles de DPI debe estar entre 1 y %d"
+
+#: m916/config.py
+#, python-format
+msgid "a macro has 1..%d steps"
+msgstr "una macro tiene de 1 a %d pasos"
+
+#: m916/config.py
+#, python-format
+msgid "a macro must use its own block (p1=%d)"
+msgstr "una macro debe usar su propio bloque (p1=%d)"
+
+#: m916/config.py
+#, python-format
+msgid "a shortcut has 1 to %d keys"
+msgstr "un atajo tiene de 1 a %d teclas"
+
+#: m916/config.py m916/profile.py
+#, python-format
+msgid "a shortcut has 1..%d events"
+msgstr "un atajo tiene de 1 a %d eventos"
+
+#: m916/config.py
+msgid "active DPI level must be one of the enabled levels"
+msgstr "el nivel de DPI activo debe ser uno de los niveles activados"
+
+#: m916/config.py
+#, python-format
+msgid "bad macro step %r (moves are -128..127)"
+msgstr "paso de macro no válido %r (los movimientos van de -128 a 127)"
+
+#: m916/config.py
+#, python-format
+msgid "bad macro step %r (use +KEY, -KEY or a delay in ms)"
+msgstr "paso de macro no válido %r (usa +TECLA, -TECLA o una espera en ms)"
+
+#: m916/config.py
+#, python-format
+msgid "button %d: "
+msgstr "botón %d: "
+
+#: m916/config.py
+#, python-format
+msgid "fire (every %(interval)d ms, %(shots)s)"
+msgstr "fire (cada %(interval)d ms, %(shots)s)"
+
+#: m916/config.py
+#, python-format
+msgid "fire interval must be %(min)d..255 ms and shots 0..%(max)d"
+msgstr ""
+"el intervalo de disparo debe estar entre %(min)d y 255 ms, y los disparos "
+"entre 0 y %(max)d"
+
+#: m916/config.py
+msgid "flicker"
+msgstr "parpadeo"
+
+#: m916/config.py
+#, python-format
+msgid "level %(level)d: DPI must be a multiple of %(step)d in %(min)d..%(max)d"
+msgstr ""
+"nivel %(level)d: los DPI deben ser múltiplo de %(step)d entre %(min)d y "
+"%(max)d"
+
+#: m916/config.py
+#, python-format
+msgid "level %d"
+msgstr "nivel %d"
+
+#: m916/config.py
+#, python-format
+msgid "level %d: X and Y must be in the same 12800-DPI band"
+msgstr "nivel %d: X e Y deben estar en el mismo tramo de 12 800 DPI"
+
+#: m916/config.py
+#, python-format
+msgid "macro %(name)r, %(repeat)s: %(steps)s"
+msgstr "macro %(name)r, %(repeat)s: %(steps)s"
+
+#: m916/config.py
+msgid "macro delays must be 0..65535 ms"
+msgstr "las esperas de la macro deben estar entre 0 y 65535 ms"
+
+#: m916/config.py
+#, python-format
+msgid "macro name must have 1..%d characters"
+msgstr "el nombre de la macro debe tener de 1 a %d caracteres"
+
+#: m916/config.py
+msgid "macro name must use Latin-1 characters"
+msgstr "el nombre de la macro debe usar caracteres Latin-1"
+
+#: m916/config.py
+msgid "macro repeat must be 1..255"
+msgstr "las repeticiones de la macro deben estar entre 1 y 255"
+
+#: m916/config.py
+#, python-format
+msgid "shortcut %s"
+msgstr "atajo %s"
+
+#: m916/config.py
+msgid "steady"
+msgstr "fijo"
+
+#: m916/config.py
+#, python-format
+msgid "unknown report rate code 0x%02x"
+msgstr "código de frecuencia de sondeo desconocido 0x%02x"
+
+#: m916/config.py
+msgid "until any button"
+msgstr "hasta pulsar cualquier botón"
+
+#: m916/config.py m916/gui.py
+msgid "until pressed again"
+msgstr "hasta volver a pulsar"
+
+#: m916/config.py
+msgid "values must be 0..255 (dpi-lock: 50..12800 DPI)"
+msgstr "los valores deben estar entre 0 y 255 (dpi-lock: 50..12800 DPI)"
+
+#: m916/config.py m916/gui.py
+msgid "while held"
+msgstr "mientras se pulse"
+
+#: m916/gui.py
+msgid " shots"
+msgstr " disparos"
+
+#: m916/gui.py
+msgid " times"
+msgstr " veces"
+
+#: m916/gui.py
+#, python-format
+msgid "%(file)s has %(size)d bytes; expected %(expected)d."
+msgstr "%(file)s tiene %(size)d bytes; se esperaban %(expected)d."
+
+#: m916/gui.py
+#, python-format
+msgid ""
+"%(file)s was not loaded:\n"
+"\n"
+"%(errors)s"
+msgstr ""
+"No se ha cargado %(file)s:\n"
+"\n"
+"%(errors)s"
+
+#: m916/gui.py
+#, python-format
+msgid "<b>%(name)s</b> · %(count)d step · %(repeat)s"
+msgid_plural "<b>%(name)s</b> · %(count)d steps · %(repeat)s"
+msgstr[0] "<b>%(name)s</b> · %(count)d paso · %(repeat)s"
+msgstr[1] "<b>%(name)s</b> · %(count)d pasos · %(repeat)s"
+
+#: m916/gui.py
+#, python-format
+msgid "<b>Connected</b> · %s"
+msgstr "<b>Conectado</b> · %s"
+
+#: m916/gui.py
+msgid "<b>Mouse asleep</b> · move it or click to wake it up"
+msgstr "<b>Ratón dormido</b> · muévelo o haz clic para despertarlo"
+
+#: m916/gui.py
+msgid "<b>Receiver not found</b> · plug it in to start"
+msgstr "<b>Receptor no encontrado</b> · conéctalo para empezar"
+
+#: m916/gui.py
+#, python-format
+msgid ""
+"A profile saves the configuration (DPI, buttons, macros and options) in a "
+"readable JSON file that can be edited by hand: for example, one for games "
+"and another for work. What you see on screen is saved. When you load it, its "
+"values appear as unapplied changes; whatever the profile leaves out stays as "
+"it is. By default they are saved in %s, where <tt>m916 profile list</tt> "
+"also finds them."
+msgstr ""
+"Un perfil guarda la configuración (DPI, botones, macros y opciones) en un "
+"archivo JSON legible que se puede editar a mano: por ejemplo, uno para "
+"juegos y otro para oficina. Se guarda lo que ves en pantalla. Al cargarlo, "
+"sus valores aparecen como cambios sin aplicar; lo que el perfil no incluya "
+"se queda como está. Por defecto se guardan en %s, donde también los "
+"encuentra <tt>m916 profile list</tt>."
+
+#: m916/gui.py
+msgid "Action"
+msgstr "Acción"
+
+#: m916/gui.py
+msgid "Active"
+msgstr "En uso"
+
+#: m916/gui.py
+msgid "Active levels:"
+msgstr "Niveles activos:"
+
+#: m916/gui.py
+msgid "Add"
+msgstr "Añadir"
+
+#: m916/gui.py
+msgid "Apply"
+msgstr "Aplicar"
+
+#: m916/gui.py
+msgid "Back"
+msgstr "Atrás"
+
+#: m916/gui.py
+#, python-format
+msgid "Backup restored (%d block rewritten) and verified"
+msgid_plural "Backup restored (%d blocks rewritten) and verified"
+msgstr[0] "Copia restaurada (%d bloque reescrito) y verificada"
+msgstr[1] "Copia restaurada (%d bloques reescritos) y verificada"
+
+#: m916/gui.py
+#, python-format
+msgid "Backup saved to %s"
+msgstr "Copia guardada en %s"
+
+#: m916/gui.py
+msgid "Backups and profiles"
+msgstr "Copias y perfiles"
+
+#: m916/gui.py
+#, python-format
+msgid "Battery %(level)d %%%(charging)s"
+msgstr "Batería %(level)d %%%(charging)s"
+
+#: m916/gui.py
+msgid "Battery %p %"
+msgstr "Batería %p %"
+
+#: m916/gui.py
+msgid "Blinking"
+msgstr "Parpadeo"
+
+#: m916/gui.py
+msgid "Brightness (1–10):"
+msgstr "Brillo (1–10):"
+
+#: m916/gui.py
+msgid "Browser: back"
+msgstr "Navegador: atrás"
+
+#: m916/gui.py
+msgid "Browser: forward"
+msgstr "Navegador: adelante"
+
+#: m916/gui.py
+msgid "Browser: home"
+msgstr "Navegador: inicio"
+
+#: m916/gui.py
+msgid "Browser: reload"
+msgstr "Navegador: recargar"
+
+#: m916/gui.py
+msgid "Browser: stop"
+msgstr "Navegador: detener"
+
+#: m916/gui.py
+#, python-format
+msgid "Button %d"
+msgstr "Botón %d"
+
+#: m916/gui.py
+msgid "Button debounce:"
+msgstr "Debounce de los botones:"
+
+#: m916/gui.py
+msgid "Buttons"
+msgstr "Botones"
+
+#: m916/gui.py
+msgid "Calculator"
+msgstr "Calculadora"
+
+#: m916/gui.py
+msgid "Capture"
+msgstr "Capturar"
+
+#: m916/gui.py
+msgid "Change polling rate"
+msgstr "Cambiar frecuencia de sondeo"
+
+#: m916/gui.py
+msgid "Changes applied and verified"
+msgstr "Cambios aplicados y verificados"
+
+#: m916/gui.py
+msgid "Clear"
+msgstr "Vaciar"
+
+#: m916/gui.py
+msgid "Color"
+msgstr "Color"
+
+#: m916/gui.py
+#, python-format
+msgid "Color of level %d"
+msgstr "Color del nivel %d"
+
+#: m916/gui.py
+msgid "DPI LED"
+msgstr "LED de DPI"
+
+#: m916/gui.py
+msgid "DPI lock"
+msgstr "Bloqueo de DPI"
+
+#: m916/gui.py
+msgid "DPI while the button is held down"
+msgstr "DPI mientras se mantiene pulsado el botón"
+
+#: m916/gui.py
+msgid "DPI: cycle"
+msgstr "DPI: ciclo"
+
+#: m916/gui.py
+msgid "DPI: down"
+msgstr "DPI: bajar"
+
+#: m916/gui.py
+msgid "DPI: up"
+msgstr "DPI: subir"
+
+#: m916/gui.py
+msgid "Delay (ms)"
+msgstr "Espera (ms)"
+
+#: m916/gui.py
+msgid "Disabled"
+msgstr "Desactivado"
+
+#: m916/gui.py
+msgid "Discard changes"
+msgstr "Descartar cambios"
+
+#: m916/gui.py
+msgid "Edit macro"
+msgstr "Editar macro"
+
+#: m916/gui.py
+msgid "Edit…"
+msgstr "Editar…"
+
+#: m916/gui.py
+msgid "Effect:"
+msgstr "Efecto:"
+
+#: m916/gui.py
+msgid "Email"
+msgstr "Correo"
+
+#: m916/gui.py
+msgid "Error"
+msgstr "Error"
+
+#: m916/gui.py
+msgid "Every"
+msgstr "Cada"
+
+#: m916/gui.py
+msgid "Favorites"
+msgstr "Favoritos"
+
+#: m916/gui.py
+#, python-format
+msgid "Firmware %(firmware)s · v%(version)s"
+msgstr "Firmware %(firmware)s · v%(version)s"
+
+#: m916/gui.py
+msgid ""
+"Fix the buttons first:\n"
+"\n"
+msgstr ""
+"Corrige primero los botones:\n"
+"\n"
+
+#: m916/gui.py
+msgid "Flash dump (*.bin)"
+msgstr "Volcado de flash (*.bin)"
+
+#: m916/gui.py
+msgid "Forward"
+msgstr "Adelante"
+
+#: m916/gui.py
+msgid "Full backup"
+msgstr "Copia completa"
+
+#: m916/gui.py
+msgid "Full performance for:"
+msgstr "Rendimiento máximo durante:"
+
+#: m916/gui.py
+msgid "Height at which the sensor stops tracking when the mouse is lifted"
+msgstr "Altura a la que el sensor deja de leer al levantar el ratón"
+
+#: m916/gui.py
+msgid "High performance (HP)"
+msgstr "Alto rendimiento (HP)"
+
+#: m916/gui.py
+msgid "Horizontal scroll: left"
+msgstr "Scroll horizontal: izquierda"
+
+#: m916/gui.py
+msgid "Horizontal scroll: right"
+msgstr "Scroll horizontal: derecha"
+
+#: m916/gui.py
+#, python-format
+msgid ""
+"In levels %s, X and Y must both be below or both above 12 800 DPI (and 25 "
+"600)."
+msgstr ""
+"En los niveles %s, X e Y deben estar ambos por debajo o ambos por encima de "
+"12 800 DPI (y de 25 600)."
+
+#: m916/gui.py
+msgid "Invalid DPI"
+msgstr "DPI no válido"
+
+#: m916/gui.py
+#, python-format
+msgid ""
+"Invalid combination: use names such as ctrl, shift, alt, super, a–z, 0–9, f1–"
+"f24, enter, esc, tab, space… (up to %d keys)"
+msgstr ""
+"Combinación no válida: usa nombres como ctrl, shift, alt, super, a–z, 0–9, "
+"f1–f24, enter, esc, tab, space… (hasta %d teclas)"
+
+#: m916/gui.py
+msgid "Invalid configuration"
+msgstr "Configuración no válida"
+
+#: m916/gui.py
+msgid "Invalid macro"
+msgstr "Macro no válida"
+
+#: m916/gui.py
+msgid "Invalid profile"
+msgstr "Perfil no válido"
+
+#: m916/gui.py
+#, python-format
+msgid ""
+"Key names: ctrl, shift, alt, super, a–z, 0–9, f1–f24, enter, esc, space, "
+"mouse-left, mouse-right… Up to %d steps."
+msgstr ""
+"Nombres de tecla: ctrl, shift, alt, super, a–z, 0–9, f1–f24, enter, esc, "
+"space, mouse-left, mouse-right… Máximo %d pasos."
+
+#: m916/gui.py
+msgid "Key or button"
+msgstr "Tecla o botón"
+
+#: m916/gui.py
+msgid "Keyboard shortcut"
+msgstr "Atajo de teclado"
+
+#: m916/gui.py
+msgid "Left click"
+msgstr "Clic izquierdo"
+
+#: m916/gui.py
+msgid "Level"
+msgstr "Nivel"
+
+#: m916/gui.py
+#, python-format
+msgid "Level %d"
+msgstr "Nivel %d"
+
+#: m916/gui.py
+msgid "Lift-off distance (LOD):"
+msgstr "Distancia de despegue (LOD):"
+
+#: m916/gui.py
+msgid "Lights"
+msgstr "Luces"
+
+#: m916/gui.py
+msgid "Linear correction (angle snapping)"
+msgstr "Corrección lineal (angle snapping)"
+
+#: m916/gui.py
+msgid "Load profile"
+msgstr "Cargar perfil"
+
+#: m916/gui.py
+msgid "Load profile…"
+msgstr "Cargar perfil…"
+
+#: m916/gui.py
+msgid "Low power (LP)"
+msgstr "Bajo consumo (LP)"
+
+#: m916/gui.py
+msgid "Macro"
+msgstr "Macro"
+
+#: m916/gui.py
+msgid "Media key"
+msgstr "Tecla multimedia"
+
+#: m916/gui.py
+msgid "Media player"
+msgstr "Reproductor multimedia"
+
+#: m916/gui.py
+msgid "Middle click"
+msgstr "Clic central"
+
+#: m916/gui.py
+msgid "Milliseconds to wait before the next step"
+msgstr "Milisegundos de espera antes del paso siguiente"
+
+#: m916/gui.py
+msgid "Motion Sync"
+msgstr "Motion Sync"
+
+#: m916/gui.py
+msgid "Move down"
+msgstr "Bajar"
+
+#: m916/gui.py
+msgid "Move up"
+msgstr "Subir"
+
+#: m916/gui.py
+msgid "Mute"
+msgstr "Silenciar"
+
+#: m916/gui.py
+msgid "My computer"
+msgstr "Mi equipo"
+
+#: m916/gui.py
+msgid "Name:"
+msgstr "Nombre:"
+
+#: m916/gui.py
+msgid "Next track"
+msgstr "Siguiente pista"
+
+#: m916/gui.py
+#, python-format
+msgid ""
+"No permission on %s: install the udev rule (udev/70-redragon-m916.rules)."
+msgstr ""
+"Sin permiso sobre %s: instala la regla udev (udev/70-redragon-m916.rules)."
+
+#: m916/gui.py
+msgid "Not defined"
+msgstr "Sin definir"
+
+#: m916/gui.py
+msgid ""
+"Numbers are positions in the mouse memory; buttons 1–5 are left, right, "
+"middle, back and forward. Shortcuts are stored as physical keys: the mouse "
+"sends the position and your keyboard layout decides the character."
+msgstr ""
+"Los números son posiciones en la memoria del ratón; los botones 1–5 son "
+"izquierdo, derecho, central, atrás y adelante. Los atajos se guardan como "
+"teclas físicas: el ratón envía la posición y tu distribución de teclado "
+"decide el carácter."
+
+#: m916/gui.py
+msgid "Off"
+msgstr "Apagado"
+
+#: m916/gui.py
+msgid "Performance"
+msgstr "Rendimiento"
+
+#: m916/gui.py
+msgid "Play/pause"
+msgstr "Reproducir/pausa"
+
+#: m916/gui.py
+msgid "Polling rate:"
+msgstr "Frecuencia de sondeo:"
+
+#: m916/gui.py
+msgid "Power saving"
+msgstr "Ahorro de energía"
+
+#: m916/gui.py
+msgid "Press"
+msgstr "Pulsar"
+
+#: m916/gui.py
+msgid "Press keys or mouse buttons here"
+msgstr "Pulsa teclas o botones del ratón aquí"
+
+#: m916/gui.py
+msgid "Press the combination…"
+msgstr "Pulsa la combinación…"
+
+#: m916/gui.py
+msgid "Press this button and then the key combination"
+msgstr "Pulsa este botón y después la combinación de teclas"
+
+#: m916/gui.py
+msgid "Previous track"
+msgstr "Pista anterior"
+
+#: m916/gui.py
+msgid "Profile (*.json)"
+msgstr "Perfil (*.json)"
+
+#: m916/gui.py
+msgid "Profile loaded: review the changes and press Apply"
+msgstr "Perfil cargado: revisa los cambios y pulsa Aplicar"
+
+#: m916/gui.py
+#, python-format
+msgid "Profile saved to %s"
+msgstr "Perfil guardado en %s"
+
+#: m916/gui.py
+msgid "Profiles"
+msgstr "Perfiles"
+
+#: m916/gui.py
+msgid "Rapid fire"
+msgstr "Disparo repetido"
+
+#: m916/gui.py
+msgid "Receiver not found"
+msgstr "Receptor no encontrado"
+
+#: m916/gui.py
+msgid "Record"
+msgstr "Grabar"
+
+#: m916/gui.py
+msgid "Release"
+msgstr "Soltar"
+
+#: m916/gui.py
+msgid "Reload"
+msgstr "Recargar"
+
+#: m916/gui.py
+msgid "Remove"
+msgstr "Quitar"
+
+#: m916/gui.py
+msgid "Repeat a number of times"
+msgstr "Repetir un número de veces"
+
+#: m916/gui.py
+msgid "Restore"
+msgstr "Restaurar"
+
+#: m916/gui.py
+msgid "Restore backup"
+msgstr "Restaurar copia"
+
+#: m916/gui.py
+msgid "Restore backup…"
+msgstr "Restaurar copia…"
+
+#: m916/gui.py
+msgid "Restore memory backup"
+msgstr "Restaurar copia de la memoria"
+
+#: m916/gui.py
+msgid "Right click"
+msgstr "Clic derecho"
+
+#: m916/gui.py
+msgid "Ripple control"
+msgstr "Ripple control"
+
+#: m916/gui.py
+msgid "Run:"
+msgstr "Ejecución:"
+
+#: m916/gui.py
+msgid ""
+"Save a full copy of the mouse memory (6912 bytes) before making changes. "
+"Restoring only rewrites the parts that differ, and then the whole memory is "
+"verified."
+msgstr ""
+"Guarda una copia completa de la memoria del ratón (6912 bytes) antes de "
+"hacer cambios. Al restaurar solo se reescriben las partes que difieren, y "
+"después se verifica toda la memoria."
+
+#: m916/gui.py
+msgid "Save backup…"
+msgstr "Guardar copia…"
+
+#: m916/gui.py
+msgid "Save memory backup"
+msgstr "Guardar copia de la memoria"
+
+#: m916/gui.py
+msgid "Save profile"
+msgstr "Guardar perfil"
+
+#: m916/gui.py
+msgid "Save profile…"
+msgstr "Guardar perfil…"
+
+#: m916/gui.py
+msgid "Scroll: down"
+msgstr "Scroll: abajo"
+
+#: m916/gui.py
+msgid "Scroll: up"
+msgstr "Scroll: arriba"
+
+#: m916/gui.py
+msgid "Search"
+msgstr "Buscar"
+
+#: m916/gui.py
+msgid "Sensor"
+msgstr "Sensor"
+
+#: m916/gui.py
+msgid "Sensor mode:"
+msgstr "Modo del sensor:"
+
+#: m916/gui.py
+msgid "Separate X and Y"
+msgstr "X e Y independientes"
+
+#: m916/gui.py
+msgid "Shots per press; 0 repeats while held down"
+msgstr "Disparos por pulsación; 0 repite mientras se mantenga pulsado"
+
+#: m916/gui.py
+msgid "Speed (1–5):"
+msgstr "Velocidad (1–5):"
+
+#: m916/gui.py
+msgid "Steady"
+msgstr "Fijo"
+
+#: m916/gui.py
+msgid "Stop"
+msgstr "Detener"
+
+#: m916/gui.py
+msgid ""
+"The LED shows the color of each DPI level (DPI tab). Brightness applies to "
+"the steady effect and speed to blinking."
+msgstr ""
+"El LED muestra el color de cada nivel de DPI (pestaña DPI). El brillo se "
+"aplica al efecto fijo y la velocidad al parpadeo."
+
+#: m916/gui.py
+msgid ""
+"The mouse LED shows the color of the active level. With the PAW3395, X and Y "
+"must be in the same 12 800 DPI band."
+msgstr ""
+"El LED del ratón muestra el color del nivel en uso. Con el PAW3395, X e Y "
+"deben estar en el mismo tramo de 12 800 DPI."
+
+#: m916/gui.py
+#, python-format
+msgid ""
+"The mouse does not answer (asleep?): move it and try again.\n"
+"\n"
+"%s"
+msgstr ""
+"El ratón no responde (¿dormido?): muévelo y vuelve a intentarlo.\n"
+"\n"
+"%s"
+
+#: m916/gui.py
+#, python-format
+msgid ""
+"The mouse memory will be rewritten with the contents of\n"
+"%s\n"
+"\n"
+"Unapplied changes will be lost. Continue?"
+msgstr ""
+"Se reescribirá la memoria del ratón con el contenido de\n"
+"%s\n"
+"\n"
+"Los cambios sin aplicar se perderán. ¿Continuar?"
+
+#: m916/gui.py
+msgid "The sensor stays at full performance for this time before going to rest"
+msgstr ""
+"El sensor se mantiene a máximo rendimiento este tiempo antes de pasar a "
+"reposo"
+
+#: m916/gui.py
+msgid "There are unapplied changes. Quit anyway?"
+msgstr "Hay cambios sin aplicar. ¿Salir de todos modos?"
+
+#: m916/gui.py
+msgid "Time between shots"
+msgstr "Tiempo entre disparos"
+
+#: m916/gui.py
+msgid "Turn the lights off when idle after:"
+msgstr "Apagar las luces en reposo tras:"
+
+#: m916/gui.py
+msgid "Turn the lights off while the mouse moves"
+msgstr "Apagar las luces mientras se mueve el ratón"
+
+#: m916/gui.py
+msgid "Unapplied changes"
+msgstr "Cambios sin aplicar"
+
+#: m916/gui.py
+msgid "Unchanged"
+msgstr "Sin cambios"
+
+#: m916/gui.py
+msgid "Until any button is pressed"
+msgstr "Hasta pulsar cualquier botón"
+
+#: m916/gui.py
+msgid "Until the button is pressed again"
+msgstr "Hasta volver a pulsar el botón"
+
+#: m916/gui.py
+msgid "Verification failed after restoring"
+msgstr "La verificación falló tras restaurar"
+
+#: m916/gui.py
+msgid "Volume down"
+msgstr "Bajar volumen"
+
+#: m916/gui.py
+msgid "Volume up"
+msgstr "Subir volumen"
+
+#: m916/gui.py
+#, python-format
+msgid "Warning: wrong check bytes at %s"
+msgstr "Aviso: bytes de comprobación incorrectos en %s"
+
+#: m916/gui.py
+msgid "While held"
+msgstr "Mientras se pulse"
+
+#: m916/gui.py
+msgid "While held down"
+msgstr "Mientras se mantenga pulsado"
+
+#: m916/gui.py
+#, python-format
+msgid "button %d: the keyboard shortcut is not valid"
+msgstr "botón %d: el atajo de teclado no es válido"
+
+#: m916/gui.py
+#, python-format
+msgid "button %d: the macro is not defined yet"
+msgstr "botón %d: falta definir la macro"
+
+#: m916/gui.py
+#, python-format
+msgid "code 0x%02x"
+msgstr "código 0x%02x"
+
+#: m916/gui.py
+msgid "e.g. ctrl+c"
+msgstr "p. ej. ctrl+c"
+
+#: m916/gui.py
+#, python-format
+msgid "mode %d"
+msgstr "modo %d"
+
+#: m916/gui.py
+msgid "no response"
+msgstr "sin respuesta"
+
+#: m916/gui.py
+msgid "once"
+msgstr "una vez"
+
+#: m916/gui.py
+msgid "profile.json"
+msgstr "perfil.json"
+
+#: m916/gui.py
+msgid "the mouse is asleep"
+msgstr "el ratón está dormido"
+
+#: m916/gui.py
+msgid "until another button is pressed"
+msgstr "hasta pulsar otro botón"
+
+#: m916/gui.py
+msgid "use a simulated mouse with this flash dump"
+msgstr "usa un ratón simulado con este volcado de la flash"
+
+#: m916/gui.py
+#, python-format
+msgid "value %d"
+msgstr "valor %d"
+
+#: m916/keys.py
+#, python-format
+msgid "unknown key name %r"
+msgstr "nombre de tecla desconocido %r"
+
+#: m916/profile.py
+#, python-format
+msgid "%(file)s: invalid JSON: %(error)s"
+msgstr "%(file)s: JSON no válido: %(error)s"
+
+#: m916/profile.py
+#, python-format
+msgid "%(key)s is not a media key (expected %(expected)s)"
+msgstr "%(key)s no es una tecla multimedia (se esperaba %(expected)s)"
+
+#: m916/profile.py
+msgid "(not an M916 profile)"
+msgstr "(no es un perfil del M916)"
+
+#: m916/profile.py
+msgid "(unreadable)"
+msgstr "(no se puede leer)"
+
+#: m916/profile.py
+msgid "a shortcut has either \"keys\" or \"events\""
+msgstr "un atajo tiene \"keys\" o \"events\", no ambos"
+
+#: m916/profile.py
+#, python-format
+msgid "buttons are numbered 1..%d"
+msgstr "los botones van del 1 al %d"
+
+#: m916/profile.py
+#, python-format
+msgid "missing field %r"
+msgstr "falta el campo %r"
+
+#: m916/profile.py
+#, python-format
+msgid "must be \"#rrggbb\", not %s"
+msgstr "debe ser \"#rrggbb\", no %s"
+
+#: m916/profile.py
+#, python-format
+msgid "must be %(min)d..%(max)d"
+msgstr "debe estar entre %(min)d y %(max)d"
+
+#: m916/profile.py
+#, python-format
+msgid "must be 1..%(max)d or one of %(modes)s"
+msgstr "debe estar entre 1 y %(max)d o ser uno de %(modes)s"
+
+#: m916/profile.py
+msgid "must be [type, p1, p2] with values 0..255"
+msgstr "debe ser [type, p1, p2] con valores entre 0 y 255"
+
+#: m916/profile.py
+msgid "must be a list of steps such as [\"+ctrl 10\", \"-ctrl\"]"
+msgstr "debe ser una lista de pasos como [\"+ctrl 10\", \"-ctrl\"]"
+
+#: m916/profile.py
+#, python-format
+msgid "must be a list of up to %d levels"
+msgstr "debe ser una lista de hasta %d niveles"
+
+#: m916/profile.py
+#, python-format
+msgid "must be a multiple of %d"
+msgstr "debe ser múltiplo de %d"
+
+#: m916/profile.py
+msgid "must be a string"
+msgstr "debe ser un texto"
+
+#: m916/profile.py
+msgid "must be a string such as \"ctrl+c\""
+msgstr "debe ser un texto como \"ctrl+c\""
+
+#: m916/profile.py
+#, python-format
+msgid "must be an integer, not %s"
+msgstr "debe ser un número entero, no %s"
+
+#: m916/profile.py
+msgid "must be an object"
+msgstr "debe ser un objeto"
+
+#: m916/profile.py
+#, python-format
+msgid "must be one of %s Hz"
+msgstr "debe ser uno de estos valores: %s Hz"
+
+#: m916/profile.py
+#, python-format
+msgid "not an M916 profile (\"format\" must be %r)"
+msgstr "no es un perfil del M916 (\"format\" debe ser %r)"
+
+#: m916/profile.py
+#, python-format
+msgid "profile is for %(found)s, not %(model)s"
+msgstr "el perfil es para %(found)s, no para %(model)s"
+
+#: m916/profile.py
+msgid "shortcut events have no delays"
+msgstr "los eventos de un atajo no tienen esperas"
+
+#: m916/profile.py
+#, python-format
+msgid ""
+"unknown action %(action)r (expected %(expected)s, or an object for fire, dpi-"
+"lock, shortcut, media and macro)"
+msgstr ""
+"acción desconocida %(action)r (se esperaba %(expected)s, o un objeto para "
+"fire, dpi-lock, shortcut, media y macro)"
+
+#: m916/profile.py
+#, python-format
+msgid "unknown action %(action)s (expected %(expected)s)"
+msgstr "acción desconocida %(action)s (se esperaba %(expected)s)"
+
+#: m916/profile.py
+#, python-format
+msgid "unknown field %(field)r (expected %(expected)s)"
+msgstr "campo desconocido %(field)r (se esperaba %(expected)s)"
+
+#: m916/profile.py
+#, python-format
+msgid "unknown option (expected %s)"
+msgstr "opción desconocida (se esperaba %s)"
+
+#: m916/profile.py
+#, python-format
+msgid ""
+"unsupported profile version %(found)s (this program reads %(supported)d)"
+msgstr ""
+"versión de perfil no compatible %(found)s (este programa lee la "
+"%(supported)d)"
+
+#: m916/protocol.py
+#, python-format
+msgid ""
+"no response to command 0x%(cmd)02x at 0x%(addr)04x (mouse asleep or off? "
+"move it and try again)"
+msgstr ""
+"sin respuesta al comando 0x%(cmd)02x en 0x%(addr)04x (¿ratón dormido o "
+"apagado? muévelo y vuelve a intentarlo)"
+
+#: m916/protocol.py
+#, python-format
+msgid "verification failed at 0x%04x"
+msgstr "la verificación falló en 0x%04x"
+
+#: m916/protocol.py
+#, python-format
+msgid "write at 0x%(addr)04x not acknowledged (got %(reply)s)"
+msgstr "escritura en 0x%(addr)04x no confirmada (respuesta: %(reply)s)"

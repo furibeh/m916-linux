@@ -5,6 +5,7 @@ import re
 from dataclasses import dataclass, field
 
 from . import keys
+from .i18n import _, ngettext
 from .protocol import CHUNK, FLASH_SIZE, checksum, with_check
 
 CONFIG_SIZE = 0xC0
@@ -51,7 +52,7 @@ BOOL_OPTIONS = {"dpi-led", "motion-sync", "linear-correction", "ripple-control",
 # handlers); other stored values are kept as they are
 LOD_CHOICES = {1: "1 mm", 2: "2 mm"}
 SENSOR_MODES = {0: "LP", 1: "HP"}
-DPI_LED_MODES = {1: "steady", 2: "flicker"}
+DPI_LED_MODES = {1: _("steady"), 2: _("flicker")}
 FULL_PERFORMANCE_TIMES = [3, 6, 12, 30, 60, 90]                    # x 10 s
 LED_OFF_TIMES = [1, 3, 6, 30, 60, 90, 120, 150, 180, 210, 240]   # x 10 s
 DPI_LED_BRIGHTNESS = [16, 30, 60, 90, 128, 150, 180, 210, 230, 255]  # levels 1-10
@@ -70,7 +71,7 @@ def describe_option(name, value):
             "led-off-time": format_time(value), "full-performance-time": format_time(value),
             }.get(name)
     if name == "dpi-led-brightness" and value in DPI_LED_BRIGHTNESS:
-        text = "level %d" % (DPI_LED_BRIGHTNESS.index(value) + 1)
+        text = _("level %d") % (DPI_LED_BRIGHTNESS.index(value) + 1)
     return "%d (%s)" % (value, text) if text else str(value)
 
 RATES = {1000: 0x01, 500: 0x02, 250: 0x04, 125: 0x08, 2000: 0x10, 4000: 0x20}
@@ -169,7 +170,7 @@ def combo_events(codes):
     """Shortcut events for a key combination of (kind, code): press all, then release in
     reverse order (ValueConvert.App_AddShortCutKey)."""
     if not 1 <= len(codes) <= SHORTCUT_KEYS_MAX:
-        raise ValueError("a shortcut has 1 to %d keys" % SHORTCUT_KEYS_MAX)
+        raise ValueError(_("a shortcut has 1 to %d keys") % SHORTCUT_KEYS_MAX)
     return ([Event(True, kind, code) for kind, code in codes]
             + [Event(False, kind, code) for kind, code in reversed(codes)])
 
@@ -200,7 +201,7 @@ def parse_steps(text):
         if move:
             x, y = int(move.group(2)), int(move.group(3))
             if not (-128 <= x <= 127 and -128 <= y <= 127):
-                raise ValueError("bad macro step %r (moves are -128..127)" % token)
+                raise ValueError(_("bad macro step %r (moves are -128..127)") % token)
             steps.append(Event(move.group(1) != "-", keys.MOVE, (x & 0xFF) | (y & 0xFF) << 8))
         elif token[0] in "+-" and len(token) > 1:
             kind, code = keys.lookup(token[1:])
@@ -209,7 +210,7 @@ def parse_steps(text):
             last = steps[-1]
             steps[-1] = Event(last.press, last.kind, last.code, last.delay + int(token))
         else:
-            raise ValueError("bad macro step %r (use +KEY, -KEY or a delay in ms)" % token)
+            raise ValueError(_("bad macro step %r (use +KEY, -KEY or a delay in ms)") % token)
     return steps
 
 
@@ -256,19 +257,19 @@ class Macro:
             name = self.name.encode("latin-1")
         except UnicodeEncodeError:
             name = b""
-            errors.append("macro name must use Latin-1 characters")
+            errors.append(_("macro name must use Latin-1 characters"))
         if not 1 <= len(name) <= MACRO_NAME_MAX:
-            errors.append("macro name must have 1..%d characters" % MACRO_NAME_MAX)
+            errors.append(_("macro name must have 1..%d characters") % MACRO_NAME_MAX)
         if not 1 <= len(self.steps) <= MACRO_STEPS_MAX:
-            errors.append("a macro has 1..%d steps" % MACRO_STEPS_MAX)
+            errors.append(_("a macro has 1..%d steps") % MACRO_STEPS_MAX)
         if any(not 0 <= e.delay <= 0xFFFF for e in self.steps):
-            errors.append("macro delays must be 0..65535 ms")
+            errors.append(_("macro delays must be 0..65535 ms"))
         return errors
 
 
 def describe_repeat(p2):
-    return {REPEAT_TOGGLE: "until pressed again", REPEAT_WHILE_HELD: "while held",
-            REPEAT_UNTIL_ANY: "until any button"}.get(p2, "%d time%s" % (p2, "s" * (p2 != 1)))
+    return {REPEAT_TOGGLE: _("until pressed again"), REPEAT_WHILE_HELD: _("while held"),
+            REPEAT_UNTIL_ANY: _("until any button")}.get(p2, ngettext("%d time", "%d times", p2) % p2)
 
 
 def describe_key(t, p1, p2):
@@ -276,7 +277,8 @@ def describe_key(t, p1, p2):
         if val == (t, p1, p2):
             return name
     if t == KEY_FIRE:
-        return "fire (every %d ms, %s)" % (p1, "%d shots" % p2 if p2 else "while held")
+        shots = ngettext("%d shot", "%d shots", p2) % p2 if p2 else _("while held")
+        return _("fire (every %(interval)d ms, %(shots)s)") % {"interval": p1, "shots": shots}
     if t == KEY_DPI_LOCK:
         return "dpi-lock (%d DPI)" % ((p1 + 1) * 50)
     return "%s (p1=0x%02x, p2=0x%02x)" % (KEY_CLASS_NAMES.get(t, "type 0x%02x" % t), p1, p2)
@@ -317,7 +319,7 @@ class Config:
             buttons=[tuple(image[OFF_KEYS + 4 * k:OFF_KEYS + 4 * k + 3]) for k in range(KEY_COUNT)],
         )
         if len(image) >= FLASH_SIZE:
-            for k, (t, _, _) in enumerate(conf.buttons):
+            for k, (t, _p1, _p2) in enumerate(conf.buttons):
                 if t == KEY_SHORTCUT:
                     events = decode_shortcut(image[shortcut_addr(k):shortcut_addr(k) + SHORTCUT_SIZE])
                     if events is not None:
@@ -332,10 +334,11 @@ class Config:
         t, p1, p2 = self.buttons[k]
         if t == KEY_SHORTCUT and k in self.shortcuts:
             events = self.shortcuts[k]
-            return "shortcut %s" % (format_combo(events) or format_steps(events))
+            return _("shortcut %s") % (format_combo(events) or format_steps(events))
         if t == KEY_MACRO and k in self.macros:
-            return "macro %r, %s: %s" % (self.macros[k].name, describe_repeat(p2),
-                                        format_steps(self.macros[k].steps))
+            return _("macro %(name)r, %(repeat)s: %(steps)s") % {
+                "name": self.macros[k].name, "repeat": describe_repeat(p2),
+                "steps": format_steps(self.macros[k].steps)}
         return describe_key(t, p1, p2)
 
     def set_shortcut(self, k, events):
@@ -350,37 +353,37 @@ class Config:
         """List of problems that would make the configuration invalid."""
         errors = []
         if self.report_rate not in RATE_HZ:
-            errors.append("unknown report rate code 0x%02x" % self.report_rate)
+            errors.append(_("unknown report rate code 0x%02x") % self.report_rate)
         if not 1 <= self.dpi_count <= MAX_DPI_LEVELS:
-            errors.append("DPI level count must be 1..%d" % MAX_DPI_LEVELS)
+            errors.append(_("DPI level count must be 1..%d") % MAX_DPI_LEVELS)
         if not 0 <= self.dpi_active < self.dpi_count:
-            errors.append("active DPI level must be one of the enabled levels")
+            errors.append(_("active DPI level must be one of the enabled levels"))
         for i, level in enumerate(self.levels):
             for dpi in (level.x, level.y):
                 if not DPI_MIN <= dpi <= DPI_MAX or dpi % DPI_STEP:
-                    errors.append("level %d: DPI must be a multiple of %d in %d..%d"
-                                  % (i + 1, DPI_STEP, DPI_MIN, DPI_MAX))
+                    errors.append(_("level %(level)d: DPI must be a multiple of %(step)d in %(min)d..%(max)d")
+                                  % {"level": i + 1, "step": DPI_STEP, "min": DPI_MIN, "max": DPI_MAX})
             if dpi_band(level.x) != dpi_band(level.y):
-                errors.append("level %d: X and Y must be in the same 12800-DPI band" % (i + 1))
+                errors.append(_("level %d: X and Y must be in the same 12800-DPI band") % (i + 1))
         for name, value in self.options.items():
             if not 0 <= value <= 255:
-                errors.append("%s must be 0..255" % name)
+                errors.append(_("%s must be 0..255") % name)
         for k, (t, p1, p2) in enumerate(self.buttons):
-            where = "button %d: " % (k + 1)
+            where = _("button %d: ") % (k + 1)
             if not all(0 <= v <= 255 for v in (t, p1, p2)):
-                errors.append(where + "values must be 0..255 (dpi-lock: 50..12800 DPI)")
+                errors.append(where + _("values must be 0..255 (dpi-lock: 50..12800 DPI)"))
             elif t == KEY_FIRE and (p1 < FIRE_INTERVAL_MIN or p2 > FIRE_TIMES_MAX):
-                errors.append(where + "fire interval must be %d..255 ms and shots 0..%d"
-                              % (FIRE_INTERVAL_MIN, FIRE_TIMES_MAX))
+                errors.append(where + _("fire interval must be %(min)d..255 ms and shots 0..%(max)d")
+                              % {"min": FIRE_INTERVAL_MIN, "max": FIRE_TIMES_MAX})
             elif t == KEY_SHORTCUT and k in self.shortcuts:
                 n = len(self.shortcuts[k])
                 if not 1 <= n <= 2 * SHORTCUT_KEYS_MAX:
-                    errors.append(where + "a shortcut has 1..%d events" % (2 * SHORTCUT_KEYS_MAX))
+                    errors.append(where + _("a shortcut has 1..%d events") % (2 * SHORTCUT_KEYS_MAX))
             elif t == KEY_MACRO and k in self.macros:
                 if p1 != k:
-                    errors.append(where + "a macro must use its own block (p1=%d)" % k)
+                    errors.append(where + _("a macro must use its own block (p1=%d)") % k)
                 if not 1 <= p2 <= 255:
-                    errors.append(where + "macro repeat must be 1..255")
+                    errors.append(where + _("macro repeat must be 1..255"))
                 errors += [where + e for e in self.macros[k].errors()]
         return errors
 
@@ -396,7 +399,7 @@ class Config:
         pair(OFF_DPI_ACTIVE, self.dpi_active)
         for i, level in enumerate(self.levels):
             lo_x, ex = dpi_encode(level.x)
-            lo_y, _ = dpi_encode(level.y)
+            lo_y, _ex_y = dpi_encode(level.y)
             img[OFF_DPI + 4 * i:OFF_DPI + 4 * i + 4] = with_check([lo_x, lo_y, ex])
             img[OFF_DPI_COLOR + 4 * i:OFF_DPI_COLOR + 4 * i + 4] = with_check(level.color)
         for name, value in self.options.items():

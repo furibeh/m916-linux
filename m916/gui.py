@@ -6,7 +6,7 @@ import queue
 import sys
 import time
 
-from PySide6.QtCore import QObject, QThread, Qt, Signal
+from PySide6.QtCore import QLibraryInfo, QObject, QThread, QTranslator, Qt, Signal
 from PySide6.QtGui import QColor, QIcon
 from PySide6.QtWidgets import (QAbstractItemView, QApplication, QButtonGroup, QCheckBox,
                                QColorDialog, QComboBox, QDialog, QDialogButtonBox, QFileDialog,
@@ -16,7 +16,8 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QButtonGroup, QC
                                QStackedWidget, QTabWidget, QTableWidget, QTableWidgetItem,
                                QVBoxLayout, QWidget)
 
-from . import __version__, config as cfg, keys, profile
+from . import __version__, config as cfg, i18n, keys, profile
+from .i18n import _, ngettext
 from .protocol import (FLASH_SIZE, STATUS_BATTERY, STATUS_DPI, Mouse, MouseAsleep, ProtocolError,
                        find_devices)
 
@@ -75,8 +76,8 @@ class DeviceWorker(QObject):
                 self.mouse = Mouse(path)
                 return
             except PermissionError:
-                self.job_failed.emit("open", "Sin permiso sobre %s: instala la regla udev "
-                                             "(udev/70-redragon-m916.rules)." % path)
+                self.job_failed.emit("open", _("No permission on %s: install the udev rule "
+                                               "(udev/70-redragon-m916.rules).") % path)
 
     def _close(self):
         if self.mouse:
@@ -97,7 +98,7 @@ class DeviceWorker(QObject):
                     self._open()
                 if self.mouse is None:
                     self._set_state(STATE_DISCONNECTED)
-                    self._fail_pending("Receptor no encontrado")
+                    self._fail_pending(_("Receiver not found"))
                     time.sleep(0.2)
                     continue
                 last_online = 0.0
@@ -108,7 +109,7 @@ class DeviceWorker(QObject):
             try:
                 if job:
                     if self.state != STATE_ONLINE and job[0] != "load":
-                        raise MouseAsleep("el ratón está dormido")
+                        raise MouseAsleep(_("the mouse is asleep"))
                     self._run_job(job)
                 else:
                     for flags in self.mouse.poll_notifications():
@@ -119,8 +120,8 @@ class DeviceWorker(QObject):
             except MouseAsleep as e:
                 self._set_state(STATE_ASLEEP)
                 if job:
-                    self.job_failed.emit(job[0], "El ratón no responde (¿dormido?): muévelo y "
-                                                 "vuelve a intentarlo.\n\n%s" % e)
+                    self.job_failed.emit(job[0], _("The mouse does not answer (asleep?): move it "
+                                                   "and try again.\n\n%s") % e)
             except ProtocolError as e:
                 self.job_failed.emit(job[0] if job else "", str(e))
             except OSError as e:  # receiver unplugged
@@ -145,7 +146,7 @@ class DeviceWorker(QObject):
         m = self.mouse
         if name == "load":
             if not m.online():
-                raise MouseAsleep("sin respuesta")
+                raise MouseAsleep(_("no response"))
             self.info.emit({"firmware": m.version(), "battery": m.battery()})
             self.config_loaded.emit(cfg.read_image(m))
         elif name == "battery":
@@ -169,7 +170,7 @@ class DeviceWorker(QObject):
                 m.write_flash(addr, data)
                 self.progress.emit(FLASH_SIZE + FLASH_SIZE * (i + 1) // len(writes), 2 * FLASH_SIZE)
             if writes and cfg.restore_writes(m.read_flash(0, FLASH_SIZE), image):
-                raise ProtocolError("La verificación falló tras restaurar")
+                raise ProtocolError(_("Verification failed after restoring"))
             self.progress.emit(1, 1)
             self.job_done.emit(name, len(writes))
             self.config_loaded.emit(cfg.read_image(m))
@@ -219,15 +220,15 @@ class DpiTab(QWidget):
         top = QHBoxLayout()
         self.count = QSpinBox()
         self.count.setRange(1, cfg.MAX_DPI_LEVELS)
-        top.addWidget(QLabel("Niveles activos:"))
+        top.addWidget(QLabel(_("Active levels:")))
         top.addWidget(self.count)
         top.addSpacing(24)
-        self.independent = QCheckBox("X e Y independientes")
+        self.independent = QCheckBox(_("Separate X and Y"))
         top.addWidget(self.independent)
         top.addStretch()
 
         grid = QGridLayout()
-        headers = [QLabel("<b>%s</b>" % t) for t in ("En uso", "Nivel", "X", "Y", "Color")]
+        headers = [QLabel("<b>%s</b>" % t) for t in (_("Active"), _("Level"), "X", "Y", _("Color"))]
         for col, header in enumerate(headers):
             grid.addWidget(header, 0, col)
         self.x_header, self.y_header = headers[2], headers[3]
@@ -236,9 +237,9 @@ class DpiTab(QWidget):
         for i in range(cfg.MAX_DPI_LEVELS):
             radio = QRadioButton()
             self.active.addButton(radio, i)
-            label = QLabel("Nivel %d" % (i + 1))
+            label = QLabel(_("Level %d") % (i + 1))
             x, y = DpiSpinBox(), DpiSpinBox()
-            color = ColorButton("Color del nivel %d" % (i + 1))
+            color = ColorButton(_("Color of level %d") % (i + 1))
             for col, w in enumerate([radio, label, x, y, color]):
                 grid.addWidget(w, i + 1, col)
             x.valueChanged.connect(lambda v, i=i: self._x_changed(i, v))
@@ -247,8 +248,8 @@ class DpiTab(QWidget):
             self.rows.append((radio, label, x, y, color))
         grid.setColumnStretch(5, 1)
 
-        note = QLabel("El LED del ratón muestra el color del nivel en uso. Con el PAW3395, X e Y "
-                      "deben estar en el mismo tramo de 12 800 DPI.")
+        note = QLabel(_("The mouse LED shows the color of the active level. With the PAW3395, X "
+                        "and Y must be in the same 12 800 DPI band."))
         note.setWordWrap(True)
         note.setEnabled(False)
 
@@ -284,7 +285,7 @@ class DpiTab(QWidget):
     def load(self, conf):
         self.count.setValue(conf.dpi_count)
         self.independent.setChecked(any(lv.x != lv.y for lv in conf.levels))
-        for (radio, _, x, y, color), lv in zip(self.rows, conf.levels):
+        for (radio, _label, x, y, color), lv in zip(self.rows, conf.levels):
             x.setValue(lv.x)
             y.setValue(lv.y)
             color.set_color(lv.color)
@@ -294,7 +295,7 @@ class DpiTab(QWidget):
     def store(self, conf):
         conf.dpi_count = self.count.value()
         conf.dpi_active = max(0, self.active.checkedId())
-        for (_, _, x, y, color), lv in zip(self.rows, conf.levels):
+        for (_radio, _label, x, y, color), lv in zip(self.rows, conf.levels):
             lv.x = x.value()
             lv.y = y.value() if self.independent.isChecked() else x.value()
             lv.color = color.color
@@ -305,33 +306,33 @@ class DpiTab(QWidget):
 
 
 BUTTON_LABELS = [
-    ("disabled", "Desactivado"),
-    ("left", "Clic izquierdo"),
-    ("right", "Clic derecho"),
-    ("middle", "Clic central"),
-    ("back", "Atrás"),
-    ("forward", "Adelante"),
-    ("dpi-loop", "DPI: ciclo"),
-    ("dpi-up", "DPI: subir"),
-    ("dpi-down", "DPI: bajar"),
-    ("scroll-up", "Scroll: arriba"),
-    ("scroll-down", "Scroll: abajo"),
-    ("scroll-left", "Scroll horizontal: izquierda"),
-    ("scroll-right", "Scroll horizontal: derecha"),
-    ("report-rate", "Cambiar frecuencia de sondeo"),
+    ("disabled", _("Disabled")),
+    ("left", _("Left click")),
+    ("right", _("Right click")),
+    ("middle", _("Middle click")),
+    ("back", _("Back")),
+    ("forward", _("Forward")),
+    ("dpi-loop", _("DPI: cycle")),
+    ("dpi-up", _("DPI: up")),
+    ("dpi-down", _("DPI: down")),
+    ("scroll-up", _("Scroll: up")),
+    ("scroll-down", _("Scroll: down")),
+    ("scroll-left", _("Horizontal scroll: left")),
+    ("scroll-right", _("Horizontal scroll: right")),
+    ("report-rate", _("Change polling rate")),
 ]
 FIRE, DPI_LOCK, SHORTCUT, MEDIA, MACRO, OTHER = "fire", "dpi-lock", "shortcut", "media", "macro", "other"
-SPECIAL_LABELS = [(FIRE, "Disparo repetido"), (DPI_LOCK, "Bloqueo de DPI"),
-                  (SHORTCUT, "Atajo de teclado"), (MEDIA, "Tecla multimedia"), (MACRO, "Macro")]
+SPECIAL_LABELS = [(FIRE, _("Rapid fire")), (DPI_LOCK, _("DPI lock")),
+                  (SHORTCUT, _("Keyboard shortcut")), (MEDIA, _("Media key")), (MACRO, _("Macro"))]
 
 MEDIA_LABELS = {
-    "play-pause": "Reproducir/pausa", "next": "Siguiente pista", "previous": "Pista anterior",
-    "stop": "Detener", "mute": "Silenciar", "volume-up": "Subir volumen",
-    "volume-down": "Bajar volumen", "media-player": "Reproductor multimedia", "email": "Correo",
-    "calculator": "Calculadora", "my-computer": "Mi equipo", "www-search": "Buscar",
-    "www-home": "Navegador: inicio", "www-back": "Navegador: atrás",
-    "www-forward": "Navegador: adelante", "www-stop": "Navegador: detener",
-    "www-refresh": "Navegador: recargar", "www-favorites": "Favoritos",
+    "play-pause": _("Play/pause"), "next": _("Next track"), "previous": _("Previous track"),
+    "stop": _("Stop"), "mute": _("Mute"), "volume-up": _("Volume up"),
+    "volume-down": _("Volume down"), "media-player": _("Media player"), "email": _("Email"),
+    "calculator": _("Calculator"), "my-computer": _("My computer"), "www-search": _("Search"),
+    "www-home": _("Browser: home"), "www-back": _("Browser: back"),
+    "www-forward": _("Browser: forward"), "www-stop": _("Browser: stop"),
+    "www-refresh": _("Browser: reload"), "www-favorites": _("Favorites"),
 }
 
 QT_KEY_NAMES = {
@@ -374,7 +375,7 @@ class ShortcutEdit(QLineEdit):
 
     def __init__(self):
         super().__init__()
-        self.setPlaceholderText("p. ej. ctrl+c")
+        self.setPlaceholderText(_("e.g. ctrl+c"))
         self.capturing = False
         self._held = set()
         self.textChanged.connect(self._validate)
@@ -388,23 +389,23 @@ class ShortcutEdit(QLineEdit):
     def _validate(self):
         ok = self.events() is not None
         self.setStyleSheet("" if ok else "QLineEdit { color: palette(link-visited); }")
-        self.setToolTip("" if ok else "Combinación no válida: usa nombres como ctrl, shift, alt, "
-                                      "super, a–z, 0–9, f1–f24, enter, esc, tab, space… "
-                                      "(hasta %d teclas)" % cfg.SHORTCUT_KEYS_MAX)
+        self.setToolTip("" if ok else _("Invalid combination: use names such as ctrl, shift, "
+                                        "alt, super, a–z, 0–9, f1–f24, enter, esc, tab, "
+                                        "space… (up to %d keys)") % cfg.SHORTCUT_KEYS_MAX)
 
     def start_capture(self):
         self.capturing = True
         self._held.clear()
         self._names = []
         self.setText("")
-        self.setPlaceholderText("Pulsa la combinación…")
+        self.setPlaceholderText(_("Press the combination…"))
         self.setFocus()
         self.grabKeyboard()
 
     def _stop_capture(self):
         self.capturing = False
         self.releaseKeyboard()
-        self.setPlaceholderText("p. ej. ctrl+c")
+        self.setPlaceholderText(_("e.g. ctrl+c"))
         self.capture_finished.emit()
 
     def keyPressEvent(self, event):
@@ -438,7 +439,7 @@ class RecordArea(QLabel):
     recorded = Signal(object)  # (ms since the previous one, cfg.Event)
 
     def __init__(self):
-        super().__init__("Pulsa teclas o botones del ratón aquí")
+        super().__init__(_("Press keys or mouse buttons here"))
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setMinimumHeight(48)
         self.setFrameShape(QFrame.Shape.StyledPanel)
@@ -475,18 +476,18 @@ class MacroDialog(QDialog):
 
     def __init__(self, parent, macro, repeat):
         super().__init__(parent)
-        self.setWindowTitle("Editar macro")
+        self.setWindowTitle(_("Edit macro"))
         self.resize(520, 520)
         self.name = QLineEdit(macro.name if macro else "")
         self.name.setMaxLength(cfg.MACRO_NAME_MAX)
         self.mode = QComboBox()
-        self.mode.addItem("Repetir un número de veces", self.REPEAT_COUNT)
-        self.mode.addItem("Mientras se mantenga pulsado", cfg.REPEAT_WHILE_HELD)
-        self.mode.addItem("Hasta volver a pulsar el botón", cfg.REPEAT_TOGGLE)
-        self.mode.addItem("Hasta pulsar cualquier botón", cfg.REPEAT_UNTIL_ANY)
+        self.mode.addItem(_("Repeat a number of times"), self.REPEAT_COUNT)
+        self.mode.addItem(_("While held down"), cfg.REPEAT_WHILE_HELD)
+        self.mode.addItem(_("Until the button is pressed again"), cfg.REPEAT_TOGGLE)
+        self.mode.addItem(_("Until any button is pressed"), cfg.REPEAT_UNTIL_ANY)
         self.times = QSpinBox()
         self.times.setRange(1, cfg.REPEAT_COUNT_MAX)
-        self.times.setSuffix(" veces")
+        self.times.setSuffix(_(" times"))
         if repeat in cfg.REPEAT_MODES.values():
             self.mode.setCurrentIndex(self.mode.findData(repeat))
         else:
@@ -498,24 +499,24 @@ class MacroDialog(QDialog):
         repeat_row.addWidget(self.mode, 1)
         repeat_row.addWidget(self.times)
         form = QFormLayout()
-        form.addRow("Nombre:", self.name)
-        form.addRow("Ejecución:", repeat_row)
+        form.addRow(_("Name:"), self.name)
+        form.addRow(_("Run:"), repeat_row)
 
         self.table = QTableWidget(0, 3)
-        self.table.setHorizontalHeaderLabels(["Acción", "Tecla o botón", "Espera (ms)"])
+        self.table.setHorizontalHeaderLabels([_("Action"), _("Key or button"), _("Delay (ms)")])
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         self.table.verticalHeader().setVisible(False)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         for step in (macro.steps if macro else []):
             self._add_row(step)
 
-        add = QPushButton(QIcon.fromTheme("list-add"), "Añadir")
-        remove = QPushButton(QIcon.fromTheme("list-remove"), "Quitar")
-        up = QPushButton(QIcon.fromTheme("go-up"), "Subir")
-        down = QPushButton(QIcon.fromTheme("go-down"), "Bajar")
-        self.record = QPushButton(QIcon.fromTheme("media-record"), "Grabar")
+        add = QPushButton(QIcon.fromTheme("list-add"), _("Add"))
+        remove = QPushButton(QIcon.fromTheme("list-remove"), _("Remove"))
+        up = QPushButton(QIcon.fromTheme("go-up"), _("Move up"))
+        down = QPushButton(QIcon.fromTheme("go-down"), _("Move down"))
+        self.record = QPushButton(QIcon.fromTheme("media-record"), _("Record"))
         self.record.setCheckable(True)
-        clear = QPushButton(QIcon.fromTheme("edit-clear"), "Vaciar")
+        clear = QPushButton(QIcon.fromTheme("edit-clear"), _("Clear"))
         tools = QHBoxLayout()
         for w in (add, remove, up, down, clear):
             tools.addWidget(w)
@@ -531,8 +532,8 @@ class MacroDialog(QDialog):
         layout.addWidget(self.table)
         layout.addLayout(tools)
         layout.addWidget(self.area)
-        hint = QLabel("Nombres de tecla: ctrl, shift, alt, super, a–z, 0–9, f1–f24, enter, esc, "
-                      "space, mouse-left, mouse-right… Máximo %d pasos." % cfg.MACRO_STEPS_MAX)
+        hint = QLabel(_("Key names: ctrl, shift, alt, super, a–z, 0–9, f1–f24, enter, esc, space, "
+                        "mouse-left, mouse-right… Up to %d steps.") % cfg.MACRO_STEPS_MAX)
         hint.setWordWrap(True)
         hint.setEnabled(False)
         layout.addWidget(hint)
@@ -553,14 +554,14 @@ class MacroDialog(QDialog):
         row = self.table.rowCount() if row is None else row
         self.table.insertRow(row)
         action = QComboBox()
-        action.addItems(["Pulsar", "Soltar"])
+        action.addItems([_("Press"), _("Release")])
         action.setCurrentIndex(0 if step.press else 1)
         self.table.setCellWidget(row, 0, action)
         self.table.setItem(row, 1, QTableWidgetItem(keys.name(step.kind, step.code)))
         delay = QSpinBox()
         delay.setRange(0, 0xFFFF)
         delay.setValue(step.delay)
-        delay.setToolTip("Milisegundos de espera antes del paso siguiente")
+        delay.setToolTip(_("Milliseconds to wait before the next step"))
         self.table.setCellWidget(row, 2, delay)
 
     def _row_step(self, row):
@@ -583,7 +584,7 @@ class MacroDialog(QDialog):
     def _toggle_record(self, on):
         self.area.setVisible(on)
         self.area.last = None
-        self.record.setText("Detener" if on else "Grabar")
+        self.record.setText(_("Stop") if on else _("Record"))
         if on:
             self.area.setFocus()
 
@@ -607,11 +608,11 @@ class MacroDialog(QDialog):
         try:
             macro = cfg.Macro(self.name.text().strip(), self.steps())
         except KeyError as e:
-            QMessageBox.warning(self, "Macro no válida", str(e))
+            QMessageBox.warning(self, _("Invalid macro"), str(e))
             return
         errors = macro.errors()
         if errors:
-            QMessageBox.warning(self, "Macro no válida", "\n".join(errors))
+            QMessageBox.warning(self, _("Invalid macro"), "\n".join(errors))
             return
         self.macro = macro
         self.accept()
@@ -638,21 +639,21 @@ class ButtonRow:
         self.interval, self.shots = QSpinBox(), QSpinBox()
         self.interval.setRange(cfg.FIRE_INTERVAL_MIN, 255)
         self.interval.setSuffix(" ms")
-        self.interval.setToolTip("Tiempo entre disparos")
+        self.interval.setToolTip(_("Time between shots"))
         self.shots.setRange(0, cfg.FIRE_TIMES_MAX)
-        self.shots.setSuffix(" disparos")
-        self.shots.setSpecialValueText("Mientras se pulse")
-        self.shots.setToolTip("Disparos por pulsación; 0 repite mientras se mantenga pulsado")
-        self._add_page(FIRE, QLabel("Cada"), self.interval, self.shots)
+        self.shots.setSuffix(_(" shots"))
+        self.shots.setSpecialValueText(_("While held"))
+        self.shots.setToolTip(_("Shots per press; 0 repeats while held down"))
+        self._add_page(FIRE, QLabel(_("Every")), self.interval, self.shots)
 
         self.lock_dpi = DpiSpinBox()
         self.lock_dpi.setMaximum(256 * cfg.DPI_STEP)
-        self.lock_dpi.setToolTip("DPI mientras se mantiene pulsado el botón")
+        self.lock_dpi.setToolTip(_("DPI while the button is held down"))
         self._add_page(DPI_LOCK, self.lock_dpi)
 
         self.shortcut = ShortcutEdit()
-        capture = QPushButton(QIcon.fromTheme("input-keyboard"), "Capturar")
-        capture.setToolTip("Pulsa este botón y después la combinación de teclas")
+        capture = QPushButton(QIcon.fromTheme("input-keyboard"), _("Capture"))
+        capture.setToolTip(_("Press this button and then the key combination"))
         capture.clicked.connect(self.shortcut.start_capture)
         self._add_page(SHORTCUT, self.shortcut, capture)
 
@@ -662,7 +663,7 @@ class ButtonRow:
         self._add_page(MEDIA, self.media)
 
         self.macro_label = QLabel()
-        edit_macro = QPushButton(QIcon.fromTheme("document-edit"), "Editar…")
+        edit_macro = QPushButton(QIcon.fromTheme("document-edit"), _("Edit…"))
         edit_macro.clicked.connect(self.edit_macro)
         self._add_page(MACRO, self.macro_label, edit_macro)
 
@@ -670,7 +671,7 @@ class ButtonRow:
         self.other_label.setEnabled(False)
         self._add_page(OTHER, self.other_label)
 
-        grid.addWidget(QLabel("Botón %d" % (index + 1)), row, 0)
+        grid.addWidget(QLabel(_("Button %d") % (index + 1)), row, 0)
         grid.addWidget(self.combo, row, 1)
         grid.addWidget(self.pages, row, 2)
         for w in (self.interval, self.shots, self.lock_dpi):
@@ -712,11 +713,15 @@ class ButtonRow:
 
     def _show_macro(self):
         if self.macro:
-            self.macro_label.setText("<b>%s</b> · %d pasos · %s" % (
-                self.macro.name, len(self.macro.steps), REPEAT_TEXT.get(
-                    self.repeat, "%d veces" % self.repeat)))
+            n = len(self.macro.steps)
+            repeat = REPEAT_TEXT.get(self.repeat, ngettext("%d time", "%d times", self.repeat)
+                                     % self.repeat)
+            self.macro_label.setText(
+                ngettext("<b>%(name)s</b> · %(count)d step · %(repeat)s",
+                         "<b>%(name)s</b> · %(count)d steps · %(repeat)s", n)
+                % {"name": self.macro.name, "count": n, "repeat": repeat})
         else:
-            self.macro_label.setText("Sin definir")
+            self.macro_label.setText(_("Not defined"))
 
     def load(self, value, conf):
         self._loading = True
@@ -751,7 +756,7 @@ class ButtonRow:
         else:
             # Unknown or unreadable: keep it as is
             key = OTHER
-            self.combo.addItem("Sin cambios", OTHER)
+            self.combo.addItem(_("Unchanged"), OTHER)
             self.other_label.setText(conf.describe_button(self.index))
         self._show_macro()
         self.combo.setCurrentIndex(self.combo.findData(key))
@@ -761,9 +766,9 @@ class ButtonRow:
     def error(self):
         key = self.combo.currentData()
         if key == SHORTCUT and self.shortcut.events() is None:
-            return "botón %d: el atajo de teclado no es válido" % (self.index + 1)
+            return _("button %d: the keyboard shortcut is not valid") % (self.index + 1)
         if key == MACRO and self.macro is None:
-            return "botón %d: falta definir la macro" % (self.index + 1)
+            return _("button %d: the macro is not defined yet") % (self.index + 1)
         return None
 
     def store(self, conf):
@@ -787,8 +792,8 @@ class ButtonRow:
             conf.buttons[k] = cfg.BUTTON_ACTIONS[key]
 
 
-REPEAT_TEXT = {cfg.REPEAT_WHILE_HELD: "mientras se pulse", cfg.REPEAT_TOGGLE: "hasta volver a pulsar",
-               cfg.REPEAT_UNTIL_ANY: "hasta pulsar otro botón", 1: "una vez"}
+REPEAT_TEXT = {cfg.REPEAT_WHILE_HELD: _("while held"), cfg.REPEAT_TOGGLE: _("until pressed again"),
+               cfg.REPEAT_UNTIL_ANY: _("until another button is pressed"), 1: _("once")}
 
 
 class ButtonsTab(QWidget):
@@ -804,10 +809,10 @@ class ButtonsTab(QWidget):
         scroll = QScrollArea()
         scroll.setWidget(inner)
         scroll.setWidgetResizable(True)
-        note = QLabel("Los números son posiciones en la memoria del ratón; los botones 1–5 son "
-                      "izquierdo, derecho, central, atrás y adelante. Los atajos se guardan como "
-                      "teclas físicas: el ratón envía la posición y tu distribución de teclado "
-                      "decide el carácter.")
+        note = QLabel(_("Numbers are positions in the mouse memory; buttons 1–5 are left, right, "
+                        "middle, back and forward. Shortcuts are stored as physical keys: the "
+                        "mouse sends the position and your keyboard layout decides the "
+                        "character."))
         note.setWordWrap(True)
         note.setEnabled(False)
         layout = QVBoxLayout(self)
@@ -833,7 +838,7 @@ class ChoiceBox(QComboBox):
         super().__init__()
         self.choices = list(choices)
 
-    def load(self, value, raw_text="valor %d"):
+    def load(self, value, raw_text=_("value %d")):
         self.clear()
         for v, text in self.choices:
             self.addItem(text, v)
@@ -851,28 +856,28 @@ class PerformanceTab(QWidget):
 
     def __init__(self):
         super().__init__()
-        main = QGroupBox("Sensor")
+        main = QGroupBox(_("Sensor"))
         form = QFormLayout(main)
         self.rate = QComboBox()
-        form.addRow("Frecuencia de sondeo:", self.rate)
+        form.addRow(_("Polling rate:"), self.rate)
         self.debounce = QSpinBox()
         self.debounce.setRange(0, 255)
         self.debounce.setSuffix(" ms")
-        form.addRow("Debounce de los botones:", self.debounce)
+        form.addRow(_("Button debounce:"), self.debounce)
         self.lod = ChoiceBox(cfg.LOD_CHOICES.items())
-        self.lod.setToolTip("Altura a la que el sensor deja de leer al levantar el ratón")
-        form.addRow("Distancia de despegue (LOD):", self.lod)
-        self.mode = ChoiceBox([(0, "Bajo consumo (LP)"), (1, "Alto rendimiento (HP)")])
-        form.addRow("Modo del sensor:", self.mode)
-        self.full = QCheckBox("Rendimiento máximo durante:")
-        self.full.setToolTip("El sensor se mantiene a máximo rendimiento este tiempo antes "
-                             "de pasar a reposo")
+        self.lod.setToolTip(_("Height at which the sensor stops tracking when the mouse is lifted"))
+        form.addRow(_("Lift-off distance (LOD):"), self.lod)
+        self.mode = ChoiceBox([(0, _("Low power (LP)")), (1, _("High performance (HP)"))])
+        form.addRow(_("Sensor mode:"), self.mode)
+        self.full = QCheckBox(_("Full performance for:"))
+        self.full.setToolTip(_("The sensor stays at full performance for this time before "
+                               "going to rest"))
         self.full_time = ChoiceBox(time_choices(cfg.FULL_PERFORMANCE_TIMES))
         form.addRow(self.full, self.full_time)
         self.checks = {}
-        for name, text in (("motion-sync", "Motion Sync"),
-                           ("linear-correction", "Corrección lineal (angle snapping)"),
-                           ("ripple-control", "Ripple control")):
+        for name, text in (("motion-sync", _("Motion Sync")),
+                           ("linear-correction", _("Linear correction (angle snapping)")),
+                           ("ripple-control", _("Ripple control"))):
             box = QCheckBox(text)
             box.toggled.connect(lambda *_: self.edited.emit())
             form.addRow(box)
@@ -894,7 +899,7 @@ class PerformanceTab(QWidget):
             codes.append(conf.report_rate)
         for code in codes:
             hz = cfg.RATE_HZ.get(code)
-            self.rate.addItem("%d Hz" % hz if hz else "código 0x%02x" % code, code)
+            self.rate.addItem("%d Hz" % hz if hz else _("code 0x%02x") % code, code)
         self.rate.setCurrentIndex(self.rate.findData(conf.report_rate))
         opts = conf.options
         self.debounce.setValue(opts["debounce"])
@@ -932,26 +937,26 @@ class LightsTab(QWidget):
 
     def __init__(self):
         super().__init__()
-        dpi = QGroupBox("LED de DPI")
+        dpi = QGroupBox(_("DPI LED"))
         form = QFormLayout(dpi)
-        self.effect = ChoiceBox([(DPI_LED_OFF, "Apagado"), (1, "Fijo"), (2, "Parpadeo")])
-        form.addRow("Efecto:", self.effect)
+        self.effect = ChoiceBox([(DPI_LED_OFF, _("Off")), (1, _("Steady")), (2, _("Blinking"))])
+        form.addRow(_("Effect:"), self.effect)
         self.brightness = ChoiceBox((b, "%d" % (i + 1))
                                     for i, b in enumerate(cfg.DPI_LED_BRIGHTNESS))
-        form.addRow("Brillo (1–10):", self.brightness)
+        form.addRow(_("Brightness (1–10):"), self.brightness)
         self.speed = ChoiceBox((v, "%d" % v) for v in cfg.DPI_LED_SPEEDS)
-        form.addRow("Velocidad (1–5):", self.speed)
-        note = QLabel("El LED muestra el color de cada nivel de DPI (pestaña DPI). El brillo se "
-                      "aplica al efecto fijo y la velocidad al parpadeo.")
+        form.addRow(_("Speed (1–5):"), self.speed)
+        note = QLabel(_("The LED shows the color of each DPI level (DPI tab). Brightness applies to "
+                        "the steady effect and speed to blinking."))
         note.setWordWrap(True)
         note.setEnabled(False)
         form.addRow(note)
 
-        power = QGroupBox("Ahorro de energía")
+        power = QGroupBox(_("Power saving"))
         pform = QFormLayout(power)
         self.off_time = ChoiceBox(time_choices(cfg.LED_OFF_TIMES))
-        pform.addRow("Apagar las luces en reposo tras:", self.off_time)
-        self.move_off = QCheckBox("Apagar las luces mientras se mueve el ratón")
+        pform.addRow(_("Turn the lights off when idle after:"), self.off_time)
+        self.move_off = QCheckBox(_("Turn the lights off while the mouse moves"))
         pform.addRow(self.move_off)
 
         layout = QVBoxLayout(self)
@@ -971,7 +976,7 @@ class LightsTab(QWidget):
     def load(self, conf):
         opts = conf.options
         # Off is "disabled", whatever mode is stored (_3In1.customComboBox_DPIEffect)
-        self.effect.load(opts["dpi-led-mode"] if opts["dpi-led"] else DPI_LED_OFF, "modo %d")
+        self.effect.load(opts["dpi-led-mode"] if opts["dpi-led"] else DPI_LED_OFF, _("mode %d"))
         self.brightness.load(opts["dpi-led-brightness"])
         self.speed.load(opts["dpi-led-speed"])
         self.off_time.load(opts["led-off-time"], "%d × 10 s")
@@ -998,39 +1003,39 @@ class BackupTab(QWidget):
 
     def __init__(self):
         super().__init__()
-        text = QLabel("Guarda una copia completa de la memoria del ratón (6912 bytes) antes de "
-                      "hacer cambios. Al restaurar solo se reescriben las partes que difieren, "
-                      "y después se verifica toda la memoria.")
+        text = QLabel(_("Save a full copy of the mouse memory (6912 bytes) before making changes. "
+                        "Restoring only rewrites the parts that differ, and then the whole "
+                        "memory is verified."))
         text.setWordWrap(True)
-        self.dump_btn = QPushButton(QIcon.fromTheme("document-save"), "Guardar copia…")
-        self.restore_btn = QPushButton(QIcon.fromTheme("document-revert"), "Restaurar copia…")
+        self.dump_btn = QPushButton(QIcon.fromTheme("document-save"), _("Save backup…"))
+        self.restore_btn = QPushButton(QIcon.fromTheme("document-revert"), _("Restore backup…"))
         self.bar = QProgressBar()
         self.bar.setVisible(False)
         buttons = QHBoxLayout()
         buttons.addWidget(self.dump_btn)
         buttons.addWidget(self.restore_btn)
         buttons.addStretch()
-        backup = QGroupBox("Copia completa")
+        backup = QGroupBox(_("Full backup"))
         box = QVBoxLayout(backup)
         box.addWidget(text)
         box.addLayout(buttons)
         box.addWidget(self.bar)
 
-        text = QLabel("Un perfil guarda la configuración (DPI, botones, macros y opciones) en "
-                      "un archivo JSON legible que se puede editar a mano: por ejemplo, uno para "
-                      "juegos y otro para oficina. Se guarda lo que ves en pantalla. Al cargarlo, "
-                      "sus valores aparecen como cambios sin aplicar; lo que el perfil no "
-                      "incluya se queda como está. Por defecto se guardan en %s, donde también "
-                      "los encuentra <tt>m916 profile list</tt>."
+        text = QLabel(_("A profile saves the configuration (DPI, buttons, macros and options) in a "
+                        "readable JSON file that can be edited by hand: for example, one for "
+                        "games and another for work. What you see on screen is saved. When you "
+                        "load it, its values appear as unapplied changes; whatever the profile "
+                        "leaves out stays as it is. By default they are saved in %s, where "
+                        "<tt>m916 profile list</tt> also finds them.")
                       % profile.profiles_dir().replace(os.path.expanduser("~"), "~", 1))
         text.setWordWrap(True)
-        self.save_profile_btn = QPushButton(QIcon.fromTheme("document-save-as"), "Guardar perfil…")
-        self.load_profile_btn = QPushButton(QIcon.fromTheme("document-open"), "Cargar perfil…")
+        self.save_profile_btn = QPushButton(QIcon.fromTheme("document-save-as"), _("Save profile…"))
+        self.load_profile_btn = QPushButton(QIcon.fromTheme("document-open"), _("Load profile…"))
         buttons = QHBoxLayout()
         buttons.addWidget(self.save_profile_btn)
         buttons.addWidget(self.load_profile_btn)
         buttons.addStretch()
-        profiles = QGroupBox("Perfiles")
+        profiles = QGroupBox(_("Profiles"))
         box = QVBoxLayout(profiles)
         box.addWidget(text)
         box.addLayout(buttons)
@@ -1046,15 +1051,15 @@ class BackupTab(QWidget):
 
     def _dump(self):
         name = "m916-%s.bin" % time.strftime("%Y%m%d-%H%M")
-        path, _ = QFileDialog.getSaveFileName(self, "Guardar copia de la memoria",
+        path, _filter = QFileDialog.getSaveFileName(self, _("Save memory backup"),
                                               os.path.join(os.path.expanduser("~"), name),
-                                              "Volcado de flash (*.bin)")
+                                              _("Flash dump (*.bin)"))
         if path:
             self.dump_requested.emit(path)
 
     def _restore(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Restaurar copia de la memoria",
-                                              os.path.expanduser("~"), "Volcado de flash (*.bin)")
+        path, _filter = QFileDialog.getOpenFileName(self, _("Restore memory backup"),
+                                              os.path.expanduser("~"), _("Flash dump (*.bin)"))
         if path:
             self.restore_requested.emit(path)
 
@@ -1067,17 +1072,17 @@ class BackupTab(QWidget):
         return profile.profiles_dir()
 
     def _save_profile(self):
-        path, _ = QFileDialog.getSaveFileName(self, "Guardar perfil",
-                                              os.path.join(self._profiles_dir(), "perfil.json"),
-                                              "Perfil (*.json)")
+        path, _filter = QFileDialog.getSaveFileName(self, _("Save profile"),
+                                              os.path.join(self._profiles_dir(), _("profile.json")),
+                                              _("Profile (*.json)"))
         if path:
             if not path.endswith(".json"):
                 path += ".json"
             self.profile_save_requested.emit(path)
 
     def _load_profile(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Cargar perfil", self._profiles_dir(),
-                                              "Perfil (*.json)")
+        path, _filter = QFileDialog.getOpenFileName(self, _("Load profile"), self._profiles_dir(),
+                                              _("Profile (*.json)"))
         if path:
             self.profile_load_requested.emit(path)
 
@@ -1108,7 +1113,7 @@ class MainWindow(QMainWindow):
         self.battery = QProgressBar()
         self.battery.setRange(0, 100)
         self.battery.setFixedWidth(160)
-        self.battery.setFormat("Batería %p %")
+        self.battery.setFormat(_("Battery %p %"))
         self.firmware = QLabel()
         self.firmware.setEnabled(False)
         header = QHBoxLayout()
@@ -1124,14 +1129,14 @@ class MainWindow(QMainWindow):
         self.backup = BackupTab()
         self.tabs = QTabWidget()
         self.tabs.addTab(self.dpi, QIcon.fromTheme("input-mouse"), "DPI")
-        self.tabs.addTab(self.buttons, QIcon.fromTheme("input-keyboard"), "Botones")
-        self.tabs.addTab(self.performance, QIcon.fromTheme("speedometer"), "Rendimiento")
-        self.tabs.addTab(self.lights, QIcon.fromTheme("lighttable"), "Luces")
-        self.tabs.addTab(self.backup, QIcon.fromTheme("document-save"), "Copias y perfiles")
+        self.tabs.addTab(self.buttons, QIcon.fromTheme("input-keyboard"), _("Buttons"))
+        self.tabs.addTab(self.performance, QIcon.fromTheme("speedometer"), _("Performance"))
+        self.tabs.addTab(self.lights, QIcon.fromTheme("lighttable"), _("Lights"))
+        self.tabs.addTab(self.backup, QIcon.fromTheme("document-save"), _("Backups and profiles"))
 
-        self.reload_btn = QPushButton(QIcon.fromTheme("view-refresh"), "Recargar")
-        self.revert_btn = QPushButton(QIcon.fromTheme("edit-undo"), "Descartar cambios")
-        self.apply_btn = QPushButton(QIcon.fromTheme("dialog-ok-apply"), "Aplicar")
+        self.reload_btn = QPushButton(QIcon.fromTheme("view-refresh"), _("Reload"))
+        self.revert_btn = QPushButton(QIcon.fromTheme("edit-undo"), _("Discard changes"))
+        self.apply_btn = QPushButton(QIcon.fromTheme("dialog-ok-apply"), _("Apply"))
         self.apply_btn.setDefault(True)
         footer = QHBoxLayout()
         footer.addWidget(self.reload_btn)
@@ -1206,7 +1211,7 @@ class MainWindow(QMainWindow):
         self._loading = False
         bad = cfg.bad_checks(image)
         if bad:
-            self.statusBar().showMessage("Aviso: bytes de comprobación incorrectos en %s"
+            self.statusBar().showMessage(_("Warning: wrong check bytes at %s")
                                          % ", ".join(hex(o) for o in bad))
 
     # --- user actions --------------------------------------------------------------------
@@ -1223,13 +1228,13 @@ class MainWindow(QMainWindow):
         conf = self._current_config()
         bands = [i + 1 for i, lv in enumerate(conf.levels) if cfg.dpi_band(lv.x) != cfg.dpi_band(lv.y)]
         if bands:
-            QMessageBox.warning(self, "DPI no válido",
-                                "En los niveles %s, X e Y deben estar ambos por debajo o ambos "
-                                "por encima de 12 800 DPI (y de 25 600)." % ", ".join(map(str, bands)))
+            QMessageBox.warning(self, _("Invalid DPI"),
+                                _("In levels %s, X and Y must both be below or both above "
+                                  "12 800 DPI (and 25 600).") % ", ".join(map(str, bands)))
             return
         errors = self.buttons.errors() + conf.validate()
         if errors:
-            QMessageBox.warning(self, "Configuración no válida", "\n".join(errors))
+            QMessageBox.warning(self, _("Invalid configuration"), "\n".join(errors))
             return
         self._submit("apply", self.image, conf.encode(self.image))
 
@@ -1238,30 +1243,30 @@ class MainWindow(QMainWindow):
             with open(path, "rb") as f:
                 image = f.read()
         except OSError as e:
-            QMessageBox.critical(self, "Restaurar", str(e))
+            QMessageBox.critical(self, _("Restore"), str(e))
             return
         if len(image) != FLASH_SIZE:
-            QMessageBox.critical(self, "Restaurar", "%s tiene %d bytes; se esperaban %d."
-                                 % (path, len(image), FLASH_SIZE))
+            QMessageBox.critical(self, _("Restore"), _("%(file)s has %(size)d bytes; expected %(expected)d.")
+                                 % {"file": path, "size": len(image), "expected": FLASH_SIZE})
             return
-        answer = QMessageBox.question(self, "Restaurar copia",
-                                      "Se reescribirá la memoria del ratón con el contenido de\n%s"
-                                      "\n\nLos cambios sin aplicar se perderán. ¿Continuar?" % path)
+        answer = QMessageBox.question(self, _("Restore backup"),
+                                      _("The mouse memory will be rewritten with the contents of"
+                                        "\n%s\n\nUnapplied changes will be lost. Continue?") % path)
         if answer == QMessageBox.StandardButton.Yes:
             self._submit("restore", image)
 
     def save_profile(self, path):
         errors = self.buttons.errors()
         if errors:
-            QMessageBox.warning(self, "Guardar perfil", "Corrige primero los botones:\n\n"
+            QMessageBox.warning(self, _("Save profile"), _("Fix the buttons first:\n\n")
                                 + "\n".join(errors))
             return
         try:
             profile.save(path, self._current_config())
         except OSError as e:
-            QMessageBox.critical(self, "Guardar perfil", str(e))
+            QMessageBox.critical(self, _("Save profile"), str(e))
             return
-        self.statusBar().showMessage("Perfil guardado en %s" % path, 8000)
+        self.statusBar().showMessage(_("Profile saved to %s") % path, 8000)
 
     def load_profile(self, path):
         """Show the profile as unapplied changes on top of what is on screen."""
@@ -1269,21 +1274,21 @@ class MainWindow(QMainWindow):
         try:
             profile.apply(conf, profile.load(path))
         except profile.ProfileError as e:
-            QMessageBox.warning(self, "Perfil no válido", "No se ha cargado %s:\n\n%s"
-                                % (path, "\n".join(e.errors)))
+            QMessageBox.warning(self, _("Invalid profile"), _("%(file)s was not loaded:\n\n%(errors)s")
+                                % {"file": path, "errors": "\n".join(e.errors)})
             return
         self._load_widgets(conf.encode(self.image))
         self._update_actions()
-        self.statusBar().showMessage("Perfil cargado: revisa los cambios y pulsa Aplicar", 8000)
+        self.statusBar().showMessage(_("Profile loaded: review the changes and press Apply"), 8000)
 
     # --- worker signals ------------------------------------------------------------------
     def _state_changed(self, state, path):
         self.state = state
         dev = os.path.basename(path) if path else ""
         text = {
-            STATE_ONLINE: "<b>Conectado</b> · %s" % dev,
-            STATE_ASLEEP: "<b>Ratón dormido</b> · muévelo o haz clic para despertarlo",
-            STATE_DISCONNECTED: "<b>Receptor no encontrado</b> · conéctalo para empezar",
+            STATE_ONLINE: _("<b>Connected</b> · %s") % dev,
+            STATE_ASLEEP: _("<b>Mouse asleep</b> · move it or click to wake it up"),
+            STATE_DISCONNECTED: _("<b>Receiver not found</b> · plug it in to start"),
         }[state]
         self.status.setText(text)
         self.battery.setVisible(state == STATE_ONLINE)
@@ -1295,11 +1300,13 @@ class MainWindow(QMainWindow):
 
     def _info(self, info):
         if "firmware" in info:
-            self.firmware.setText("Firmware %s · v%s" % (info["firmware"].hex(" "), __version__))
+            self.firmware.setText(_("Firmware %(firmware)s · v%(version)s")
+                                  % {"firmware": info["firmware"].hex(" "), "version": __version__})
         if "battery" in info:
             level, charging, mv = info["battery"]
             self.battery.setValue(level)
-            self.battery.setFormat("Batería %d %%%s" % (level, " ⚡" if charging else ""))
+            self.battery.setFormat(_("Battery %(level)d %%%(charging)s")
+                                   % {"level": level, "charging": " ⚡" if charging else ""})
             self.battery.setToolTip("%d mV" % mv)
 
     def _config_loaded(self, image):
@@ -1311,7 +1318,7 @@ class MainWindow(QMainWindow):
     def _job_done(self, name, result):
         if name == "apply":
             self.image = result
-            self.statusBar().showMessage("Cambios aplicados y verificados", 5000)
+            self.statusBar().showMessage(_("Changes applied and verified"), 5000)
         elif name == "active" and self.image is not None:
             # The mouse changed its DPI level: update the stored copy and the widget
             img = bytearray(self.image)
@@ -1321,10 +1328,11 @@ class MainWindow(QMainWindow):
             if not dirty:
                 self.dpi.set_active(result)
         elif name == "dump":
-            self.statusBar().showMessage("Copia guardada en %s" % result, 8000)
+            self.statusBar().showMessage(_("Backup saved to %s") % result, 8000)
         elif name == "restore":
-            self.statusBar().showMessage("Copia restaurada (%d bloques reescritos) y verificada"
-                                         % result, 8000)
+            self.statusBar().showMessage(ngettext("Backup restored (%d block rewritten) and verified",
+                                                  "Backup restored (%d blocks rewritten) and verified",
+                                                  result) % result, 8000)
         if name in ("apply", "dump", "restore"):
             self._busy = False
             self.backup.set_busy(False)
@@ -1336,7 +1344,7 @@ class MainWindow(QMainWindow):
         self._update_actions()
         if name == "load" and self.state != STATE_ONLINE:
             return  # the status line already says the mouse is asleep
-        QMessageBox.warning(self, "Error", message)
+        QMessageBox.warning(self, _("Error"), message)
 
     def _notified(self, flags):
         if flags & STATUS_BATTERY:
@@ -1349,7 +1357,7 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         if self._dirty():
             answer = QMessageBox.question(
-                self, "Cambios sin aplicar", "Hay cambios sin aplicar. ¿Salir de todos modos?")
+                self, _("Unapplied changes"), _("There are unapplied changes. Quit anyway?"))
             if answer != QMessageBox.StandardButton.Yes:
                 event.ignore()
                 return
@@ -1358,7 +1366,7 @@ class MainWindow(QMainWindow):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="m916-gui")
-    ap.add_argument("--fake", metavar="FLASH.bin", help="use a simulated mouse with this flash dump")
+    ap.add_argument("--fake", metavar="FLASH.bin", help=_("use a simulated mouse with this flash dump"))
     ap.add_argument("--screenshot", metavar="DIR", help=argparse.SUPPRESS)
     args, qt_args = ap.parse_known_args(argv)
 
@@ -1366,6 +1374,11 @@ def main(argv=None):
     app.setApplicationName("m916-linux")
     app.setDesktopFileName(APP_ID)
     app.setWindowIcon(app_icon())
+    translator = QTranslator(app)
+    lang = i18n.language()
+    if lang and translator.load("qtbase_" + lang,
+                                QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath)):
+        app.installTranslator(translator)  # Qt's own texts: standard buttons and dialogs
 
     fake = None
     if args.fake:

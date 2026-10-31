@@ -13,6 +13,7 @@ import time
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+os.environ["LANGUAGE"] = "en"  # tests compare the English source strings
 from m916 import cli, config as cfg  # noqa: E402
 from m916.fake import FakeMouse  # noqa: E402
 from m916.protocol import FLASH_SIZE, MouseAsleep  # noqa: E402

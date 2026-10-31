@@ -11,6 +11,7 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+os.environ["LANGUAGE"] = "en"  # tests compare the English source strings
 from m916 import cli, config as cfg, profile  # noqa: E402
 from m916.fake import FakeMouse  # noqa: E402
 
@@ -201,7 +202,7 @@ class ProfileMouseTest(unittest.TestCase):
     def test_dry_run(self):
         self.write_profile(dict(HEADER, dpi={"count": 2}))
         out = self.run_cmd(cli.cmd_profile_load, file=self.path, dry_run=True)
-        self.assertIn("1 field(s) to write: 0x0002", out)
+        self.assertIn("1 field to write: 0x0002", out)
         self.assertEqual(bytes(self.fake.flash), self.original)
 
     def test_invalid_profile_writes_nothing(self):
