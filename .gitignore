@@ -12,3 +12,7 @@ unins000.*
 
 # Local GUI screenshots
 .screenshots/
+
+# Python packaging output
+build/
+*.egg-info/

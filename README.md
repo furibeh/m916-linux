@@ -21,6 +21,13 @@ sudo udevadm control --reload && sudo udevadm trigger
 
 ## Instalación
 
+En Fedora, desde COPR. El paquete incluye la regla udev, la entrada del menú y el icono:
+
+```sh
+sudo dnf copr enable furibeh/m916-linux
+sudo dnf install m916-linux
+```
+
 Desde el repositorio, sin instalar nada:
 
 ```sh

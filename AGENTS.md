@@ -33,6 +33,8 @@ GUI usa PySide6 (Qt 6).
 - `tools/`: utilidades de ingeniería inversa. El instalador oficial **no** está en el repo.
 - `m916/icons/`: icono de la aplicación (SVG). `APP_ID` en `gui.py`, el `.desktop` de `data/`
   y el nombre del SVG deben coincidir.
+- `packaging/m916-linux.spec` + `.copr/Makefile`: RPM para COPR
+  (`make -f .copr/Makefile srpm outdir=DIR` empaqueta el `HEAD`, no el árbol de trabajo).
 - `.github/workflows/tests.yml`: tests en Fedora con PySide6 y en Python 3.9 sin PySide6.
 
 ## Comandos
@@ -94,5 +96,7 @@ Si descubres otra regla del firmware, impleméntala también en `m916/fake.py` y
 - Estilo del código existente: funciones pequeñas, docstrings breves, sin dependencias nuevas
   sin motivo. La CLI debe seguir funcionando sin PySide6.
 - Cada cambio de comportamiento lleva su test, contra el ratón simulado.
+- Al subir de versión: `__version__` en `m916/__init__.py`, `Version:` y `%changelog` del spec,
+  y la etiqueta `vX.Y.Z` (el spec descarga el tarball de esa etiqueta).
 - Commits pequeños y temáticos: un título en imperativo y una lista de puntos en el cuerpo.
   Haz commit o push solo cuando el usuario lo pida.
