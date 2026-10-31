@@ -31,4 +31,4 @@ packages = ["m916"]
 version = { attr = "m916.__version__" }
 
 [tool.setuptools.package-data]
-m916 = ["icons/*.svg"]
+m916 = ["icons/*.svg", "locale/*/LC_MESSAGES/*.mo"]

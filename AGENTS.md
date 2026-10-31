@@ -36,6 +36,11 @@ GUI usa PySide6 (Qt 6).
 - `packaging/m916-linux.spec` + `.copr/Makefile`: RPM para COPR
   (`make -f .copr/Makefile srpm outdir=DIR` empaqueta el `HEAD`, no el árbol de trabajo).
 - `.github/workflows/tests.yml`: tests en Fedora con PySide6 y en Python 3.9 sin PySide6.
+- `m916/i18n.py`: traducciones con gettext (`_`, `ngettext`). Los textos del código están en
+  inglés; `po/es.po` es la traducción al español y `m916/locale/*/LC_MESSAGES/m916.mo`, el
+  catálogo compilado, que va en el repo. `tools/i18n.sh` regenera `po/m916.pot`, actualiza
+  los `.po` y compila los `.mo`. Los tests fijan `LANGUAGE=en` y comparan los textos en
+  inglés; `tests/test_i18n.py` comprueba que todo esté traducido y que los `.mo` estén al día.
 
 ## Comandos
 
@@ -43,6 +48,8 @@ GUI usa PySide6 (Qt 6).
 python3 -m unittest discover -s tests       # todos los tests (~40 s; la GUI va offscreen)
 python3 -m m916.gui --fake tests/fixtures/m916_flash.bin   # GUI sin hardware
 python3 -m m916 info                         # estado del ratón real (solo lee)
+tools/i18n.sh                                # tras cambiar textos: actualiza po/ y los .mo
+LANGUAGE=en python3 -m m916.gui --fake …     # la GUI en otro idioma (es, en)
 ```
 
 Para capturas de la GUI sin pantalla: `QT_QPA_PLATFORM=offscreen` y
@@ -90,8 +97,15 @@ Si descubres otra regla del firmware, impleméntala también en `m916/fake.py` y
 
 ## Convenciones
 
-- Código, identificadores, comentarios, mensajes de la CLI y mensajes de commit en **inglés**.
-  Textos de la GUI y documentación (`README.md`, `docs/`) en **español**.
+- Código, identificadores, comentarios, textos de la GUI y de la CLI y mensajes de commit en
+  **inglés**. Todo texto que vea el usuario se marca con `_()` (o `ngettext()` si lleva un
+  número) y se traduce en `po/es.po`; después, `tools/i18n.sh`. Si un texto tiene más de un
+  marcador, usa marcadores con nombre (`%(file)s`) para que el traductor pueda reordenarlos.
+  No uses `_` como variable de descarte: una función que lo asigna no puede llamar a `_()`.
+  Los nombres que se escriben en comandos y perfiles (acciones, opciones, teclas) no se
+  traducen.
+- Documentación: `README.md` en inglés y `README.es.md` en español (mantén las dos al día);
+  `docs/` en **español**.
 - Cabecera `# SPDX-License-Identifier: GPL-3.0-or-later` en cada archivo Python.
 - Estilo del código existente: funciones pequeñas, docstrings breves, sin dependencias nuevas
   sin motivo. La CLI debe seguir funcionando sin PySide6.

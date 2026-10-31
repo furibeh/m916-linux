@@ -12,10 +12,14 @@ BuildRequires:  python3-devel
 # For %%{_udevrulesdir}
 BuildRequires:  systemd-rpm-macros
 BuildRequires:  desktop-file-utils
+# msgfmt, to check the translations in %%check
+BuildRequires:  gettext
 # For the GUI tests in %%check
 BuildRequires:  python3-pyside6
 
 Requires:       python3-pyside6
+# Qt's own texts (standard buttons and dialogs) in the user's language
+Recommends:     qt6-qttranslations
 
 %description
 Configure the Redragon M916-PRO-1K mouse on Linux without the official Windows
@@ -44,6 +48,7 @@ install -Dpm 0644 m916/icons/io.github.furibeh.m916-linux.svg \
 
 %check
 desktop-file-validate %{buildroot}%{_datadir}/applications/io.github.furibeh.m916-linux.desktop
+for po in po/*.po; do msgfmt --check --output-file=/dev/null "$po"; done
 QT_QPA_PLATFORM=offscreen %{python3} -m unittest discover -s tests -v
 
 %files -f %{pyproject_files}
