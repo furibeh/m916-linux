@@ -248,6 +248,8 @@ class GuiTest(unittest.TestCase):
         self.assertEqual(gui.APP_ID, "io.github.furibeh.m916-linux")
         self.assertFalse(gui.app_icon().isNull())
         self.assertFalse(gui.app_icon().pixmap(48, 48).isNull())
+        self.assertEqual(self.window.windowIcon().pixmap(48, 48).toImage(),
+                         gui.app_icon().pixmap(48, 48).toImage())
 
     def test_english_source_strings(self):
         w = self.window

@@ -1107,7 +1107,7 @@ class MainWindow(QMainWindow):
         self._loading = False
         self._busy = False
         self.setWindowTitle("Redragon M916-PRO-1K")
-        self.setWindowIcon(QIcon.fromTheme("input-mouse"))
+        self.setWindowIcon(app_icon())
 
         self.status = QLabel()
         self.battery = QProgressBar()
