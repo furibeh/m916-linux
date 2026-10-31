@@ -2,40 +2,43 @@
 
 [![tests](https://github.com/furibeh/m916-linux/actions/workflows/tests.yml/badge.svg)](https://github.com/furibeh/m916-linux/actions/workflows/tests.yml)
 
-Herramienta para configurar en Linux el ratón **Redragon M916-PRO-1K** sin el programa
-oficial de Windows. Habla con el ratón por `hidraw` con el mismo protocolo que el configurador
-original, reconstruido por ingeniería inversa (ver [docs/PROTOCOL.md](docs/PROTOCOL.md)).
+**English** · [Español](README.es.md)
 
-Probado con el receptor inalámbrico `3554:F5D5`.
+A tool to configure the **Redragon M916-PRO-1K** mouse on Linux, without the official Windows
+program. It talks to the mouse over `hidraw` with the same protocol as the original
+configurator, reconstructed by reverse engineering (see [docs/PROTOCOL.md](docs/PROTOCOL.md),
+in Spanish).
 
-## Requisitos
+Tested with the `3554:F5D5` wireless receiver.
 
-- Python 3. La línea de comandos no tiene dependencias externas; la interfaz gráfica usa
-  Qt 6 (PySide6): `sudo dnf install python3-pyside6` en Fedora.
-- Acceso al nodo `hidraw` del ratón. Instala la regla udev una vez:
+## Requirements
+
+- Python 3. The command line has no external dependencies; the graphical interface uses
+  Qt 6 (PySide6): `sudo dnf install python3-pyside6` on Fedora.
+- Access to the mouse `hidraw` node. Install the udev rule once:
 
 ```sh
 sudo cp udev/70-redragon-m916.rules /etc/udev/rules.d/
 sudo udevadm control --reload && sudo udevadm trigger
 ```
 
-## Instalación
+## Installation
 
-En Fedora, desde COPR. El paquete incluye la regla udev, la entrada del menú y el icono:
+On Fedora, from COPR. The package includes the udev rule, the menu entry and the icon:
 
 ```sh
 sudo dnf copr enable furibeh/m916-linux
 sudo dnf install m916-linux
 ```
 
-Desde el repositorio, sin instalar nada:
+From the repository, without installing anything:
 
 ```sh
-python3 -m m916.gui                # interfaz gráfica
-python3 -m m916 info               # línea de comandos
+python3 -m m916.gui                # graphical interface
+python3 -m m916 info               # command line
 ```
 
-O instalado para tu usuario, con los comandos `m916` y `m916-gui` y una entrada en el menú:
+Or installed for your user, with the `m916` and `m916-gui` commands and a menu entry:
 
 ```sh
 pip install --user .
@@ -45,58 +48,71 @@ install -Dm644 m916/icons/io.github.furibeh.m916-linux.svg \
     ~/.local/share/icons/hicolor/scalable/apps/io.github.furibeh.m916-linux.svg
 ```
 
-## Interfaz gráfica
+## Graphical interface
 
-Pestañas de DPI (niveles, valores y colores), botones, rendimiento (frecuencia de sondeo,
-debounce, LOD, modo y opciones del sensor), luces (efecto, brillo y velocidad del LED de DPI,
-apagado en reposo) y copias y perfiles. Cada botón puede ser un clic, una
-función de DPI o scroll, disparo repetido, bloqueo de DPI, un atajo de teclado (se escribe o
-se captura pulsándolo), una tecla multimedia o una macro, con un editor que permite grabar
-pulsaciones de teclado y ratón con sus tiempos. Los cambios se editan en local y
-**Aplicar** escribe solo los campos modificados, verificando cada uno. Muestra la batería y
-sigue en vivo los cambios hechos desde el propio ratón, como el nivel de DPI. Los perfiles
-JSON se guardan y se cargan desde la pestaña **Copias y perfiles**: al cargar uno, sus valores
-aparecen como cambios sin aplicar.
+Tabs for DPI (levels, values and colors), buttons, performance (polling rate, debounce, LOD,
+sensor mode and options), lights (effect, brightness and speed of the DPI LED, turning off
+when idle) and backups and profiles. Each button can be a click, a DPI or scroll function,
+rapid fire, DPI lock, a keyboard shortcut (typed or captured by pressing it), a media key or a
+macro, with an editor that records keyboard and mouse presses with their timing. Changes are
+edited locally and **Apply** writes only the modified fields, verifying each one. It shows the
+battery and follows changes made on the mouse itself, such as the DPI level, as they happen.
+JSON profiles are saved and loaded from the **Backups and profiles** tab: when you load one,
+its values appear as unapplied changes.
 
-Para probarla sin el ratón: `python3 -m m916.gui --fake tests/fixtures/m916_flash.bin`.
+To try it without the mouse: `python3 -m m916.gui --fake tests/fixtures/m916_flash.bin`.
 
-## Línea de comandos
+## Language
+
+The graphical interface and the command line follow the system language: there is a Spanish
+translation, and every other language shows English. To choose a language, set `LANGUAGE`:
 
 ```sh
-m916 info                     # estado, batería, DPI, opciones y botones
-m916 dump copia.bin           # haz esto antes de cambiar nada
-m916 dpi 3 3200               # DPI de un nivel (múltiplos de 50, hasta 26000; --y para Y)
-m916 dpi-color 3 00ff00       # color del LED de un nivel
-m916 dpi-levels 5             # niveles DPI activos
-m916 dpi-active 2             # nivel en uso
+LANGUAGE=en m916-gui        # English
+LANGUAGE=es m916 --help     # Spanish
+```
+
+The fixed words of the CLI help ("usage:", "options") come from Python and may stay in
+English. Action, option and key names (`dpi-loop`, `debounce`, `ctrl`…) are not translated:
+they are the values typed in commands and profiles.
+
+## Command line
+
+```sh
+m916 info                     # status, battery, DPI, options and buttons
+m916 dump backup.bin          # do this before changing anything
+m916 dpi 3 3200               # DPI of a level (multiples of 50, up to 26000; --y for Y)
+m916 dpi-color 3 00ff00       # LED color of a level
+m916 dpi-levels 5             # enabled DPI levels
+m916 dpi-active 2             # level in use
 m916 rate 1000                # 125 / 250 / 500 / 1000 Hz
 m916 button 7 middle          # left|right|middle|back|forward|dpi-loop|dpi-up|dpi-down|
                               # scroll-up|scroll-down|scroll-left|scroll-right|report-rate|disabled
-m916 button 7 key:ctrl+c      # atajo de hasta 3 teclas, o tecla multimedia: key:volume-up
-m916 button 7 fire:20:3       # disparo repetido: cada 20 ms, 3 disparos (0 = mientras se pulse)
-m916 button 7 dpi-lock:400    # DPI fijo mientras se mantiene pulsado
-m916 macro 8 copiar "+ctrl 10 +c 10 -c 10 -ctrl" --repeat 1
-                              # +TECLA pulsa, -TECLA suelta, número = espera en ms;
-                              # --repeat N (1-252), while-held, toggle o until-any
-m916 keys                     # nombres de tecla disponibles
-m916 option debounce 4        # opciones de un byte: info muestra su significado y
-                              # option --help los valores (lod, sensor-mode, dpi-led…)
-m916 restore copia.bin        # reescribe solo lo que cambió y verifica
-m916 profile save juegos      # guarda la configuración como perfil JSON
-m916 profile load juegos      # aplica un perfil (--dry-run para ver qué cambiaría)
-m916 profile list             # perfiles guardados en ~/.config/m916/profiles
-m916 watch                    # notificaciones en vivo (DPI, batería…)
+m916 button 7 key:ctrl+c      # shortcut of up to 3 keys, or a media key: key:volume-up
+m916 button 7 fire:20:3       # rapid fire: every 20 ms, 3 shots (0 = while held)
+m916 button 7 dpi-lock:400    # fixed DPI while held down
+m916 macro 8 copy "+ctrl 10 +c 10 -c 10 -ctrl" --repeat 1
+                              # +KEY presses, -KEY releases, a number = delay in ms;
+                              # --repeat N (1-252), while-held, toggle or until-any
+m916 keys                     # available key names
+m916 option debounce 4        # single-byte options: info shows their meaning and
+                              # option --help their values (lod, sensor-mode, dpi-led…)
+m916 restore backup.bin       # rewrites only what changed and verifies
+m916 profile save games       # saves the configuration as a JSON profile
+m916 profile load games       # applies a profile (--dry-run to see what would change)
+m916 profile list             # profiles saved in ~/.config/m916/profiles
+m916 watch                    # live notifications (DPI, battery…)
 ```
 
-Cada escritura se verifica volviendo a leer. Si el ratón está dormido, la herramienta pide
-moverlo y espera hasta 10 s.
+Every write is verified by reading it back. If the mouse is asleep, the tool asks you to move
+it and waits up to 10 s.
 
-## Perfiles
+## Profiles
 
-Además de la copia completa, la configuración se puede guardar como un perfil JSON legible y
-editable, por ejemplo uno para juegos y otro para oficina. Al cargar un perfil solo se
-escriben los campos que cambian, y lo que el perfil no incluye se queda como está. Este perfil
-parcial solo toca la frecuencia, dos niveles de DPI y tres botones:
+Besides the full backup, the configuration can be saved as a readable and editable JSON
+profile, for example one for games and another for work. Loading a profile writes only the
+fields that change, and whatever the profile leaves out stays as it is. This partial profile
+only touches the polling rate, two DPI levels and three buttons:
 
 ```json
 {
@@ -115,16 +131,34 @@ parcial solo toca la frecuencia, dos niveles de DPI y tres botones:
   "buttons": {
     "6": {"action": "dpi-lock", "dpi": 400},
     "7": {"action": "shortcut", "keys": "ctrl+c"},
-    "8": {"action": "macro", "name": "copiar", "repeat": 1,
+    "8": {"action": "macro", "name": "copy", "repeat": 1,
           "steps": ["+ctrl 10", "+c 10", "-c 10", "-ctrl"]}
   }
 }
 ```
 
-Los perfiles se guardan en `~/.config/m916/profiles/`: en la CLI basta con el nombre
-(`m916 profile load juegos`), aunque también se puede dar cualquier ruta terminada en `.json`.
-`m916 profile save` escribe un perfil completo. El formato completo (opciones, disparo
-repetido, teclas multimedia, macros y validación) está en [docs/PROFILES.md](docs/PROFILES.md).
+Profiles are saved in `~/.config/m916/profiles/`: on the CLI the name is enough
+(`m916 profile load games`), although any path ending in `.json` works too. `m916 profile save`
+writes a complete profile. The full format (options, rapid fire, media keys, macros and
+validation) is described in [docs/PROFILES.md](docs/PROFILES.md) (in Spanish).
+
+## Translations
+
+Translations use gettext. The strings in the code are English and marked with `_()` or
+`ngettext()`; `po/LANG.po` holds each translation and `m916/locale/LANG/LC_MESSAGES/m916.mo` the
+compiled catalog, which is committed so the program runs from the repository without a build
+step. To add a language you need the GNU gettext tools (`sudo dnf install gettext`):
+
+```sh
+msginit --no-translator --locale=de --input=po/m916.pot --output-file=po/de.po
+# translate every msgstr in po/de.po (a PO editor such as Poedit or Lokalize helps)
+tools/i18n.sh                     # merges new strings and compiles the .mo files
+python3 -m unittest tests.test_i18n
+```
+
+When the text in the code changes, run `tools/i18n.sh` again and complete the new entries in
+each `po/*.po`: the tests fail while a string is untranslated or marked fuzzy, or while a
+compiled catalog is out of date.
 
 ## Tests
 
@@ -132,28 +166,32 @@ repetido, teclas multimedia, macros y validación) está en [docs/PROFILES.md](d
 python3 -m unittest discover -s tests
 ```
 
-Los tests simulan el ratón con un volcado real de la flash (`tests/fixtures/m916_flash.bin`),
-así que no hace falta hardware. Los de la interfaz se saltan si PySide6 no está instalado.
+The tests simulate the mouse with a real flash dump (`tests/fixtures/m916_flash.bin`), so no
+hardware is needed. The interface tests are skipped if PySide6 is not installed.
+`tests/test_i18n.py` checks that every string is translated and that the compiled catalogs
+are up to date.
 
-## Estructura
+## Layout
 
-- `m916/protocol.py`: transporte HID y acceso a la flash.
-- `m916/config.py`: modelo de la configuración (decodificar, codificar, validar y diferencias),
-  incluidos los bloques de atajos y macros.
-- `m916/profile.py`: perfiles JSON (guardar, validar y aplicar sobre el modelo).
-- `m916/keys.py`: nombres de teclas, códigos HID y correspondencia con los códigos de Linux.
-- `m916/cli.py` y `m916/gui.py`: las dos interfaces, sobre el mismo modelo.
-- `m916/fake.py`: ratón simulado para tests y desarrollo.
+- `m916/protocol.py`: HID transport and flash access.
+- `m916/config.py`: configuration model (decode, encode, validate and diff), including the
+  shortcut and macro blocks.
+- `m916/profile.py`: JSON profiles (save, validate and apply on top of the model).
+- `m916/keys.py`: key names, HID codes and their mapping to Linux key codes.
+- `m916/cli.py` and `m916/gui.py`: the two interfaces, on the same model.
+- `m916/fake.py`: simulated mouse for tests and development.
+- `m916/i18n.py`, `po/` and `m916/locale/`: translations (gettext); `tools/i18n.sh` updates
+  them.
 
-## Ingeniería inversa
+## Reverse engineering
 
-`tools/` contiene lo necesario para repetir el análisis sobre el instalador oficial, que
-**no** se incluye en este repositorio:
+`tools/` contains what is needed to repeat the analysis on the official installer, which is
+**not** included in this repository:
 
-- `extract_native.py`: extrae `hidusb.dll` / `hidusb32.dll` embebidas en `Mouse Drive Beta.exe`.
-- `dotnet_constants.py`: vuelca enums y constantes del ensamblado .NET.
-- `ghidra/make_flatpak_shim.sh`: permite usar el Ghidra de flatpak en modo headless.
-- `ghidra/DecompileAll.java`: decompila todas las funciones de la DLL a un único `.c`.
+- `extract_native.py`: extracts `hidusb.dll` / `hidusb32.dll` embedded in `Mouse Drive Beta.exe`.
+- `dotnet_constants.py`: dumps enums and constants from the .NET assembly.
+- `ghidra/make_flatpak_shim.sh`: lets the flatpak Ghidra run in headless mode.
+- `ghidra/DecompileAll.java`: decompiles every function of the DLL into a single `.c` file.
 
 ```sh
 tools/extract_native.py "Mouse Drive Beta.exe" /tmp/m916-re
@@ -163,16 +201,16 @@ tools/ghidra/make_flatpak_shim.sh
     -postScript DecompileAll.java /tmp/m916-re/hidusb.c
 ```
 
-## Estado
+## Status
 
-Funciona: lectura completa, DPI, colores, número de niveles y nivel activo, report rate,
-todas las funciones de botón (incluidos atajos, teclas multimedia y macros), opciones de un
-byte, volcado/restauración, perfiles JSON, notificaciones e interfaz gráfica.
+Working: full read-out, DPI, colors, number of levels and active level, report rate, every
+button function (including shortcuts, media keys and macros), single-byte options,
+dump/restore, JSON profiles, notifications and the graphical interface.
 
-Pendiente: las funciones del receptor (largo alcance, emparejamiento) y confirmar en el
-hardware el modo del sensor y los tiempos de reposo.
+Pending: the receiver functions (long range, pairing) and confirming the sensor mode and idle
+times on the hardware.
 
-## Licencia
+## License
 
-[GPL-3.0-or-later](LICENSE). Proyecto independiente, sin relación con Redragon. Los nombres
-de producto se usan solo para identificar el hardware compatible.
+[GPL-3.0-or-later](LICENSE). Independent project, not affiliated with Redragon. Product names
+are used only to identify the supported hardware.
