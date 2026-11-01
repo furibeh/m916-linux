@@ -92,7 +92,7 @@ m916 rate 1000                # 125 / 250 / 500 / 1000 Hz
 m916 button 7 middle          # left|right|middle|back|forward|dpi-loop|dpi-up|dpi-down|
                               # scroll-up|scroll-down|scroll-left|scroll-right|report-rate|disabled
 m916 button 7 key:ctrl+c      # atajo de hasta 3 teclas, o tecla multimedia: key:volume-up
-m916 button 7 fire:20:3       # disparo repetido: cada 20 ms, 3 disparos (0 = mientras se pulse)
+m916 button 7 fire:20:3       # disparo repetido: 3 clics de 20 ms pulsado + 20 ms suelto (0 = mientras se pulse)
 m916 button 7 dpi-lock:400    # DPI fijo mientras se mantiene pulsado
 m916 macro 8 copiar "+ctrl 10 +c 10 -c 10 -ctrl" --repeat 1
                               # +TECLA pulsa, -TECLA suelta, número = espera en ms;

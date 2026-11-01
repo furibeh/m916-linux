@@ -639,12 +639,13 @@ class ButtonRow:
         self.interval, self.shots = QSpinBox(), QSpinBox()
         self.interval.setRange(cfg.FIRE_INTERVAL_MIN, 255)
         self.interval.setSuffix(" ms")
-        self.interval.setToolTip(_("Time between shots"))
+        self.interval.setToolTip(
+            _("How long each click stays down, and then up: a shot takes twice this"))
         self.shots.setRange(0, cfg.FIRE_TIMES_MAX)
         self.shots.setSuffix(_(" shots"))
         self.shots.setSpecialValueText(_("While held"))
         self.shots.setToolTip(_("Shots per press; 0 repeats while held down"))
-        self._add_page(FIRE, QLabel(_("Every")), self.interval, self.shots)
+        self._add_page(FIRE, QLabel(_("Down and up")), self.interval, self.shots)
 
         self.lock_dpi = DpiSpinBox()
         self.lock_dpi.setMaximum(256 * cfg.DPI_STEP)
@@ -939,7 +940,7 @@ class LightsTab(QWidget):
         super().__init__()
         dpi = QGroupBox(_("DPI LED"))
         form = QFormLayout(dpi)
-        self.effect = ChoiceBox([(DPI_LED_OFF, _("Off")), (1, _("Steady")), (2, _("Blinking"))])
+        self.effect = ChoiceBox([(DPI_LED_OFF, _("Off")), (1, _("Steady")), (2, _("Breathing"))])
         form.addRow(_("Effect:"), self.effect)
         self.brightness = ChoiceBox((b, "%d" % (i + 1))
                                     for i, b in enumerate(cfg.DPI_LED_BRIGHTNESS))
@@ -947,7 +948,7 @@ class LightsTab(QWidget):
         self.speed = ChoiceBox((v, "%d" % v) for v in cfg.DPI_LED_SPEEDS)
         form.addRow(_("Speed (1–5):"), self.speed)
         note = QLabel(_("The LED shows the color of each DPI level (DPI tab). Brightness applies to "
-                        "the steady effect and speed to blinking."))
+                        "the steady effect and speed to breathing."))
         note.setWordWrap(True)
         note.setEnabled(False)
         form.addRow(note)

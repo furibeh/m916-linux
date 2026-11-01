@@ -89,7 +89,7 @@ m916 rate 1000                # 125 / 250 / 500 / 1000 Hz
 m916 button 7 middle          # left|right|middle|back|forward|dpi-loop|dpi-up|dpi-down|
                               # scroll-up|scroll-down|scroll-left|scroll-right|report-rate|disabled
 m916 button 7 key:ctrl+c      # shortcut of up to 3 keys, or a media key: key:volume-up
-m916 button 7 fire:20:3       # rapid fire: every 20 ms, 3 shots (0 = while held)
+m916 button 7 fire:20:3       # rapid fire: 3 clicks of 20 ms down + 20 ms up (0 = while held)
 m916 button 7 dpi-lock:400    # fixed DPI while held down
 m916 macro 8 copy "+ctrl 10 +c 10 -c 10 -ctrl" --repeat 1
                               # +KEY presses, -KEY releases, a number = delay in ms;

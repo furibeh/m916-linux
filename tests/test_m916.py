@@ -77,14 +77,14 @@ class M916Test(unittest.TestCase):
     def test_info_decodes_fixture(self):
         out = self.run_cmd(cli.cmd_info)
         self.assertIn("lod                    1 (1 mm)", out)
-        self.assertIn("dpi-led-mode           2 (flicker)", out)
+        self.assertIn("dpi-led-mode           2 (breathing)", out)
         self.assertIn("dpi-led-brightness     128 (level 5)", out)
         self.assertIn("led-off-time           6 (1 min)", out)
         self.assertIn("sensor-mode            0 (LP)", out)
         self.assertIn("report rate  : 1000 Hz", out)
         self.assertIn("* 2:  2000 DPI  colour #0000ff", out)
         self.assertIn("5: 26000 DPI", out)
-        self.assertIn("12: fire (every 10 ms, 3 shots)", out)
+        self.assertIn("12: fire (10 ms down, 10 ms up, 3 shots)", out)
         self.assertNotIn("warning", out)
 
     def test_writes_touch_only_expected_bytes(self):

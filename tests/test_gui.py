@@ -159,7 +159,7 @@ class GuiTest(unittest.TestCase):
         self.assertFalse(p.full.isChecked())
         self.assertFalse(p.full_time.isEnabled())
         self.assertEqual(p.full_time.currentText(), "1 min")
-        self.assertEqual(l.effect.currentText(), "Blinking")
+        self.assertEqual(l.effect.currentText(), "Breathing")
         self.assertEqual(l.brightness.currentText(), "5")  # 128
         self.assertEqual(l.speed.currentData(), 3)
         self.assertEqual(l.off_time.currentText(), "1 min")

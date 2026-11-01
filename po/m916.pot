@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: m916-linux 0.2.0\n"
 "Report-Msgid-Bugs-To: https://github.com/furibeh/m916-linux/issues\n"
-"POT-Creation-Date: 2026-10-31 16:23-0500\n"
+"POT-Creation-Date: 2026-10-31 17:56-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -314,8 +314,8 @@ msgstr ""
 #, python-format
 msgid ""
 "lod: 1 = 1 mm, 2 = 2 mm; sensor-mode: 0 = LP, 1 = HP; led-off-time and full-"
-"performance-time in units of 10 s; dpi-led-mode: 1 steady, 2 flicker; dpi-"
-"led-brightness: %s; dpi-led-speed: 1..5"
+"performance-time in units of 10 s; dpi-led-mode: 1 steady, 2 breathing; dpi-"
+"led-brightness: %s; dpi-led-speed: 1 (slowest)..5 (fastest)"
 msgstr ""
 
 #: m916/cli.py
@@ -325,8 +325,9 @@ msgstr ""
 #: m916/cli.py
 #, python-format
 msgid ""
-"actions: %s, fire:INTERVAL_MS:SHOTS (0 shots = while held), dpi-lock:DPI, "
-"key:COMBO (e.g. key:ctrl+c, key:mute; see 'keys')"
+"actions: %s, fire:INTERVAL_MS:SHOTS (each click INTERVAL_MS down and "
+"INTERVAL_MS up; 0 shots = while held), dpi-lock:DPI, key:COMBO (e.g. "
+"key:ctrl+c, key:mute; see 'keys')"
 msgstr ""
 
 #: m916/cli.py
@@ -413,7 +414,7 @@ msgid "the mouse did not wake up"
 msgstr ""
 
 #: m916/config.py
-msgid "flicker"
+msgid "breathing"
 msgstr ""
 
 #: m916/config.py
@@ -486,7 +487,7 @@ msgstr[1] ""
 
 #: m916/config.py
 #, python-format
-msgid "fire (every %(interval)d ms, %(shots)s)"
+msgid "fire (%(interval)d ms down, %(interval)d ms up, %(shots)s)"
 msgstr ""
 
 #: m916/config.py
@@ -881,7 +882,7 @@ msgid "Invalid macro"
 msgstr ""
 
 #: m916/gui.py
-msgid "Time between shots"
+msgid "How long each click stays down, and then up: a shot takes twice this"
 msgstr ""
 
 #: m916/gui.py
@@ -897,7 +898,7 @@ msgid "Shots per press; 0 repeats while held down"
 msgstr ""
 
 #: m916/gui.py
-msgid "Every"
+msgid "Down and up"
 msgstr ""
 
 #: m916/gui.py
@@ -1028,7 +1029,7 @@ msgid "DPI LED"
 msgstr ""
 
 #: m916/gui.py
-msgid "Blinking"
+msgid "Breathing"
 msgstr ""
 
 #: m916/gui.py
@@ -1054,7 +1055,7 @@ msgstr ""
 #: m916/gui.py
 msgid ""
 "The LED shows the color of each DPI level (DPI tab). Brightness applies to "
-"the steady effect and speed to blinking."
+"the steady effect and speed to breathing."
 msgstr ""
 
 #: m916/gui.py

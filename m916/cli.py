@@ -311,15 +311,16 @@ def build_parser():
     p = sub.add_parser("option", help=_("set a single-byte option (raw value, see 'info')"),
                        epilog=_("lod: 1 = 1 mm, 2 = 2 mm; sensor-mode: 0 = LP, 1 = HP; "
                                 "led-off-time and full-performance-time in units of 10 s; "
-                                "dpi-led-mode: 1 steady, 2 flicker; dpi-led-brightness: %s; "
-                                "dpi-led-speed: 1..5")
+                                "dpi-led-mode: 1 steady, 2 breathing; dpi-led-brightness: %s; "
+                                "dpi-led-speed: 1 (slowest)..5 (fastest)")
                               % "/".join(map(str, cfg.DPI_LED_BRIGHTNESS)))
     p.add_argument("name", choices=sorted(cfg.OPTIONS))
     p.add_argument("value", type=int)
     p.set_defaults(func=cmd_option)
     p = sub.add_parser("button", help=_("assign a function to a button slot"),
-                       epilog=_("actions: %s, fire:INTERVAL_MS:SHOTS (0 shots = while held), "
-                                "dpi-lock:DPI, key:COMBO (e.g. key:ctrl+c, key:mute; see 'keys')")
+                       epilog=_("actions: %s, fire:INTERVAL_MS:SHOTS (each click INTERVAL_MS down and "
+                                "INTERVAL_MS up; 0 shots = while held), dpi-lock:DPI, "
+                                "key:COMBO (e.g. key:ctrl+c, key:mute; see 'keys')")
                               % ", ".join(cfg.BUTTON_ACTIONS))
     p.add_argument("button", type=int, help=_("slot 1..16 (see info)"))
     p.add_argument("action")

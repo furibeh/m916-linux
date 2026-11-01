@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: m916-linux\n"
 "Report-Msgid-Bugs-To: https://github.com/furibeh/m916-linux/issues\n"
-"POT-Creation-Date: 2026-10-31 16:23-0500\n"
+"POT-Creation-Date: 2026-10-31 17:56-0500\n"
 "PO-Revision-Date: 2026-10-31 12:00-0500\n"
 "Last-Translator: furibeh\n"
 "Language-Team: Spanish\n"
@@ -106,11 +106,13 @@ msgstr ""
 #: m916/cli.py
 #, python-format
 msgid ""
-"actions: %s, fire:INTERVAL_MS:SHOTS (0 shots = while held), dpi-lock:DPI, "
-"key:COMBO (e.g. key:ctrl+c, key:mute; see 'keys')"
+"actions: %s, fire:INTERVAL_MS:SHOTS (each click INTERVAL_MS down and "
+"INTERVAL_MS up; 0 shots = while held), dpi-lock:DPI, key:COMBO (e.g. "
+"key:ctrl+c, key:mute; see 'keys')"
 msgstr ""
-"acciones: %s, fire:INTERVALO_MS:DISPAROS (0 disparos = mientras se pulse), "
-"dpi-lock:DPI, key:COMBINACIÓN (p. ej. key:ctrl+c, key:mute; ver 'keys')"
+"acciones: %s, fire:INTERVALO_MS:DISPAROS (cada clic, INTERVALO_MS pulsado e "
+"INTERVALO_MS suelto; 0 disparos = mientras se pulse), dpi-lock:DPI, "
+"key:COMBINACIÓN (p. ej. key:ctrl+c, key:mute; ver 'keys')"
 
 #: m916/cli.py
 #, python-format
@@ -209,12 +211,12 @@ msgstr "escuchando avisos de estado (Ctrl+C para salir)"
 #, python-format
 msgid ""
 "lod: 1 = 1 mm, 2 = 2 mm; sensor-mode: 0 = LP, 1 = HP; led-off-time and full-"
-"performance-time in units of 10 s; dpi-led-mode: 1 steady, 2 flicker; dpi-"
-"led-brightness: %s; dpi-led-speed: 1..5"
+"performance-time in units of 10 s; dpi-led-mode: 1 steady, 2 breathing; dpi-"
+"led-brightness: %s; dpi-led-speed: 1 (slowest)..5 (fastest)"
 msgstr ""
 "lod: 1 = 1 mm, 2 = 2 mm; sensor-mode: 0 = LP, 1 = HP; led-off-time y full-"
-"performance-time en unidades de 10 s; dpi-led-mode: 1 fijo, 2 parpadeo; dpi-"
-"led-brightness: %s; dpi-led-speed: 1..5"
+"performance-time en unidades de 10 s; dpi-led-mode: 1 fijo, 2 respiración; "
+"dpi-led-brightness: %s; dpi-led-speed: 1 (la más lenta)..5 (la más rápida)"
 
 #: m916/cli.py
 msgid "media"
@@ -482,14 +484,18 @@ msgid "bad macro step %r (use +KEY, -KEY or a delay in ms)"
 msgstr "paso de macro no válido %r (usa +TECLA, -TECLA o una espera en ms)"
 
 #: m916/config.py
+msgid "breathing"
+msgstr "respiración"
+
+#: m916/config.py
 #, python-format
 msgid "button %d: "
 msgstr "botón %d: "
 
 #: m916/config.py
 #, python-format
-msgid "fire (every %(interval)d ms, %(shots)s)"
-msgstr "fire (cada %(interval)d ms, %(shots)s)"
+msgid "fire (%(interval)d ms down, %(interval)d ms up, %(shots)s)"
+msgstr "fire (%(interval)d ms pulsado, %(interval)d ms suelto, %(shots)s)"
 
 #: m916/config.py
 #, python-format
@@ -497,10 +503,6 @@ msgid "fire interval must be %(min)d..255 ms and shots 0..%(max)d"
 msgstr ""
 "el intervalo de disparo debe estar entre %(min)d y 255 ms, y los disparos "
 "entre 0 y %(max)d"
-
-#: m916/config.py
-msgid "flicker"
-msgstr "parpadeo"
 
 #: m916/config.py
 #, python-format
@@ -682,8 +684,8 @@ msgid "Battery %p %"
 msgstr "Batería %p %"
 
 #: m916/gui.py
-msgid "Blinking"
-msgstr "Parpadeo"
+msgid "Breathing"
+msgstr "Respiración"
 
 #: m916/gui.py
 msgid "Brightness (1–10):"
@@ -788,6 +790,10 @@ msgid "Discard changes"
 msgstr "Descartar cambios"
 
 #: m916/gui.py
+msgid "Down and up"
+msgstr "Pulsado y suelto"
+
+#: m916/gui.py
 msgid "Edit macro"
 msgstr "Editar macro"
 
@@ -806,10 +812,6 @@ msgstr "Correo"
 #: m916/gui.py
 msgid "Error"
 msgstr "Error"
-
-#: m916/gui.py
-msgid "Every"
-msgstr "Cada"
 
 #: m916/gui.py
 msgid "Favorites"
@@ -859,6 +861,11 @@ msgstr "Scroll horizontal: izquierda"
 #: m916/gui.py
 msgid "Horizontal scroll: right"
 msgstr "Scroll horizontal: derecha"
+
+#: m916/gui.py
+msgid "How long each click stays down, and then up: a shot takes twice this"
+msgstr ""
+"Tiempo que cada clic está pulsado y después suelto: un disparo dura el doble"
 
 #: m916/gui.py
 #, python-format
@@ -1200,10 +1207,10 @@ msgstr "Detener"
 #: m916/gui.py
 msgid ""
 "The LED shows the color of each DPI level (DPI tab). Brightness applies to "
-"the steady effect and speed to blinking."
+"the steady effect and speed to breathing."
 msgstr ""
 "El LED muestra el color de cada nivel de DPI (pestaña DPI). El brillo se "
-"aplica al efecto fijo y la velocidad al parpadeo."
+"aplica al efecto fijo y la velocidad a la respiración."
 
 #: m916/gui.py
 msgid ""
@@ -1246,10 +1253,6 @@ msgstr ""
 #: m916/gui.py
 msgid "There are unapplied changes. Quit anyway?"
 msgstr "Hay cambios sin aplicar. ¿Salir de todos modos?"
-
-#: m916/gui.py
-msgid "Time between shots"
-msgstr "Tiempo entre disparos"
 
 #: m916/gui.py
 msgid "Turn the lights off when idle after:"

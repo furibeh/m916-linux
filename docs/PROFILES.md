@@ -144,7 +144,7 @@ deja ese nivel como está.
 | Valor | Función |
 |---|---|
 | `"left"`, `"right"`, `"middle"`, `"back"`, `"forward"`, `"dpi-loop"`, `"dpi-up"`, `"dpi-down"`, `"scroll-up"`, `"scroll-down"`, `"scroll-left"`, `"scroll-right"`, `"report-rate"`, `"disabled"` | Acción simple. |
-| `{"action": "fire", "interval": 20, "shots": 3}` | Disparo repetido: intervalo de 10 a 255 ms, de 0 a 3 disparos (0 = mientras se pulse). |
+| `{"action": "fire", "interval": 20, "shots": 3}` | Disparo repetido: cada clic está `interval` ms pulsado y otros tantos suelto (10 a 255 ms, así que un disparo dura el doble); de 0 a 3 disparos (0 = mientras se pulse). |
 | `{"action": "dpi-lock", "dpi": 400}` | DPI fijo mientras se pulsa: múltiplo de 50, de 50 a 12800. |
 | `{"action": "shortcut", "keys": "ctrl+shift+t"}` | Atajo de hasta 3 teclas (nombres de `m916 keys`). |
 | `{"action": "shortcut", "events": ["+ctrl", "+a", "-ctrl", "-a"]}` | Atajo cuyos eventos no son una combinación simple (hasta 6, sin esperas). |

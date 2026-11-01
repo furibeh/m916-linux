@@ -52,7 +52,7 @@ BOOL_OPTIONS = {"dpi-led", "motion-sync", "linear-correction", "ripple-control",
 # handlers); other stored values are kept as they are
 LOD_CHOICES = {1: "1 mm", 2: "2 mm"}
 SENSOR_MODES = {0: "LP", 1: "HP"}
-DPI_LED_MODES = {1: _("steady"), 2: _("flicker")}
+DPI_LED_MODES = {1: _("steady"), 2: _("breathing")}
 FULL_PERFORMANCE_TIMES = [3, 6, 12, 30, 60, 90]                    # x 10 s
 LED_OFF_TIMES = [1, 3, 6, 30, 60, 90, 120, 150, 180, 210, 240]   # x 10 s
 DPI_LED_BRIGHTNESS = [16, 30, 60, 90, 128, 150, 180, 210, 230, 255]  # levels 1-10
@@ -94,7 +94,7 @@ BUTTON_ACTIONS = {
     "scroll-down": (0x0B, 0x02, 0),
     "report-rate": (0x07, 0, 0),
 }
-KEY_FIRE = 0x04       # p1 = interval in ms (10-255), p2 = shots (0-3, 0 = while held)
+KEY_FIRE = 0x04       # p1 = ms down, then ms up, per shot (10-255); p2 = shots (0-3, 0 = while held)
 KEY_SHORTCUT = 0x05   # p1 = p2 = 0, events in the button's shortcut block
 KEY_MACRO = 0x06      # p1 = button index (its own macro block), p2 = repeat
 KEY_DPI_LOCK = 0x0A   # p1 = dpi/50 - 1
@@ -278,7 +278,8 @@ def describe_key(t, p1, p2):
             return name
     if t == KEY_FIRE:
         shots = ngettext("%d shot", "%d shots", p2) % p2 if p2 else _("while held")
-        return _("fire (every %(interval)d ms, %(shots)s)") % {"interval": p1, "shots": shots}
+        return _("fire (%(interval)d ms down, %(interval)d ms up, %(shots)s)") % {
+            "interval": p1, "shots": shots}
     if t == KEY_DPI_LOCK:
         return "dpi-lock (%d DPI)" % ((p1 + 1) * 50)
     return "%s (p1=0x%02x, p2=0x%02x)" % (KEY_CLASS_NAMES.get(t, "type 0x%02x" % t), p1, p2)
