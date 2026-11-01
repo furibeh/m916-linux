@@ -182,6 +182,57 @@ class M916Test(unittest.TestCase):
         with self.assertRaises(MouseAsleep):
             self.mouse.transact(0x04, retries=1, timeout=0.1)
 
+    def test_receiver_commands_while_asleep(self):
+        # Like the hardware: 0x03 and 0x06 come from the receiver, 0x0E and 0x17 from the mouse
+        self.fake.asleep = True
+        _pkt, resp = self.mouse.transact(0x06)
+        self.assertEqual(resp[5:8], b"\x02\x00\x00")
+        for cmd in (0x0E, 0x17):
+            with self.assertRaises(MouseAsleep):
+                self.mouse.transact(cmd, retries=1, timeout=0.1)
+        self.fake.asleep = False
+        self.assertEqual(self.mouse.transact(0x0E)[1][5:7], b"\x01\x00")
+        self.assertEqual(self.mouse.transact(0x17)[1][5:7], b"\x0a\x00")
+
+    def test_buttons_write_the_flash(self):
+        # Verified on the hardware: the mouse stores what its DPI and Lights buttons change
+        self.fake.press(5)  # slot 6 is "dpi-loop" in the fixture: level 2 -> 3
+        self.assertEqual(self.mouse.read_flash(0x04, 2), bytes([2, 0x53]))
+        self.fake.flash[0x60 + 4 * 6:0x60 + 4 * 7] = bytes([0x08, 0, 0, 0x4D])  # slot 7: lights
+        self.fake.press(6)
+        self.assertEqual(self.mouse.read_flash(0x52, 2), bytes([0, 0x55]))
+        self.fake.press(6)
+        self.assertEqual(self.mouse.read_flash(0x52, 2), bytes([1, 0x54]))
+        time.sleep(0.1)
+        self.assertEqual(self.mouse.poll_notifications(), [0x01, 0x08, 0x08])
+
+    def test_profiles_have_their_own_flash(self):
+        # Verified on the hardware: SetCurrentConfig (0x0F) swaps the whole flash image
+        self.mouse.write_verified(0x4E, bytes([0x10, 0x45]))  # profile 1: brightness 16
+        _pkt, resp = self.mouse.transact(0x0F, data=b"\x01")
+        self.assertEqual(resp[6], 1)
+        self.assertEqual(self.mouse.transact(0x0E)[1][6], 1)
+        self.assertEqual(self.mouse.read_flash(0x4E, 2), self.original[0x4E:0x50])
+        self.mouse.transact(0x0F, data=b"\x00")
+        self.assertEqual(self.mouse.read_flash(0x4E, 2), bytes([0x10, 0x45]))
+        # A "switch config" button goes to the next profile
+        self.fake.flash[0x6C:0x70] = bytes([0x09, 0, 0, 0x4C])
+        self.fake.press(3)
+        self.assertEqual(self.mouse.transact(0x0E)[1][6], 1)
+
+    def test_clear_setting_resets_active_profile(self):
+        # Verified on the hardware: 0x09 resets 0x00-0xBF of the active profile only
+        self.mouse.write_verified(0x4E, bytes([0x10, 0x45]))
+        self.mouse.write_verified(0x100, bytes([0x55, 0x55]))  # a shortcut block byte
+        self.mouse.transact(0x0F, data=b"\x01")
+        self.mouse.write_verified(0x4E, bytes([0xFF, 0x56]))
+        self.mouse.transact(0x0F, data=b"\x00")
+        self.mouse.transact(0x09)
+        self.assertEqual(self.mouse.read_flash(0, 0xC0), self.original[:0xC0])
+        self.assertEqual(self.mouse.read_flash(0x100, 2), bytes([0x55, 0x55]))
+        self.mouse.transact(0x0F, data=b"\x01")
+        self.assertEqual(self.mouse.read_flash(0x4E, 2), bytes([0xFF, 0x56]))
+
     def test_notifications(self):
         self.fake.notify(0x41)
         self.mouse.battery()  # arrives while waiting for another reply

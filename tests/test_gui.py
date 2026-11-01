@@ -184,9 +184,16 @@ class GuiTest(unittest.TestCase):
         self.assertEqual(w.dpi.active.checkedId(), 1)
 
     def test_dpi_notification_updates_active(self):
-        self.worker._fake.flash[4:6] = bytes([3, 0x52])  # mouse switched to level 4
-        self.worker._fake.notify(0x01)
-        self.wait_for(lambda: self.window.dpi.active.checkedId() == 3)
+        self.worker._fake.press(5)  # the "dpi-loop" button: level 2 -> 3
+        self.wait_for(lambda: self.window.dpi.active.checkedId() == 2)
+        self.assertFalse(self.window._dirty())
+
+    def test_lights_button_reloads(self):
+        from m916 import gui
+        fake = self.worker._fake
+        fake.flash[0x60 + 4 * 6:0x60 + 4 * 7] = bytes([0x08, 0, 0, 0x4D])  # slot 7: lights
+        fake.press(6)  # turns the DPI LED off and notifies dpi-led
+        self.wait_for(lambda: self.window.lights.effect.currentData() == gui.DPI_LED_OFF)
         self.assertFalse(self.window._dirty())
 
     def test_profiles(self):
