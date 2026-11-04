@@ -65,7 +65,7 @@ mouse echoes the packet byte for byte, and the DLL requires it.
 | 0x11 | EnterMTKMode | [RE] |
 | 0x12 | ReadVersionID | Reply `LEN=2`, `02 00`. [HW] |
 | 0x14/0x15 | Set/Get4KDongleRGB | [RE] |
-| 0x16 | SetLongRangeMode | `LEN=10`, `data[0]` = 0 off, 1 long range (`UsbFinder_SetLongRangeMode`); the reply echoes the packet. The mouse keeps working normally. **It survives unplugging the receiver and is not in the flash image of the slot**, so `restore` does not undo it. [HW] `Mouse.set_long_range()` verifies it with 0x17; `m916 long-range on\|off`. |
+| 0x16 | SetLongRangeMode | `LEN=10`, `data[0]` = 0 off, 1 long range (`UsbFinder_SetLongRangeMode`); the reply echoes the packet. The mouse keeps working normally. **It survives unplugging the receiver and is not in the flash image of the slot**, so `restore` does not undo it. [HW] Close to the receiver, at 1000 Hz, it does not change the real report rate: with `tools/long_range_rate.py`, 2 rounds of 10 s each moving the mouse in circles gave 998–999 reports/s, a median interval of 1.000 ms, p99 of 1.11–1.16 ms and 0.06–0.14 % lost reports, the same with it off and on. [HW] `Mouse.set_long_range()` verifies it with 0x17; `m916 long-range on\|off`. |
 | 0x17 | GetLongRangeMode | Request `LEN=0`; reply `LEN=10`, `data[0]` = 0/1. The mouse answers it: if it is asleep, there is no reply. [HW] `Mouse.long_range()`; `m916 long-range` and `info`. Neither JSON profiles nor dumps include it, and the GUI applies it at once, outside **Apply**. |
 | 0xF0/0xF1 | Write/ReadKBCIdMID | [RE] |
 | 0xB3 | GetSlaveVersion | Read `LEN=0`; version in `data[0..1]` (`UsbFinder_GetSlaveVersion`). Missing from `UsbCommandID`. [RE] |
@@ -314,7 +314,10 @@ The app only shows the brightness with the steady effect and the speed with brea
 - Block 0x54–0x5F, pairs 0xBB and 0xBD and the 3 extra bytes of the online reply.
 - Command 0x01 (EncryptionData): not needed for anything tested; the algorithm is still
   unknown.
-- Long range (0x16): the range improvement has not been measured.
+- Long range (0x16): the range improvement has not been measured. Close to the receiver it
+  does not change the real report rate (see the 0x16 row); repeat
+  `tools/long_range_rate.py` far from the receiver (5–10 m, or behind a wall), where lost
+  reports would show a difference.
 - Pairing: does state 02 arrive on pairing or at the end of the 20 s window? A failure has not
   been seen.
 - Buttons 6–16: the physical mapping is still unconfirmed.
