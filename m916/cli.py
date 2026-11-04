@@ -45,13 +45,18 @@ def level_index(conf, level):
     return level - 1
 
 
+def on_off(value):
+    return _("on") if value else _("off")
+
+
 def cmd_info(m, args):
     version = m.version().hex(" ")
     level, charging, mv = m.battery()
     print_fields([(_("device"), m.path), (_("connection"), describe_link(m.link)),
                   (_("firmware"), version),
                   (_("battery"), "%d%%%s, %d mV" % (level, _(" (charging)") if charging else "", mv)),
-                  (_("slot"), _("%(slot)d of %(count)d") % {"slot": m.slot() + 1, "count": SLOTS})],
+                  (_("slot"), _("%(slot)d of %(count)d") % {"slot": m.slot() + 1, "count": SLOTS}),
+                  (_("long range"), on_off(m.long_range()))],
                  10)
     image, conf = load(m)
     rate = cfg.RATE_HZ.get(conf.report_rate)
@@ -270,6 +275,16 @@ def cmd_slot(m, args):
         print(_("active slot: %(slot)d of %(count)d") % {"slot": m.slot() + 1, "count": SLOTS})
 
 
+def cmd_long_range(m, args):
+    if args.state is None:
+        print(_("long range: %s") % on_off(m.long_range()))
+        return
+    on = args.state == "on"
+    m.set_long_range(on)
+    print(_("long range mode turned on and verified") if on
+          else _("long range mode turned off and verified"))
+
+
 def slot_number(text):
     if text.isdigit() and 1 <= int(text) <= SLOTS:
         return int(text)
@@ -384,6 +399,12 @@ def build_parser():
                        % SLOTS)
     p.add_argument("number", metavar="N", nargs="?", type=slot_number, help=_("slot to select (1..%d)") % SLOTS)
     p.set_defaults(func=cmd_slot)
+    p = sub.add_parser("long-range", help=_("show or set the long range mode"),
+                       epilog=_("the mouse keeps this setting apart from the slots: it applies to "
+                                "all of them, and dump, restore and profiles do not include it. "
+                                "Whether it extends the range has not been measured."))
+    p.add_argument("state", nargs="?", choices=["on", "off"], help=_("leave it out to read it"))
+    p.set_defaults(func=cmd_long_range)
     sub.add_parser("keys", help=_("list key names for shortcuts and macros")).set_defaults(func=cmd_keys)
     sub.add_parser("watch", help=_("print status notifications")).set_defaults(func=cmd_watch)
     return ap

@@ -312,6 +312,42 @@ class GuiTest(unittest.TestCase):
         self.assertEqual(w.performance.rate.currentText(), "1000 Hz")
         self.assertFalse(w._dirty())
 
+    def test_long_range_applies_at_once(self):
+        w = self.window
+        box = w.performance.long_range
+        self.assertFalse(box.isChecked())
+        self.assertTrue(box.isEnabled())
+        flash = self.flash()
+        box.click()
+        self.wait_for(lambda: not w._busy)
+        self.assertEqual(self.worker._fake.long_range, 1)
+        self.assertTrue(box.isChecked())
+        self.assertEqual(self.flash(), flash)
+        self.assertFalse(w._dirty())
+        self.assertFalse(w.apply_btn.isEnabled())
+        self.assertFalse(w.windowTitle().endswith("*"))
+
+    def test_long_range_follows_the_mouse(self):
+        self.worker._fake.long_range = 1
+        self.window.reload_btn.click()
+        self.wait_for(lambda: self.window.long_range)
+        self.assertTrue(self.window.performance.long_range.isChecked())
+
+    def test_long_range_failure_reverts_the_box(self):
+        from unittest import mock
+        from m916.protocol import ProtocolError
+        from PySide6.QtWidgets import QMessageBox
+        w = self.window
+        with mock.patch.object(type(self.worker.mouse), "set_long_range",
+                               side_effect=ProtocolError("not stored")), \
+                mock.patch.object(QMessageBox, "warning") as warning:
+            w.performance.long_range.click()
+            self.wait_for(lambda: warning.called)
+        self.assertEqual(warning.call_args[0][2], "not stored")
+        self.assertFalse(w.performance.long_range.isChecked())
+        self.assertEqual(self.worker._fake.long_range, 0)
+        self.assertTrue(w.performance.long_range.isEnabled())
+
     def test_slot_selector_loads_the_slot(self):
         w = self.window
         fake = self.worker._fake

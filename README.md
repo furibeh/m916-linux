@@ -52,7 +52,7 @@ install -Dm644 m916/icons/io.github.furibeh.m916-linux.svg \
 ## Graphical interface
 
 Tabs for DPI (levels, values and colors), buttons, performance (polling rate, debounce, LOD,
-sensor mode and options), lights (effect, brightness and speed of the DPI LED, turning off
+sensor mode, options and long range mode), lights (effect, brightness and speed of the DPI LED, turning off
 when idle) and backups and profiles. Each button can be a click, a DPI or scroll function,
 rapid fire, DPI lock, a keyboard shortcut (typed or captured by pressing it), a media key or a
 macro, with an editor that records keyboard and mouse presses with their timing. Changes are
@@ -106,6 +106,7 @@ m916 dump --slot 2 s2.bin     # --slot N: works on slot N and goes back to the a
 m916 profile save games       # saves the configuration as a JSON profile
 m916 profile load games       # applies a profile (--dry-run to see what would change)
 m916 profile list             # profiles saved in ~/.config/m916/profiles
+m916 long-range               # long range mode: on or off; "m916 long-range on" turns it on
 m916 watch                    # live notifications (DPI, battery…)
 ```
 
@@ -131,6 +132,11 @@ cycle through; otherwise `m916 slot N` or the selector brings you back.
 - In the graphical interface, choosing a slot makes it the active one in the mouse and loads
   it (it asks first if there are unapplied changes). If the mouse switches slots by itself,
   the window follows it at once.
+- Long range mode (`m916 long-range`, or the checkbox in the **Performance** tab) is not part
+  of any slot: the mouse keeps it apart, it applies to all of them and switching slots does
+  not change it. Backups, `restore` and JSON profiles do not include it. In the graphical
+  interface it takes effect as soon as you click it, without **Apply**. Whether it extends
+  the range has not been measured.
 
 ## Profiles
 
@@ -231,11 +237,11 @@ tools/ghidra/make_flatpak_shim.sh
 
 Working: full read-out, DPI, colors, number of levels and active level, report rate, every
 button function (including shortcuts, media keys and macros), single-byte options,
-dump/restore, the four onboard slots, JSON profiles, notifications and the graphical
-interface.
+dump/restore, the four onboard slots, JSON profiles, long range mode, notifications and the
+graphical interface.
 
-Pending: the receiver functions (long range, pairing) and confirming the sensor mode and idle
-times on the hardware.
+Pending: pairing, measuring whether long range mode extends the range, and confirming the
+sensor mode and idle times on the hardware.
 
 ## License
 

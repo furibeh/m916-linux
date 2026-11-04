@@ -65,8 +65,8 @@ mouse echoes the packet byte for byte, and the DLL requires it.
 | 0x11 | EnterMTKMode | [RE] |
 | 0x12 | ReadVersionID | Reply `LEN=2`, `02 00`. [HW] |
 | 0x14/0x15 | Set/Get4KDongleRGB | [RE] |
-| 0x16 | SetLongRangeMode | `LEN=10`, `data[0]` = 0 off, 1 long range (`UsbFinder_SetLongRangeMode`); the reply echoes the packet. The mouse keeps working normally. **It survives unplugging the receiver and is not in the flash image of the slot**, so `restore` does not undo it. [HW] |
-| 0x17 | GetLongRangeMode | Request `LEN=0`; reply `LEN=10`, `data[0]` = 0/1. The mouse answers it: if it is asleep, there is no reply. [HW] |
+| 0x16 | SetLongRangeMode | `LEN=10`, `data[0]` = 0 off, 1 long range (`UsbFinder_SetLongRangeMode`); the reply echoes the packet. The mouse keeps working normally. **It survives unplugging the receiver and is not in the flash image of the slot**, so `restore` does not undo it. [HW] `Mouse.set_long_range()` verifies it with 0x17; `m916 long-range on\|off`. |
+| 0x17 | GetLongRangeMode | Request `LEN=0`; reply `LEN=10`, `data[0]` = 0/1. The mouse answers it: if it is asleep, there is no reply. [HW] `Mouse.long_range()`; `m916 long-range` and `info`. Neither JSON profiles nor dumps include it, and the GUI applies it at once, outside **Apply**. |
 | 0xF0/0xF1 | Write/ReadKBCIdMID | [RE] |
 | 0xB3 | GetSlaveVersion | Read `LEN=0`; version in `data[0..1]` (`UsbFinder_GetSlaveVersion`). Missing from `UsbCommandID`. [RE] |
 
@@ -96,6 +96,10 @@ cable is plugged in, the mouse **only talks through it**:
 
 - Over the cable, reading and writing the flash works as over the air, with the same
   verification. Tested by changing and restoring the polling rate; the image was identical.
+- Long range (0x16/0x17) works over the cable as over the air: 0x16 is echoed and 0x17 reads
+  the new value back. Turned on and off over the cable and then over the receiver with
+  `m916 long-range`; a dump of the active slot before and after was identical, so 0x16 does
+  not touch its flash image.
 - Over the cable the mouse does not go idle: it sat still for 190 s and kept answering 0x03
   and 0x04. The battery reports that it is charging.
 - On plugging in, the receiver loses the link at once (it may come back for a moment during

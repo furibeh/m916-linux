@@ -37,7 +37,8 @@ class DeviceWorker(QObject):
     notifications and whether the mouse is awake."""
 
     state_changed = Signal(str, str, str)   # state, device path, link ("wired", "dongle", "")
-    info = Signal(object)                   # {"firmware": bytes, "battery": (lvl, chg, mv)}
+    info = Signal(object)                   # {"firmware": bytes, "battery": (lvl, chg, mv),
+                                            #  "long_range": bool}
     config_loaded = Signal(object, int)     # image from cfg.read_image(), slot (0-based)
     slot_changed = Signal(int)              # the mouse switched slots by itself (button)
     progress = Signal(int, int)
@@ -191,7 +192,8 @@ class DeviceWorker(QObject):
 
     def _load(self):
         m = self.mouse
-        self.info.emit({"firmware": m.version(), "battery": m.battery()})
+        self.info.emit({"firmware": m.version(), "battery": m.battery(),
+                        "long_range": m.long_range()})
         self.slot = m.slot()
         self.config_loaded.emit(cfg.read_image(m), self.slot)
 
@@ -212,6 +214,9 @@ class DeviceWorker(QObject):
                 self._load()
         elif name == "battery":
             self.info.emit({"battery": m.battery()})
+        elif name == "long-range":  # outside the slot images: no slot check, no Apply
+            m.set_long_range(args[0])
+            self.job_done.emit(name, args[0])
         elif name == "active":
             self.job_done.emit(name, m.read_flash(cfg.OFF_DPI_ACTIVE, 1)[0])
         elif name == "apply":
@@ -936,6 +941,7 @@ def set_row_tip(form, field, tip):
 
 class PerformanceTab(QWidget):
     edited = Signal()
+    long_range_clicked = Signal(bool)  # applied at once: not part of the slot configuration
 
     def __init__(self):
         super().__init__()
@@ -981,9 +987,25 @@ class PerformanceTab(QWidget):
             form.addRow(box)
             self.checks[name] = box
 
+        wireless = QGroupBox(_("Wireless"))
+        wform = QFormLayout(wireless)
+        self.long_range = QCheckBox(_("Long range mode"))
+        self.long_range.setToolTip(_("The long range mode of the official app. The mouse keeps "
+                                     "working normally with it on; whether it extends the range "
+                                     "has not been measured."))
+        wform.addRow(self.long_range)
+        note = QLabel(_("The mouse keeps this setting apart from the slots: it applies to all of "
+                        "them and takes effect at once, without Apply. Backups and profiles do "
+                        "not include it."))
+        note.setWordWrap(True)
+        note.setEnabled(False)
+        wform.addRow(note)
+
         layout = QVBoxLayout(self)
         layout.addWidget(main)
+        layout.addWidget(wireless)
         layout.addStretch()
+        self.long_range.clicked.connect(self.long_range_clicked)  # only the user's clicks
         for combo in (self.rate, self.lod, self.mode, self.full_time):
             combo.currentIndexChanged.connect(lambda *_: self.edited.emit())
         self.debounce.valueChanged.connect(lambda *_: self.edited.emit())
@@ -1221,6 +1243,7 @@ class MainWindow(QMainWindow):
         self.worker = worker
         self.image = None      # cfg.read_image() of what is stored in the mouse
         self.slot = None       # active slot (0-based) that self.image comes from
+        self.long_range = None  # long range mode as last read from the mouse
         self.state = STATE_DISCONNECTED
         self._loading = False
         self._busy = False
@@ -1289,6 +1312,7 @@ class MainWindow(QMainWindow):
         self.backup.restore_requested.connect(self._restore)
         self.backup.profile_save_requested.connect(self.save_profile)
         self.backup.profile_load_requested.connect(self.load_profile)
+        self.performance.long_range_clicked.connect(lambda on: self._submit("long-range", on))
 
         worker.state_changed.connect(self._state_changed)
         worker.info.connect(self._info)
@@ -1326,6 +1350,8 @@ class MainWindow(QMainWindow):
         self.revert_btn.setEnabled(dirty and not self._busy)
         self.reload_btn.setEnabled(self.state == STATE_ONLINE and not self._busy)
         self.slot_box.setEnabled(ready)
+        self.performance.long_range.setEnabled(self.state == STATE_ONLINE and not self._busy
+                                               and self.long_range is not None)
         self.tabs.setEnabled(self.image is not None)
         for btn in (self.backup.dump_btn, self.backup.restore_btn):
             btn.setEnabled(self.state == STATE_ONLINE and not self._busy)
@@ -1446,6 +1472,7 @@ class MainWindow(QMainWindow):
         self.battery.setVisible(state == STATE_ONLINE)
         if state == STATE_DISCONNECTED:
             self.image = None
+            self.long_range = None
             self._busy = False
             self.backup.set_busy(False)
         self._update_actions()
@@ -1460,6 +1487,13 @@ class MainWindow(QMainWindow):
             self.battery.setFormat(_("Battery %(level)d %%%(charging)s")
                                    % {"level": level, "charging": " ⚡" if charging else ""})
             self.battery.setToolTip("%d mV" % mv)
+        if "long_range" in info:
+            self._show_long_range(info["long_range"])
+            self._update_actions()
+
+    def _show_long_range(self, on):
+        self.long_range = on
+        self.performance.long_range.setChecked(bool(on))
 
     def _config_loaded(self, image, slot):
         self._busy = False
@@ -1482,6 +1516,11 @@ class MainWindow(QMainWindow):
             self.image = bytes(img)
             if not dirty:
                 self.dpi.set_active(result)
+        elif name == "long-range":
+            self._busy = False
+            self._show_long_range(result)
+            self.statusBar().showMessage(_("Long range mode turned on and verified") if result
+                                         else _("Long range mode turned off and verified"), 5000)
         elif name == "slot":  # back to the slot on screen, keeping the unapplied changes
             self._busy = False
             self._show_slot(result)
@@ -1501,6 +1540,8 @@ class MainWindow(QMainWindow):
         self.backup.set_busy(False)
         if self.slot is not None:
             self._show_slot(self.slot)
+        if self.long_range is not None:
+            self._show_long_range(self.long_range)  # undo the click that failed
         self._update_actions()
         if name == "load" and self.state != STATE_ONLINE:
             return  # the status line already says the mouse is asleep

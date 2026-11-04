@@ -4,9 +4,9 @@ import os
 import socket
 import threading
 
-from .protocol import (CMD_BATTERY, CMD_DEVICE_ONLINE, CMD_GET_CONFIG, CMD_READ_FLASH,
-                       CMD_READ_VERSION, CMD_SET_CONFIG, CMD_STATUS_CHANGED, CMD_WRITE_FLASH,
-                       REPORT_ID, SLOTS, STATUS_CONFIG, STATUS_DPI, STATUS_DPI_LED, Mouse, checksum,
+from .protocol import (CMD_BATTERY, CMD_DEVICE_ONLINE, CMD_GET_CONFIG, CMD_GET_LONG_RANGE,
+                       CMD_READ_FLASH, CMD_READ_VERSION, CMD_SET_CONFIG, CMD_SET_LONG_RANGE,
+                       CMD_STATUS_CHANGED, CMD_WRITE_FLASH, REPORT_ID, SLOTS, STATUS_CONFIG, STATUS_DPI, STATUS_DPI_LED, Mouse, checksum,
                        with_check)
 
 
@@ -14,7 +14,6 @@ from .protocol import (CMD_BATTERY, CMD_DEVICE_ONLINE, CMD_GET_CONFIG, CMD_READ_
 MACRO_START, MACRO_SIZE = 0x300, 0x180
 
 CMD_PAIR_STATE, CMD_CLEAR_SETTING = 0x06, 0x09
-CMD_GET_LONG_RANGE = 0x17
 SETTINGS_SIZE = 0xC0  # what ClearSetting resets (config.CONFIG_SIZE)
 # Answered by the receiver itself, also while the mouse sleeps
 RECEIVER_COMMANDS = {CMD_DEVICE_ONLINE, CMD_PAIR_STATE}
@@ -33,7 +32,7 @@ class FakeMouse:
         self.factory = bytes(flash[:SETTINGS_SIZE])  # stands in for the firmware defaults
         self.asleep = False
         self.slot = 0         # Get/SetCurrentConfig: which image the flash commands see
-        self.long_range = 0   # GetLongRangeMode
+        self.long_range = 0   # Get/SetLongRangeMode: one value outside the slot images
         self._macro = None  # (block address, bytes received so far)
         self._host, self._dev = self._endpoint(wired=False)
         self._cable = None  # (host, device) sockets of the cable while it is plugged in
@@ -143,6 +142,8 @@ class FakeMouse:
             elif cmd == CMD_CLEAR_SETTING:
                 # Only the settings of the active slot; shortcut and macro blocks stay
                 self.flash[:SETTINGS_SIZE] = self.factory
+            elif cmd == CMD_SET_LONG_RANGE:
+                self.long_range = pkt[6]  # the reply echoes the packet (verified)
             elif cmd == CMD_GET_LONG_RANGE:
                 resp[5:16] = bytes([10, self.long_range]) + bytes(9)
             resp[16] = checksum(resp[:16])

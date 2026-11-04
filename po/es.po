@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: m916-linux\n"
 "Report-Msgid-Bugs-To: https://github.com/furibeh/m916-linux/issues\n"
-"POT-Creation-Date: 2026-11-04 01:15-0500\n"
+"POT-Creation-Date: 2026-11-04 01:37-0500\n"
 "PO-Revision-Date: 2026-10-31 12:00-0500\n"
 "Last-Translator: furibeh\n"
 "Language-Team: Spanish\n"
@@ -219,6 +219,10 @@ msgid "keys"
 msgstr "teclas"
 
 #: m916/cli.py
+msgid "leave it out to read it"
+msgstr "si se omite, lo lee"
+
+#: m916/cli.py
 msgid "list key names for shortcuts and macros"
 msgstr "lista los nombres de tecla para atajos y macros"
 
@@ -240,6 +244,23 @@ msgstr ""
 "lod: 1 = 1 mm, 2 = 2 mm; sensor-mode: 0 = LP, 1 = HP; led-off-time y full-"
 "performance-time en unidades de 10 s; dpi-led-mode: 1 fijo, 2 respiración; "
 "dpi-led-brightness: %s; dpi-led-speed: 1 (la más lenta)..5 (la más rápida)"
+
+#: m916/cli.py
+msgid "long range"
+msgstr "largo alcance"
+
+#: m916/cli.py
+msgid "long range mode turned off and verified"
+msgstr "modo de largo alcance desactivado y verificado"
+
+#: m916/cli.py
+msgid "long range mode turned on and verified"
+msgstr "modo de largo alcance activado y verificado"
+
+#: m916/cli.py
+#, python-format
+msgid "long range: %s"
+msgstr "largo alcance: %s"
 
 #: m916/cli.py
 msgid "media"
@@ -274,6 +295,14 @@ msgstr "nota: %d Hz puede necesitar el receptor 4K; este es un modelo 1K"
 #: m916/cli.py
 msgid "number of enabled DPI levels"
 msgstr "número de niveles de DPI activados"
+
+#: m916/cli.py
+msgid "off"
+msgstr "desactivado"
+
+#: m916/cli.py
+msgid "on"
+msgstr "activado"
 
 #: m916/cli.py
 msgid "only show what would change"
@@ -374,6 +403,10 @@ msgid "show or select the active onboard slot"
 msgstr "muestra o elige la ranura activa del ratón"
 
 #: m916/cli.py
+msgid "show or set the long range mode"
+msgstr "muestra o cambia el modo de largo alcance"
+
+#: m916/cli.py
 msgid "slot"
 msgstr "ranura"
 
@@ -420,6 +453,16 @@ msgid ""
 msgstr ""
 "el ratón guarda %d configuraciones independientes (ranuras); los demás "
 "comandos trabajan sobre la activa, salvo los que admiten --slot"
+
+#: m916/cli.py
+msgid ""
+"the mouse keeps this setting apart from the slots: it applies to all of "
+"them, and dump, restore and profiles do not include it. Whether it extends "
+"the range has not been measured."
+msgstr ""
+"el ratón guarda este ajuste aparte de las ranuras: vale para todas, y ni "
+"dump, ni restore, ni los perfiles lo incluyen. No se ha medido si aumenta el "
+"alcance."
 
 #: m916/cli.py
 #, python-format
@@ -1068,6 +1111,18 @@ msgid "Load profile…"
 msgstr "Cargar perfil…"
 
 #: m916/gui.py
+msgid "Long range mode"
+msgstr "Modo de largo alcance"
+
+#: m916/gui.py
+msgid "Long range mode turned off and verified"
+msgstr "Modo de largo alcance desactivado y verificado"
+
+#: m916/gui.py
+msgid "Long range mode turned on and verified"
+msgstr "Modo de largo alcance activado y verificado"
+
+#: m916/gui.py
 msgid "Low power (LP)"
 msgstr "Bajo consumo (LP)"
 
@@ -1386,6 +1441,14 @@ msgstr ""
 "en reposo (comprobado con 10 s y 1 min)."
 
 #: m916/gui.py
+msgid ""
+"The long range mode of the official app. The mouse keeps working normally "
+"with it on; whether it extends the range has not been measured."
+msgstr ""
+"El modo de largo alcance de la aplicación oficial. Con él activado el ratón "
+"funciona con normalidad; no se ha medido si aumenta el alcance."
+
+#: m916/gui.py
 #, python-format
 msgid ""
 "The memory of slot %(slot)d will be rewritten with the contents of\n"
@@ -1425,6 +1488,16 @@ msgid ""
 msgstr ""
 "El ratón guarda %d configuraciones independientes. La que elijas aquí pasa a "
 "ser la activa en el ratón."
+
+#: m916/gui.py
+msgid ""
+"The mouse keeps this setting apart from the slots: it applies to all of them "
+"and takes effect at once, without Apply. Backups and profiles do not include "
+"it."
+msgstr ""
+"El ratón guarda este ajuste aparte de las ranuras: vale para todas y se "
+"aplica al momento, sin Aplicar. Ni las copias de seguridad ni los perfiles "
+"lo incluyen."
 
 #: m916/gui.py
 #, python-format
@@ -1531,6 +1604,10 @@ msgstr "Mientras se pulse"
 #: m916/gui.py
 msgid "While held down"
 msgstr "Mientras se mantenga pulsado"
+
+#: m916/gui.py
+msgid "Wireless"
+msgstr "Inalámbrico"
 
 #: m916/gui.py
 msgid ""
@@ -1746,6 +1823,11 @@ msgstr ""
 
 #: m916/protocol.py
 #, python-format
+msgid "long range change not acknowledged (got %s)"
+msgstr "cambio de largo alcance no confirmado (respuesta: %s)"
+
+#: m916/protocol.py
+#, python-format
 msgid ""
 "no response to command 0x%(cmd)02x at 0x%(addr)04x (mouse asleep or off? "
 "move it and try again)"
@@ -1761,6 +1843,10 @@ msgstr "receptor"
 #, python-format
 msgid "slot change not acknowledged (got %s)"
 msgstr "cambio de ranura no confirmado (respuesta: %s)"
+
+#: m916/protocol.py
+msgid "the mouse did not store the long range mode"
+msgstr "el ratón no ha guardado el modo de largo alcance"
 
 #: m916/protocol.py
 #, python-format

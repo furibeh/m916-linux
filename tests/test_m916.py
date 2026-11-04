@@ -375,6 +375,95 @@ class SlotTest(unittest.TestCase):
         self.assertEqual(self.fake.slot, 0)
 
 
+class LongRangeTest(unittest.TestCase):
+    """Long range mode (SetLongRangeMode 0x16 / GetLongRangeMode 0x17), verified on the
+    hardware: the mouse answers it and keeps it outside the flash images of the slots."""
+
+    def setUp(self):
+        with open(FIXTURE, "rb") as f:
+            self.original = f.read()
+        self.fake = FakeMouse(self.original)
+        self.mouse = self.fake.mouse()
+        self.tmp = tempfile.TemporaryDirectory()
+
+    def tearDown(self):
+        self.mouse.close()
+        self.fake.close()
+        self.tmp.cleanup()
+
+    main = SlotTest.main
+
+    def flashes(self):
+        return [bytes(f) for f in self.fake.flashes]
+
+    def test_get_and_set(self):
+        self.assertFalse(self.mouse.long_range())
+        before = self.flashes()
+        self.mouse.set_long_range(True)
+        self.assertEqual(self.fake.long_range, 1)
+        self.assertTrue(self.mouse.long_range())
+        self.assertEqual(self.flashes(), before)  # not in any slot image
+        self.mouse.set_long_range(False)
+        self.assertEqual(self.fake.long_range, 0)
+
+    def test_set_echoes_the_packet(self):
+        pkt, resp = self.mouse.transact(0x16, data=b"\x01" + bytes(9))
+        self.assertEqual(pkt[5], 10)
+        self.assertEqual(resp, pkt)
+        self.assertEqual(self.mouse.transact(0x17)[1][5:7], b"\x0a\x01")
+
+    def test_no_reply_while_asleep(self):
+        self.fake.asleep = True
+        for cmd, data in ((0x16, b"\x01" + bytes(9)), (0x17, b"")):
+            with self.assertRaises(MouseAsleep):
+                self.mouse.transact(cmd, data=data, retries=1, timeout=0.1)
+        self.assertEqual(self.fake.long_range, 0)
+
+    def test_not_stored_is_an_error(self):
+        with mock.patch.object(type(self.mouse), "long_range", return_value=False):
+            with self.assertRaises(ProtocolError):
+                self.mouse.set_long_range(True)
+
+    def test_slots_restore_and_profiles_leave_it_alone(self):
+        self.mouse.set_long_range(True)
+        self.mouse.set_slot(2)
+        self.assertTrue(self.mouse.long_range())
+        self.mouse.set_slot(0)
+        backup = os.path.join(self.tmp.name, "b.bin")
+        with open(backup, "wb") as f:
+            f.write(self.original)
+        self.mouse.write_verified(0x4E, bytes([0x10, 0x45]))  # something for restore to undo
+        self.assertEqual(self.main("restore", "-y", backup)[0], None)
+        prof = os.path.join(self.tmp.name, "p.json")
+        self.assertEqual(self.main("profile", "save", prof)[0], None)
+        self.assertNotIn("long", open(prof).read())
+        self.assertEqual(self.main("profile", "load", prof)[0], None)
+        self.assertEqual(self.fake.long_range, 1)
+
+    def test_cli(self):
+        self.assertEqual(self.main("long-range"), (None, "long range: off\n"))
+        self.assertEqual(self.main("long-range", "on"),
+                         (None, "long range mode turned on and verified\n"))
+        self.assertEqual(self.fake.long_range, 1)
+        self.assertIn("long range: on", self.main("info")[1])
+        self.assertEqual(self.main("long-range", "off")[1],
+                         "long range mode turned off and verified\n")
+        self.assertEqual(self.fake.long_range, 0)
+        self.assertEqual(self.main("long-range", "maybe")[0], 2)
+
+    def test_over_the_cable(self):
+        # Verified on the hardware: 0x16 and 0x17 work over the cable as over the air
+        self.mouse.set_long_range(True)
+        self.fake.plug_cable()
+        cable = self.fake.wired()
+        try:
+            self.assertTrue(cable.long_range())
+            cable.set_long_range(False)
+            self.assertEqual(self.fake.long_range, 0)
+        finally:
+            cable.close()
+
+
 class CableTest(unittest.TestCase):
     """Verified on the hardware: with the cable plugged in the mouse answers only through it
     (3554:F55E) and does not sleep; the receiver reports it as not linked."""

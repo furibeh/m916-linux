@@ -9,6 +9,9 @@ A profile does not belong to any of the four onboard slots (onboard profiles) of
 applies to the active slot or, with `--slot N`, to slot N, and then the active one is selected
 again. The same goes for `profile save --slot N`.
 
+Long range mode (`m916 long-range`) is not included: the mouse keeps it apart from the slots,
+so it is not part of a slot's configuration, and loading a profile never changes it.
+
 ```sh
 m916 profile save games -m "For games"  # save the current configuration
 m916 profile list                       # saved profiles, with their description

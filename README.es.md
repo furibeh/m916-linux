@@ -53,8 +53,8 @@ install -Dm644 m916/icons/io.github.furibeh.m916-linux.svg \
 ## Interfaz gráfica
 
 Pestañas de DPI (niveles, valores y colores), botones, rendimiento (frecuencia de sondeo,
-debounce, LOD, modo y opciones del sensor), luces (efecto, brillo y velocidad del LED de DPI,
-apagado en reposo) y copias y perfiles. Cada botón puede ser un clic, una
+debounce, LOD, modo y opciones del sensor, y modo de largo alcance), luces (efecto, brillo y
+velocidad del LED de DPI, apagado en reposo) y copias y perfiles. Cada botón puede ser un clic, una
 función de DPI o scroll, disparo repetido, bloqueo de DPI, un atajo de teclado (se escribe o
 se captura pulsándolo), una tecla multimedia o una macro, con un editor que permite grabar
 pulsaciones de teclado y ratón con sus tiempos. Los cambios se editan en local y
@@ -112,6 +112,7 @@ m916 dump --slot 2 r2.bin     # --slot N: trabaja sobre la ranura N y vuelve a l
 m916 profile save juegos      # guarda la configuración como perfil JSON
 m916 profile load juegos      # aplica un perfil (--dry-run para ver qué cambiaría)
 m916 profile list             # perfiles guardados en ~/.config/m916/profiles
+m916 long-range               # modo de largo alcance: on u off; «m916 long-range on» lo activa
 m916 watch                    # notificaciones en vivo (DPI, batería…)
 ```
 
@@ -137,6 +138,11 @@ las ranuras entre las que quieras saltar; si no, `m916 slot N` o el selector te 
 - En la interfaz gráfica, al elegir una ranura pasa a ser la activa en el ratón y se carga
   (si hay cambios sin aplicar, pregunta antes). Si el ratón cambia de ranura por su cuenta, la
   ventana la sigue al momento.
+- El modo de largo alcance (`m916 long-range`, o la casilla de la pestaña **Rendimiento**) no
+  pertenece a ninguna ranura: el ratón lo guarda aparte, vale para todas y cambiar de ranura no
+  lo cambia. Ni las copias de seguridad, ni `restore`, ni los perfiles JSON lo incluyen. En la
+  interfaz gráfica se aplica en cuanto pulsas la casilla, sin **Aplicar**. No se ha medido si
+  aumenta el alcance.
 
 ## Perfiles
 
@@ -220,11 +226,11 @@ tools/ghidra/make_flatpak_shim.sh
 
 Funciona: lectura completa, DPI, colores, número de niveles y nivel activo, report rate,
 todas las funciones de botón (incluidos atajos, teclas multimedia y macros), opciones de un
-byte, volcado/restauración, las cuatro ranuras del ratón, perfiles JSON, notificaciones e
-interfaz gráfica.
+byte, volcado/restauración, las cuatro ranuras del ratón, perfiles JSON, modo de largo
+alcance, notificaciones e interfaz gráfica.
 
-Pendiente: las funciones del receptor (largo alcance, emparejamiento) y confirmar en el
-hardware el modo del sensor y los tiempos de reposo.
+Pendiente: el emparejamiento, medir si el modo de largo alcance aumenta el alcance y confirmar
+en el hardware el modo del sensor y los tiempos de reposo.
 
 ## Licencia
 

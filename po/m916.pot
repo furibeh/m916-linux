@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: m916-linux 0.4.0\n"
 "Report-Msgid-Bugs-To: https://github.com/furibeh/m916-linux/issues\n"
-"POT-Creation-Date: 2026-11-04 01:15-0500\n"
+"POT-Creation-Date: 2026-11-04 01:37-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -26,6 +26,14 @@ msgstr ""
 #: m916/cli.py
 #, python-format
 msgid "DPI level must be 1..%d"
+msgstr ""
+
+#: m916/cli.py
+msgid "off"
+msgstr ""
+
+#: m916/cli.py
+msgid "on"
 msgstr ""
 
 #: m916/cli.py
@@ -55,6 +63,10 @@ msgstr ""
 
 #: m916/cli.py
 msgid "slot"
+msgstr ""
+
+#: m916/cli.py
+msgid "long range"
 msgstr ""
 
 #: m916/cli.py
@@ -255,6 +267,19 @@ msgstr ""
 msgid "active slot: %(slot)d of %(count)d"
 msgstr ""
 
+#: m916/cli.py
+#, python-format
+msgid "long range: %s"
+msgstr ""
+
+#: m916/cli.py
+msgid "long range mode turned on and verified"
+msgstr ""
+
+#: m916/cli.py
+msgid "long range mode turned off and verified"
+msgstr ""
+
 #: m916/cli.py m916/protocol.py
 #, python-format
 msgid "slot must be 1..%d"
@@ -437,6 +462,21 @@ msgstr ""
 #: m916/cli.py
 #, python-format
 msgid "slot to select (1..%d)"
+msgstr ""
+
+#: m916/cli.py
+msgid "show or set the long range mode"
+msgstr ""
+
+#: m916/cli.py
+msgid ""
+"the mouse keeps this setting apart from the slots: it applies to all of "
+"them, and dump, restore and profiles do not include it. Whether it extends "
+"the range has not been measured."
+msgstr ""
+
+#: m916/cli.py
+msgid "leave it out to read it"
 msgstr ""
 
 #: m916/cli.py
@@ -1132,6 +1172,27 @@ msgid "Filters the movement, which makes it smoother."
 msgstr ""
 
 #: m916/gui.py
+msgid "Wireless"
+msgstr ""
+
+#: m916/gui.py
+msgid "Long range mode"
+msgstr ""
+
+#: m916/gui.py
+msgid ""
+"The long range mode of the official app. The mouse keeps working normally "
+"with it on; whether it extends the range has not been measured."
+msgstr ""
+
+#: m916/gui.py
+msgid ""
+"The mouse keeps this setting apart from the slots: it applies to all of them "
+"and takes effect at once, without Apply. Backups and profiles do not include "
+"it."
+msgstr ""
+
+#: m916/gui.py
 #, python-format
 msgid "code 0x%02x"
 msgstr ""
@@ -1454,6 +1515,14 @@ msgid "Changes applied and verified"
 msgstr ""
 
 #: m916/gui.py
+msgid "Long range mode turned on and verified"
+msgstr ""
+
+#: m916/gui.py
+msgid "Long range mode turned off and verified"
+msgstr ""
+
+#: m916/gui.py
 #, python-format
 msgid "Backup saved to %s"
 msgstr ""
@@ -1674,6 +1743,15 @@ msgstr ""
 #: m916/protocol.py
 #, python-format
 msgid "the mouse did not switch to slot %d"
+msgstr ""
+
+#: m916/protocol.py
+#, python-format
+msgid "long range change not acknowledged (got %s)"
+msgstr ""
+
+#: m916/protocol.py
+msgid "the mouse did not store the long range mode"
 msgstr ""
 
 #: m916/protocol.py

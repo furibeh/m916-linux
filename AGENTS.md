@@ -87,6 +87,9 @@ For GUI screenshots without a display: `QT_QPA_PLATFORM=offscreen` and
   9, which cycles through them) is notified with 0x0A `isConfigChanged`. In the code and the
   interface they are called "slot" ("ranura" in the Spanish translation); "profile" always
   means the JSON profile.
+- Long range mode (0x16/0x17) is kept by the mouse outside the slot images: switching slots,
+  `restore` and JSON profiles do not touch it. It is a separate command, not a field of
+  `config.py`, and the GUI applies it at once, outside **Apply**.
 - Only the shortcut and macro blocks of the buttons that use them are read; the rest of the
   image stays at `0xFF` (unknown).
 

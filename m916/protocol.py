@@ -28,6 +28,8 @@ CMD_STATUS_CHANGED = 0x0A
 CMD_GET_CONFIG = 0x0E  # active slot (onboard profile)
 CMD_SET_CONFIG = 0x0F
 CMD_READ_VERSION = 0x12
+CMD_SET_LONG_RANGE = 0x16  # kept by the mouse outside the slot images
+CMD_GET_LONG_RANGE = 0x17
 
 # Bits of the StatusChanged notification (DriverLib.DeviceStatusChanged)
 STATUS_DPI = 0x01
@@ -256,6 +258,21 @@ class Mouse:
             raise ProtocolError(_("slot change not acknowledged (got %s)") % resp.hex(" "))
         if self.slot() != slot:
             raise ProtocolError(_("the mouse did not switch to slot %d") % (slot + 1))
+
+    def long_range(self):
+        """True if long range mode is on. Answered by the mouse, not by the receiver; the
+        setting is not in the flash image of any slot."""
+        _pkt, r = self.transact(CMD_GET_LONG_RANGE)
+        return bool(r[6])
+
+    def set_long_range(self, on):
+        """Turn long range mode on or off and verify it by reading it back."""
+        on = bool(on)
+        pkt, resp = self.transact(CMD_SET_LONG_RANGE, data=bytes([on]) + bytes(CHUNK - 1))
+        if resp != pkt:
+            raise ProtocolError(_("long range change not acknowledged (got %s)") % resp.hex(" "))
+        if self.long_range() != on:
+            raise ProtocolError(_("the mouse did not store the long range mode"))
 
     def battery(self):
         """(level %, charging, millivolts)"""
