@@ -61,7 +61,7 @@ La respuesta tiene el mismo formato y checksum, con el mismo `CMD`. En la escrit
 | 0x0B/0x0C | SetDeviceVidPid / SetDeviceDescriptorString | [RE] |
 | 0x0D | EnterUsbUpdateMode | Actualización de firmware: no usar. [RE] |
 | 0x0E | GetCurrentConfig | Ranura activa (perfil interno, ver «Hay una imagen por ranura»). Petición `LEN=0` (`UsbServer_ReadConfig`); respuesta `LEN=1`, `data[0]` = ranura 0–3 (`00` = ranura 1). La responde el ratón, no el receptor: dormido, no hay respuesta. [HW] La app ofrece 4 (`customComboBox_Config`, valores 0–3). `Mouse.slot()` |
-| 0x0F | SetCurrentConfig | `LEN=1`, `data[0]` = ranura 0–3 (`UsbServer_SetCurrentConfig`). La respuesta repite el paquete; el cambio se aplica al instante y no hace falta 0x01. [HW] Por el receptor, el ratón envía después un 0x0A con `isConfigChanged` (`data[0]=04`), en menos de 0,5 s, por el receptor y por el cable [HW]. `Mouse.set_slot()` lo verifica con 0x0E. |
+| 0x0F | SetCurrentConfig | `LEN=1`, `data[0]` = ranura 0–3 (`UsbServer_SetCurrentConfig`). La respuesta repite el paquete; el cambio se aplica al instante y no hace falta 0x01. [HW] Después, el ratón envía un 0x0A con `isConfigChanged` (`data[0]=04`) en menos de 0,5 s, por el receptor y por el cable [HW]. `Mouse.set_slot()` lo verifica con 0x0E. |
 | 0x10 | ReadCIDMID | [RE] |
 | 0x11 | EnterMTKMode | [RE] |
 | 0x12 | ReadVersionID | Respuesta `LEN=2`, `02 00`. [HW] |
@@ -107,7 +107,8 @@ el ratón **solo habla por él**:
   primero que responde «online». La GUI cambia de conexión cuando la actual deja de verlo.
 - En 150 s escuchando por el cable (cargando, al 95–100 %) no llegó ningún 0x0A, tampoco al
   cambiar el nivel de DPI activo desde el PC (0x04) y devolverlo a su valor. Es decir, cambiar
-  la flash desde el PC no genera aviso. [HW]
+  la flash desde el PC no genera aviso. [HW] La excepción es 0x0F: cambiar de ranura sí envía
+  0x0A `isConfigChanged`, también por el cable. [HW]
 - El 0x0A de los botones sí llega por el cable: con `m916 watch` por el cable, cada pulsación
   del botón de DPI dio `dpi` (`data[0]=01`). [HW]
 
@@ -128,8 +129,9 @@ activo (0x04) y el de Luces, el LED de DPI activado (0x52). Los dos lo notifican
 **Hay una imagen por ranura** [HW]: el ratón tiene 4 perfiles internos, que la herramienta
 llama *ranuras* (*slots*) para no confundirlos con los perfiles JSON. Con 0x0F (o con un botón
 de función 9) las lecturas y escrituras de flash pasan a la imagen de otra ranura, en las
-mismas direcciones. En este ejemplar, la ranura 2 tiene 202 bytes distintos de la 1: otros
-colores y otro brillo, cuyo cambio se ve en el LED.
+mismas direcciones. El número de bytes distintos entre dos ranuras depende de cómo se ha usado
+cada una; en este ejemplar, la ranura 2 tenía otros colores y otro brillo, cuyo cambio se ve
+en el LED.
 
 Uso en la herramienta:
 
@@ -160,7 +162,7 @@ usa un valor por defecto.
 (activo el 2): 1000, 2000, 4000, 8000 y 26000 DPI, con los colores `ff0000`, `0000ff`, `00ff00`,
 `ff00ff` y `ffff00`; LED de DPI en respiración, brillo 0x80, velocidad 3, activado; LOD 1;
 debounce 8 ms; motion sync 1; luces apagadas a 1 min; el resto de opciones a 0;
-Peak Performance 1 min; LP; botones como en el volcado de `tests/fixtures` (el slot 12 es disparo 10 ms × 3). 0x54–0x5F = `ff 00 ff 57 00 55 80 d5 03 52 00 55`, 0xBB = 10, 0xBD
+Peak Performance 1 min; LP; botones como en el volcado de `tests/fixtures` (el botón 12 es disparo 10 ms × 3). 0x54–0x5F = `ff 00 ff 57 00 55 80 d5 03 52 00 55`, 0xBB = 10, 0xBD
 sin escribir.
 
 | Dirección | Contenido | Formato |
@@ -219,7 +221,7 @@ Los sensores que no son el 3395 usan las tablas de `driver_sensor.h`.
 | 0xA | Bloqueo de DPI | p1 = dpi/50 − 1 (50–12800 DPI). Solo mientras se mantiene; al soltar vuelve al DPI del nivel y el LED no cambia. Probado con 400 y 12800 (p1 = 255) [HW] |
 | 0xB | Scroll vertical | p1: 1 arriba, 2 abajo. Un paso de rueda por pulsación; no se repite al mantener [HW] |
 
-Los slots 1–16 son posiciones en la flash. La correspondencia física solo está confirmada
+Los botones 1–16 son posiciones en la flash. La correspondencia física solo está confirmada
 para los 5 primeros.
 
 Origen [RE]: IL de `CustomKeyFunction.customSubKeyFunction_Main_ButtonSelect`,
@@ -309,4 +311,4 @@ La app solo muestra el brillo con el efecto fijo y la velocidad con la respiraci
 - Comando 0x01 (EncryptionData): no hace falta para nada de lo probado; el algoritmo sigue sin conocerse.
 - Largo alcance (0x16): no se ha medido la mejora de alcance.
 - Emparejamiento: ¿el estado 02 llega al emparejar o al acabar la ventana de 20 s? No se ha visto el fallo.
-- Slots 6–16: la correspondencia física sigue sin confirmar.
+- Botones 6–16: la correspondencia física sigue sin confirmar.
