@@ -56,17 +56,17 @@ La respuesta tiene el mismo formato y checksum, con el mismo `CMD`. En la escrit
 | 0x06 | GetPairState | Petición `LEN=0` (`UsbServer_ReadDonglePairStatus`). Lo responde el receptor, también con el ratón dormido: `LEN=2`, `[estado, segundos]`. `00 00` sin emparejamiento desde que se enchufó; `01 nn` emparejando, con nn = segundos restantes (empieza en 0x13 y baja uno por segundo); `02 00` emparejado y se mantiene así. El fallo no se ha visto. [HW] |
 | 0x07 | WriteFlashData | `ADDR`, `LEN ≤ 10`, datos. [HW] |
 | 0x08 | ReadFlashData | `ADDR`, `LEN ≤ 10`; los datos vuelven en `DATA`. [HW] |
-| 0x09 | ClearSetting | Petición `LEN=0` (`UsbServer_SetClearSetting`); la respuesta repite el paquete. Restablece **solo la cabecera 0x00–0xBF del perfil activo** a los valores de fábrica (idéntica a la de los perfiles nunca usados). No toca los bloques de atajo y macro, los demás perfiles, el largo alcance ni el emparejamiento. [HW] |
+| 0x09 | ClearSetting | Petición `LEN=0` (`UsbServer_SetClearSetting`); la respuesta repite el paquete. Restablece **solo la cabecera 0x00–0xBF de la ranura activa** a los valores de fábrica (idéntica a la de las ranuras nunca usadas). No toca los bloques de atajo y macro, las demás ranuras, el largo alcance ni el emparejamiento. [HW] |
 | 0x0A | StatusChanged | **Notificación espontánea** del ratón (ver abajo). [HW] |
 | 0x0B/0x0C | SetDeviceVidPid / SetDeviceDescriptorString | [RE] |
 | 0x0D | EnterUsbUpdateMode | Actualización de firmware: no usar. [RE] |
-| 0x0E | GetCurrentConfig | Perfil activo. Petición `LEN=0` (`UsbServer_ReadConfig`); respuesta `LEN=1`, `data[0]=00` (perfil 1). [HW] La app ofrece 4 perfiles (`customComboBox_Config`, valores 0–3). |
-| 0x0F | SetCurrentConfig | `LEN=1`, `data[0]` = perfil 0–3 (`UsbServer_SetCurrentConfig`). La respuesta repite el paquete; el cambio se aplica al instante y no hace falta 0x01. No se vio notificación 0x0A. [HW] |
+| 0x0E | GetCurrentConfig | Ranura activa (perfil interno, ver «Hay una imagen por ranura»). Petición `LEN=0` (`UsbServer_ReadConfig`); respuesta `LEN=1`, `data[0]` = ranura 0–3 (`00` = ranura 1). La responde el ratón, no el receptor: dormido, no hay respuesta. [HW] La app ofrece 4 (`customComboBox_Config`, valores 0–3). `Mouse.slot()` |
+| 0x0F | SetCurrentConfig | `LEN=1`, `data[0]` = ranura 0–3 (`UsbServer_SetCurrentConfig`). La respuesta repite el paquete; el cambio se aplica al instante y no hace falta 0x01. [HW] Por el receptor, el ratón envía después un 0x0A con `isConfigChanged` (`data[0]=04`), en menos de 0,5 s, por el receptor y por el cable [HW]. `Mouse.set_slot()` lo verifica con 0x0E. |
 | 0x10 | ReadCIDMID | [RE] |
 | 0x11 | EnterMTKMode | [RE] |
 | 0x12 | ReadVersionID | Respuesta `LEN=2`, `02 00`. [HW] |
 | 0x14/0x15 | Set/Get4KDongleRGB | [RE] |
-| 0x16 | SetLongRangeMode | `LEN=10`, `data[0]` = 0 desactivado, 1 largo alcance (`UsbFinder_SetLongRangeMode`); la respuesta repite el paquete. El ratón sigue funcionando con normalidad. **Se conserva al desenchufar el receptor y no está en la imagen de flash del perfil**, así que `restore` no lo deshace. [HW] |
+| 0x16 | SetLongRangeMode | `LEN=10`, `data[0]` = 0 desactivado, 1 largo alcance (`UsbFinder_SetLongRangeMode`); la respuesta repite el paquete. El ratón sigue funcionando con normalidad. **Se conserva al desenchufar el receptor y no está en la imagen de flash de la ranura**, así que `restore` no lo deshace. [HW] |
 | 0x17 | GetLongRangeMode | Petición `LEN=0`; respuesta `LEN=10`, `data[0]` = 0/1. Lo responde el ratón: si está dormido, no hay respuesta. [HW] |
 | 0xF0/0xF1 | Write/ReadKBCIdMID | [RE] |
 | 0xB3 | GetSlaveVersion | Lectura `LEN=0`; versión en `data[0..1]` (`UsbFinder_GetSlaveVersion`). Falta en `UsbCommandID`. [RE] |
@@ -79,7 +79,7 @@ La respuesta tiene el mismo formato y checksum, con el mismo `CMD`. En la escrit
 |---|---|---|---|
 | 0 | isDPIChanged [HW] | 4 | isLogoLedChanged |
 | 1 | isReportRateChanged | 5 | isLedBarChanged |
-| 2 | isConfigChanged | 6 | isBatteryLevelChanged |
+| 2 | isConfigChanged: cambio de ranura, con 0x0F o con la función 9 [HW] | 6 | isBatteryLevelChanged |
 | 3 | isDPILedChanged [HW] | | |
 
 ### Conexión por cable  [HW]
@@ -125,16 +125,38 @@ activo (0x04) y el de Luces, el LED de DPI activado (0x52). Los dos lo notifican
 
 ## Mapa de la flash  (0x1B00 bytes, `DataParser.MAX_FLASH_SIZE`)
 
-**Hay una imagen por perfil** [HW]: con 0x0F (o con un botón de función 9) las lecturas y
-escrituras de flash pasan a la imagen del otro perfil, en las mismas direcciones. En este
-ejemplar, el perfil 2 tiene 202 bytes distintos del 1: otros colores y otro brillo, cuyo
-cambio se ve en el LED. `dump`, `restore` e `info` solo afectan al perfil activo.
+**Hay una imagen por ranura** [HW]: el ratón tiene 4 perfiles internos, que la herramienta
+llama *ranuras* (*slots*) para no confundirlos con los perfiles JSON. Con 0x0F (o con un botón
+de función 9) las lecturas y escrituras de flash pasan a la imagen de otra ranura, en las
+mismas direcciones. En este ejemplar, la ranura 2 tiene 202 bytes distintos de la 1: otros
+colores y otro brillo, cuyo cambio se ve en el LED.
+
+Uso en la herramienta:
+
+- `info` muestra la ranura activa y `m916 slot [N]` la lee o la cambia. `dump`, `restore` y
+  `profile save/load` trabajan sobre la activa o, con `--slot N`, cambian a la N y vuelven a la
+  original al terminar, también si falla (`protocol.on_slot`).
+- Un volcado es la imagen tal cual y no dice de qué ranura es. Como todas usan las mismas
+  direcciones, se puede restaurar en otra ranura para copiarla.
+- Cada cambio de ranura, con 0x0F o con un botón de función 9, se notifica con 0x0A
+  `isConfigChanged` [HW]. Con 0x0F se comprobó por el receptor y por el cable; con la función 9,
+  solo por el receptor. La función 9 recorre las 4 ranuras en ciclo
+  (4 → 1 → 2 → 3 → 4 → 1) [HW].
+- La GUI consulta 0x0E al recibir un 0x0A con `isConfigChanged` y en cada carga; no la consulta
+  periódicamente. Antes de escribir (`apply`, `restore`) vuelve a consultarla y no escribe si ha
+  cambiado. El aviso de su propio 0x0F no provoca otra carga.
+- Consultar 0x0E cada 3 s (con 0x03 cada segundo) **no impide el reposo** [HW]. Con
+  `led-off-time` = 1 min y modo LP, por el receptor, el ratón pasa al enlace periódico (1 s de
+  cada 5) y al sueño profundo a los ~57 s del último movimiento, igual que consultando solo
+  0x03. Una consulta 0x0E que cae al final de un enlace periódico se queda sin respuesta. La
+  GUI no lo necesita, pero el dato sirve si alguna vez hay que sondear.
+- Por cable, `m916 slot 2`/`slot 1` y `dump --slot 2` funcionan y se verifican con 0x0E [HW].
 
 Casi todo valor va seguido de un byte de comprobación. Para un byte suelto es
 `[v, 0x55 - v]`; para un bloque es `0x55 - suma(bloque)`. Si la comprobación falla, la DLL
 usa un valor por defecto.
 
-**Valores de fábrica** [HW] (perfiles 3 y 4 sin usar, y el perfil 1 tras 0x09): 1000 Hz, 5 niveles
+**Valores de fábrica** [HW] (ranuras 3 y 4 sin usar, y la ranura 1 tras 0x09): 1000 Hz, 5 niveles
 (activo el 2): 1000, 2000, 4000, 8000 y 26000 DPI, con los colores `ff0000`, `0000ff`, `00ff00`,
 `ff00ff` y `ffff00`; LED de DPI en respiración, brillo 0x80, velocidad 3, activado; LOD 1;
 debounce 8 ms; motion sync 1; luces apagadas a 1 min; el resto de opciones a 0;
@@ -164,8 +186,8 @@ sin escribir.
 | 0xB5 | sensorCustomSleepTimeEnable («Peak Performance»). Con 1 y 0xB7 = 3 (30 s), tras soltar el ratón volvió a enlazarse 12 s seguidos y el sueño profundo llegó a los ~69 s en vez de ~55 s. Una sola medición [HW, provisional] | par |
 | 0xB7 | sensorSleepTime, ×10 s. Se guarda; su relación exacta con el tiempo observado (~14 s más con 30 s) sigue sin aclarar [HW: se guarda] | par |
 | 0xB9 | sensorPowerSavingModeEnable: 0 = LP, 1 = HP. Se guarda; en HP el reposo ligero empezó a los ~6 s en vez de ~4 s, y el sueño profundo a los ~56 s, igual que en LP: no hay diferencia clara [HW: se guarda; efecto no claro] | par |
-| 0xBB | Par desconocido: `0a 4b` (10) en los dos perfiles y en el volcado; `MouseConfigParser` (DLL) termina en 0xB9 y no lo lee [?] | par |
-| 0xBD | Par desconocido: `01 54` (1) en el perfil 2, `ff ff` (sin escribir) en el 1; tampoco lo lee `MouseConfigParser` [?] | par |
+| 0xBB | Par desconocido: `0a 4b` (10) en las dos ranuras y en el volcado; `MouseConfigParser` (DLL) termina en 0xB9 y no lo lee [?] | par |
+| 0xBD | Par desconocido: `01 54` (1) en la ranura 2, `ff ff` (sin escribir) en la 1; tampoco lo lee `MouseConfigParser` [?] | par |
 | 0x100 + 0x20·k | Atajo de teclado del botón k [RE, formato confirmado en el volcado] | ver abajo |
 | 0x300 + 0x180·k | Macro del botón k [RE, formato confirmado en el volcado] | ver abajo |
 
@@ -193,7 +215,7 @@ Los sensores que no son el 3395 usan las tablas de `driver_sensor.h`.
 | 6 | Macro | p1: índice del propio botón (su bloque de macro); p2: repetición, ver abajo [HW] |
 | 7 | Cambiar report rate | [HW] |
 | 8 | Luces | p1: 0 todas, 3 barra LED, 4 cambiar efecto (la app no lo ofrece en este modelo) [RE]. Con p1 = 0, cada pulsación alterna el LED de DPI: **el ratón reescribe 0x52 en la flash** y envía la notificación `dpi-led` (bit 3) [HW]. Con p1 = 4 no hace nada, ni en el LED ni en la flash [HW] |
-| 9 | Cambiar configuración | p1 = p2 = 0: una pulsación pasa al perfil siguiente (del 1 al 2; el ciclo completo no se ha probado). La app no la ofrece (`ConfigSelect`: «Switch config is not supported») [HW] |
+| 9 | Cambiar configuración | p1 = p2 = 0: una pulsación pasa a la ranura siguiente y lo notifica con 0x0A `isConfigChanged`; recorre las 4 en ciclo (de la 4 vuelve a la 1). Probado con la función 9 en el mismo botón de las 4 ranuras: cada ranura tiene sus propios botones. La app no la ofrece (`ConfigSelect`: «Switch config is not supported») [HW] |
 | 0xA | Bloqueo de DPI | p1 = dpi/50 − 1 (50–12800 DPI). Solo mientras se mantiene; al soltar vuelve al DPI del nivel y el LED no cambia. Probado con 400 y 12800 (p1 = 255) [HW] |
 | 0xB | Scroll vertical | p1: 1 arriba, 2 abajo. Un paso de rueda por pulsación; no se repite al mantener [HW] |
 
@@ -283,7 +305,7 @@ La app solo muestra el brillo con el efecto fijo y la velocidad con la respiraci
   con 0xB7.
 - Modo del sensor (0xB9): ver si cambia el consumo con una medición larga de la batería.
 - Bloque 0x54–0x5F, pares 0xBB y 0xBD y los 3 bytes extra de la respuesta online.
-- Función 9: ¿recorre los 4 perfiles o alterna entre dos?
+- Función 9 por cable: ¿también notifica `isConfigChanged`? (0x0F sí, y la función 9 por el receptor.)
 - Comando 0x01 (EncryptionData): no hace falta para nada de lo probado; el algoritmo sigue sin conocerse.
 - Largo alcance (0x16): no se ha medido la mejora de alcance.
 - Emparejamiento: ¿el estado 02 llega al emparejar o al acabar la ventana de 20 s? No se ha visto el fallo.

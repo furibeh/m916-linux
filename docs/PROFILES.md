@@ -5,11 +5,16 @@ atajos y macros), frecuencia de sondeo y opciones. Sirve para tener varias confi
 por ejemplo una para juegos y otra para oficina, y cambiar entre ellas. No sustituye a la copia
 completa (`m916 dump`), que guarda la memoria entera byte a byte.
 
+Un perfil no pertenece a ninguna de las cuatro ranuras (perfiles internos) del ratón: se aplica
+a la ranura activa o, con `--slot N`, a la ranura N, y después se vuelve a la activa. Lo mismo
+vale para `profile save --slot N`.
+
 ```sh
 m916 profile save juegos -m "Para jugar"  # guarda la configuración actual
 m916 profile list                         # perfiles guardados, con su descripción
 m916 profile load juegos --dry-run        # muestra cuántos campos cambiarían
 m916 profile load juegos                  # escribe solo lo que cambia y lo verifica
+m916 profile load juegos --slot 3         # lo mismo en la ranura 3
 ```
 
 ## Dónde se guardan

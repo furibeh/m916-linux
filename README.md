@@ -59,8 +59,9 @@ rapid fire, DPI lock, a keyboard shortcut (typed or captured by pressing it), a 
 macro, with an editor that records keyboard and mouse presses with their timing. Changes are
 edited locally and **Apply** writes only the modified fields, verifying each one. It shows the
 battery and follows changes made on the mouse itself, such as the DPI level, as they happen.
-JSON profiles are saved and loaded from the **Backups and profiles** tab: when you load one,
-its values appear as unapplied changes.
+The **Onboard slot** selector in the header switches between the mouse's four slots (see
+below). JSON profiles are saved and loaded from the **Backups and profiles** tab: when you
+load one, its values appear as unapplied changes.
 
 To try it without the mouse: `python3 -m m916.gui --fake tests/fixtures/m916_flash.bin`.
 
@@ -81,8 +82,9 @@ they are the values typed in commands and profiles.
 ## Command line
 
 ```sh
-m916 info                     # status, battery, DPI, options and buttons
+m916 info                     # status, battery, active slot, DPI, options and buttons
 m916 dump backup.bin          # do this before changing anything
+m916 slot                     # active onboard slot (1-4); "m916 slot 2" selects slot 2
 m916 dpi 3 3200               # DPI of a level (multiples of 50, up to 26000; --y for Y)
 m916 dpi-color 3 00ff00       # LED color of a level
 m916 dpi-levels 5             # enabled DPI levels
@@ -100,6 +102,7 @@ m916 keys                     # available key names
 m916 option debounce 4        # single-byte options: info shows their meaning and
                               # option --help their values (lod, sensor-mode, dpi-led…)
 m916 restore backup.bin       # rewrites only what changed and verifies
+m916 dump --slot 2 s2.bin     # --slot N: works on slot N and goes back to the active one
 m916 profile save games       # saves the configuration as a JSON profile
 m916 profile load games       # applies a profile (--dry-run to see what would change)
 m916 profile list             # profiles saved in ~/.config/m916/profiles
@@ -109,12 +112,31 @@ m916 watch                    # live notifications (DPI, battery…)
 Every write is verified by reading it back. If the mouse is asleep, the tool asks you to move
 it and waits up to 10 s.
 
+## Onboard slots
+
+The mouse keeps four independent configurations, called *slots* here ("configs" in the
+official app's protocol). Each one is a whole copy of the memory: DPI, buttons, macros,
+lights and options. The mouse uses the active one; a button set to "switch config" moves to
+the next slot.
+`info`, the configuration commands and the graphical interface work on the active slot.
+
+- `m916 slot` shows the active slot and `m916 slot N` selects it.
+- `dump`, `restore`, `profile save` and `profile load` accept `--slot N`: they switch to slot
+  N, do their work and go back to the slot that was active, also if something fails.
+- A backup (`.bin`) does not record its slot; the graphical interface suggests a name like
+  `m916-slot2-20261103-1200.bin`. It can be restored to any slot, so this copies slot 2 to 3:
+  `m916 dump --slot 2 s2.bin && m916 restore --slot 3 s2.bin`.
+- In the graphical interface, choosing a slot makes it the active one in the mouse and loads
+  it (it asks first if there are unapplied changes). If the mouse switches slots by itself,
+  the window follows it at once.
+
 ## Profiles
 
 Besides the full backup, the configuration can be saved as a readable and editable JSON
 profile, for example one for games and another for work. Loading a profile writes only the
-fields that change, and whatever the profile leaves out stays as it is. This partial profile
-only touches the polling rate, two DPI levels and three buttons:
+fields that change, and whatever the profile leaves out stays as it is. A profile does not
+belong to any slot: it applies to the active one, or to the one given with `--slot`. This
+partial profile only touches the polling rate, two DPI levels and three buttons:
 
 ```json
 {
@@ -207,7 +229,8 @@ tools/ghidra/make_flatpak_shim.sh
 
 Working: full read-out, DPI, colors, number of levels and active level, report rate, every
 button function (including shortcuts, media keys and macros), single-byte options,
-dump/restore, JSON profiles, notifications and the graphical interface.
+dump/restore, the four onboard slots, JSON profiles, notifications and the graphical
+interface.
 
 Pending: the receiver functions (long range, pairing) and confirming the sensor mode and idle
 times on the hardware.

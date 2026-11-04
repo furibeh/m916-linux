@@ -58,7 +58,9 @@ función de DPI o scroll, disparo repetido, bloqueo de DPI, un atajo de teclado 
 se captura pulsándolo), una tecla multimedia o una macro, con un editor que permite grabar
 pulsaciones de teclado y ratón con sus tiempos. Los cambios se editan en local y
 **Aplicar** escribe solo los campos modificados, verificando cada uno. Muestra la batería y
-sigue en vivo los cambios hechos desde el propio ratón, como el nivel de DPI. Los perfiles
+sigue en vivo los cambios hechos desde el propio ratón, como el nivel de DPI. El selector
+**Ranura del ratón** de la cabecera cambia entre las cuatro ranuras del ratón (ver más abajo).
+Los perfiles
 JSON se guardan y se cargan desde la pestaña **Copias y perfiles**: al cargar uno, sus valores
 aparecen como cambios sin aplicar.
 
@@ -84,8 +86,9 @@ Para traducir el programa a otro idioma, ver [Translations](README.md#translatio
 ## Línea de comandos
 
 ```sh
-m916 info                     # estado, batería, DPI, opciones y botones
+m916 info                     # estado, batería, ranura activa, DPI, opciones y botones
 m916 dump copia.bin           # haz esto antes de cambiar nada
+m916 slot                     # ranura activa del ratón (1-4); «m916 slot 2» activa la 2
 m916 dpi 3 3200               # DPI de un nivel (múltiplos de 50, hasta 26000; --y para Y)
 m916 dpi-color 3 00ff00       # color del LED de un nivel
 m916 dpi-levels 5             # niveles DPI activos
@@ -103,6 +106,7 @@ m916 keys                     # nombres de tecla disponibles
 m916 option debounce 4        # opciones de un byte: info muestra su significado y
                               # option --help los valores (lod, sensor-mode, dpi-led…)
 m916 restore copia.bin        # reescribe solo lo que cambió y verifica
+m916 dump --slot 2 r2.bin     # --slot N: trabaja sobre la ranura N y vuelve a la activa
 m916 profile save juegos      # guarda la configuración como perfil JSON
 m916 profile load juegos      # aplica un perfil (--dry-run para ver qué cambiaría)
 m916 profile list             # perfiles guardados en ~/.config/m916/profiles
@@ -112,11 +116,30 @@ m916 watch                    # notificaciones en vivo (DPI, batería…)
 Cada escritura se verifica volviendo a leer. Si el ratón está dormido, la herramienta pide
 moverlo y espera hasta 10 s.
 
+## Ranuras del ratón
+
+El ratón guarda cuatro configuraciones independientes, que aquí llamamos *ranuras* (en inglés,
+*slots*; «configs» en el protocolo de la aplicación oficial). Cada una es una copia completa
+de la memoria: DPI, botones, macros, luces y opciones. El ratón usa la activa, y un botón con
+la función «cambiar configuración» pasa a la siguiente. `info`, los comandos de configuración y
+la interfaz gráfica trabajan sobre la ranura activa.
+
+- `m916 slot` muestra la ranura activa y `m916 slot N` la cambia.
+- `dump`, `restore`, `profile save` y `profile load` admiten `--slot N`: cambian a la ranura
+  N, hacen su trabajo y vuelven a la que estaba activa, también si algo falla.
+- Una copia (`.bin`) no guarda de qué ranura es; la interfaz gráfica propone un nombre como
+  `m916-slot2-20261103-1200.bin`. Se puede restaurar en cualquier ranura, así que esto copia la
+  ranura 2 en la 3: `m916 dump --slot 2 r2.bin && m916 restore --slot 3 r2.bin`.
+- En la interfaz gráfica, al elegir una ranura pasa a ser la activa en el ratón y se carga
+  (si hay cambios sin aplicar, pregunta antes). Si el ratón cambia de ranura por su cuenta, la
+  ventana la sigue al momento.
+
 ## Perfiles
 
 Además de la copia completa, la configuración se puede guardar como un perfil JSON legible y
 editable, por ejemplo uno para juegos y otro para oficina. Al cargar un perfil solo se
-escriben los campos que cambian, y lo que el perfil no incluye se queda como está. Este perfil
+escriben los campos que cambian, y lo que el perfil no incluye se queda como está. Un perfil
+no pertenece a ninguna ranura: se aplica a la activa o a la indicada con `--slot`. Este perfil
 parcial solo toca la frecuencia, dos niveles de DPI y tres botones:
 
 ```json
@@ -192,7 +215,8 @@ tools/ghidra/make_flatpak_shim.sh
 
 Funciona: lectura completa, DPI, colores, número de niveles y nivel activo, report rate,
 todas las funciones de botón (incluidos atajos, teclas multimedia y macros), opciones de un
-byte, volcado/restauración, perfiles JSON, notificaciones e interfaz gráfica.
+byte, volcado/restauración, las cuatro ranuras del ratón, perfiles JSON, notificaciones e
+interfaz gráfica.
 
 Pendiente: las funciones del receptor (largo alcance, emparejamiento) y confirmar en el
 hardware el modo del sensor y los tiempos de reposo.

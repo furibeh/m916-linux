@@ -80,6 +80,10 @@ Para capturas de la GUI sin pantalla: `QT_QPA_PLATFORM=offscreen` y
 - Con el cable USB puesto (`3554:F55E`), el ratón solo responde por el cable y el receptor dice
   que no está enlazado (0x03 = 0). Por cable no duerme. `protocol.open_mouse` elige el
   dispositivo que responde «online», con el cable primero.
+- Hay 4 ranuras (perfiles internos, 0x0E/0x0F), cada una con su propia imagen de flash en las
+  mismas direcciones y sus propios botones. Cambiar de ranura (con 0x0F o con un botón de
+  función 9, que las recorre en ciclo) se notifica con 0x0A `isConfigChanged`. En el código y
+  en la interfaz se llaman «slot»/«ranura»; «profile» es el perfil JSON.
 - Solo se leen los bloques de atajo y de macro de los botones que los usan; el resto de la
   imagen queda en `0xFF` (desconocido).
 
