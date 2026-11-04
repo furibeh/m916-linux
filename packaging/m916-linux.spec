@@ -1,5 +1,5 @@
 Name:           m916-linux
-Version:        0.2.0
+Version:        0.3.0
 Release:        1%{?dist}
 Summary:        Configuration tool for the Redragon M916-PRO-1K mouse
 
@@ -60,5 +60,11 @@ QT_QPA_PLATFORM=offscreen %{python3} -m unittest discover -s tests -v
 %{_datadir}/icons/hicolor/scalable/apps/io.github.furibeh.m916-linux.svg
 
 %changelog
+* Tue Nov 03 2026 furibeh <felipeuh846@gmail.com> - 0.3.0-1
+- Spanish translation; interface follows the system language
+- Rename the app to M916 Configurator
+- Show the application icon in the main window
+- Describe rapid fire and the DPI LED breathing effect as the hardware does
+
 * Fri Oct 30 2026 furibeh <felipeuh846@gmail.com> - 0.2.0-1
 - Initial package
