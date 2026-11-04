@@ -203,6 +203,18 @@ class GuiTest(unittest.TestCase):
         self.wait_for(lambda: self.window.lights.effect.currentData() == gui.DPI_LED_OFF)
         self.assertFalse(self.window._dirty())
 
+    def test_follows_the_cable(self):
+        # Plugging the cable in moves to it (the receiver loses the mouse); pulling it out
+        # goes back to the receiver
+        w = self.window
+        self.assertIn("Connected via receiver", w.status.text())
+        self.worker._fake.plug_cable()
+        self.wait_for(lambda: "Connected by cable" in w.status.text())
+        self.wait_for(lambda: w.image is not None and w.state == "online")
+        self.worker._fake.unplug_cable()
+        self.wait_for(lambda: "Connected via receiver" in w.status.text())
+        self.assertEqual(self.worker.mouse.link, "dongle")
+
     def test_profiles(self):
         import json
         import tempfile

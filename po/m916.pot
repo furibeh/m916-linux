@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: m916-linux 0.3.0\n"
 "Report-Msgid-Bugs-To: https://github.com/furibeh/m916-linux/issues\n"
-"POT-Creation-Date: 2026-11-03 22:58-0500\n"
+"POT-Creation-Date: 2026-11-03 23:03-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -568,7 +568,7 @@ msgid ""
 msgstr ""
 
 #: m916/gui.py
-msgid "Receiver not found"
+msgid "Mouse not found"
 msgstr ""
 
 #: m916/gui.py
@@ -1252,6 +1252,16 @@ msgstr ""
 
 #: m916/gui.py
 #, python-format
+msgid "<b>Connected by cable</b> · %s"
+msgstr ""
+
+#: m916/gui.py
+#, python-format
+msgid "<b>Connected via receiver</b> · %s"
+msgstr ""
+
+#: m916/gui.py
+#, python-format
 msgid "<b>Connected</b> · %s"
 msgstr ""
 
@@ -1260,7 +1270,7 @@ msgid "<b>Mouse asleep</b> · move it or click to wake it up"
 msgstr ""
 
 #: m916/gui.py
-msgid "<b>Receiver not found</b> · plug it in to start"
+msgid "<b>Mouse not found</b> · plug in the receiver or the cable"
 msgstr ""
 
 #: m916/gui.py

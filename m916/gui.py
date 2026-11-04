@@ -18,8 +18,8 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QButtonGroup, QC
 
 from . import __version__, config as cfg, i18n, keys, profile
 from .i18n import _, ngettext
-from .protocol import (FLASH_SIZE, STATUS_BATTERY, STATUS_DPI, Mouse, MouseAsleep, ProtocolError,
-                       find_devices)
+from .protocol import (FLASH_SIZE, STATUS_BATTERY, STATUS_DPI, MouseAsleep, ProtocolError,
+                       device_openers, open_mouse)
 
 STATE_DISCONNECTED, STATE_ASLEEP, STATE_ONLINE = "disconnected", "asleep", "online"
 APP_ID = "io.github.furibeh.m916-linux"
@@ -36,7 +36,7 @@ class DeviceWorker(QObject):
     """Owns the hidraw device on its own thread: runs queued jobs and, when idle, watches
     notifications and whether the mouse is awake."""
 
-    state_changed = Signal(str, str)        # state, device path
+    state_changed = Signal(str, str, str)   # state, device path, link ("wired", "dongle", "")
     info = Signal(object)                   # {"firmware": bytes, "battery": (lvl, chg, mv)}
     config_loaded = Signal(object)          # image from cfg.read_image()
     progress = Signal(int, int)
@@ -62,23 +62,39 @@ class DeviceWorker(QObject):
     def _set_state(self, state):
         if state != self.state:
             self.state = state
-            self.state_changed.emit(state, self.mouse.path if self.mouse else "")
+            m = self.mouse
+            self.state_changed.emit(state, m.path if m else "", (m.link or "") if m else "")
             if state == STATE_ONLINE:
                 self.submit("load")
 
-    def _open(self):
-        if self._fake_image is not None:
+    def _openers(self, skip=None):
+        """Openers of the candidate connections, leaving out the path `skip`."""
+        if self._fake_image is not None and self._fake is None:
             from .fake import FakeMouse
             self._fake = FakeMouse(self._fake_image)
-            self.mouse = self._fake.mouse()
-            return
-        for path in find_devices():
-            try:
-                self.mouse = Mouse(path)
-                return
-            except PermissionError:
-                self.job_failed.emit("open", _("No permission on %s: install the udev rule "
-                                               "(udev/70-redragon-m916.rules).") % path)
+        candidates = self._fake.openers() if self._fake else device_openers()
+        return [opener for path, opener in candidates if path != skip]
+
+    def _open(self):
+        try:
+            self.mouse = open_mouse(self._openers())
+        except PermissionError as e:
+            self.job_failed.emit("open", _("No permission on %s: install the udev rule "
+                                           "(udev/70-redragon-m916.rules).") % e.filename)
+
+    def _switch(self):
+        """The mouse is not linked through the current connection: move to another one where
+        it answers (the cable was plugged in or pulled out). True if it switched."""
+        try:
+            other = open_mouse(self._openers(skip=self.mouse.path), fallback=False)
+        except PermissionError:
+            return False
+        if other is None:
+            return False
+        self.mouse.close()
+        self.mouse = other
+        self.state = None  # announce the new connection and reload, even if it was online
+        return True
 
     def _close(self):
         if self.mouse:
@@ -99,7 +115,7 @@ class DeviceWorker(QObject):
                     self._open()
                 if self.mouse is None:
                     self._set_state(STATE_DISCONNECTED)
-                    self._fail_pending(_("Receiver not found"))
+                    self._fail_pending(_("Mouse not found"))
                     time.sleep(0.2)
                     continue
                 last_online = 0.0
@@ -117,7 +133,8 @@ class DeviceWorker(QObject):
                         self.notified.emit(flags)
                     if time.monotonic() - last_online > 3:
                         last_online = time.monotonic()
-                        self._set_state(STATE_ONLINE if self.mouse.online() else STATE_ASLEEP)
+                        online = self.mouse.online() or self._switch()
+                        self._set_state(STATE_ONLINE if online else STATE_ASLEEP)
             except MouseAsleep as e:
                 self._set_state(STATE_ASLEEP)
                 if job:
@@ -125,10 +142,10 @@ class DeviceWorker(QObject):
                                                    "and try again.\n\n%s") % e)
             except ProtocolError as e:
                 self.job_failed.emit(job[0] if job else "", str(e))
-            except OSError as e:  # receiver unplugged
+            except OSError as e:  # receiver or cable unplugged
+                self._close()  # first, so the window knows the job died with the connection
                 if job:
                     self.job_failed.emit(job[0], str(e))
-                self._close()
         if self.mouse:
             self.mouse.close()
         if self._fake:
@@ -1171,7 +1188,7 @@ class MainWindow(QMainWindow):
         worker.job_done.connect(self._job_done)
         worker.job_failed.connect(self._job_failed)
         worker.notified.connect(self._notified)
-        self._state_changed(STATE_DISCONNECTED, "")
+        self._state_changed(STATE_DISCONNECTED, "", "")
 
     # --- helpers -------------------------------------------------------------------------
     def _submit(self, *job):
@@ -1284,13 +1301,16 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(_("Profile loaded: review the changes and press Apply"), 8000)
 
     # --- worker signals ------------------------------------------------------------------
-    def _state_changed(self, state, path):
+    def _state_changed(self, state, path, link):
         self.state = state
         dev = os.path.basename(path) if path else ""
+        connected = {"wired": _("<b>Connected by cable</b> · %s"),
+                     "dongle": _("<b>Connected via receiver</b> · %s")}.get(
+                         link, _("<b>Connected</b> · %s"))
         text = {
-            STATE_ONLINE: _("<b>Connected</b> · %s") % dev,
+            STATE_ONLINE: connected % dev,
             STATE_ASLEEP: _("<b>Mouse asleep</b> · move it or click to wake it up"),
-            STATE_DISCONNECTED: _("<b>Receiver not found</b> · plug it in to start"),
+            STATE_DISCONNECTED: _("<b>Mouse not found</b> · plug in the receiver or the cable"),
         }[state]
         self.status.setText(text)
         self.battery.setVisible(state == STATE_ONLINE)

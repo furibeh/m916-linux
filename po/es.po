@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: m916-linux\n"
 "Report-Msgid-Bugs-To: https://github.com/furibeh/m916-linux/issues\n"
-"POT-Creation-Date: 2026-11-03 22:58-0500\n"
+"POT-Creation-Date: 2026-11-03 22:40-0500\n"
 "PO-Revision-Date: 2026-10-31 12:00-0500\n"
 "Last-Translator: furibeh\n"
 "Language-Team: Spanish\n"
@@ -610,6 +610,16 @@ msgstr[1] "<b>%(name)s</b> · %(count)d pasos · %(repeat)s"
 
 #: m916/gui.py
 #, python-format
+msgid "<b>Connected by cable</b> · %s"
+msgstr "<b>Conectado por cable</b> · %s"
+
+#: m916/gui.py
+#, python-format
+msgid "<b>Connected via receiver</b> · %s"
+msgstr "<b>Conectado por el receptor</b> · %s"
+
+#: m916/gui.py
+#, python-format
 msgid "<b>Connected</b> · %s"
 msgstr "<b>Conectado</b> · %s"
 
@@ -618,8 +628,8 @@ msgid "<b>Mouse asleep</b> · move it or click to wake it up"
 msgstr "<b>Ratón dormido</b> · muévelo o haz clic para despertarlo"
 
 #: m916/gui.py
-msgid "<b>Receiver not found</b> · plug it in to start"
-msgstr "<b>Receptor no encontrado</b> · conéctalo para empezar"
+msgid "<b>Mouse not found</b> · plug in the receiver or the cable"
+msgstr "<b>Ratón no encontrado</b> · conecta el receptor o el cable"
 
 #: m916/gui.py
 #, python-format
@@ -984,6 +994,10 @@ msgid "Motion Sync"
 msgstr "Motion Sync"
 
 #: m916/gui.py
+msgid "Mouse not found"
+msgstr "Ratón no encontrado"
+
+#: m916/gui.py
 msgid "Move down"
 msgstr "Bajar"
 
@@ -1089,10 +1103,6 @@ msgstr "Perfiles"
 #: m916/gui.py
 msgid "Rapid fire"
 msgstr "Disparo repetido"
-
-#: m916/gui.py
-msgid "Receiver not found"
-msgstr "Receptor no encontrado"
 
 #: m916/gui.py
 msgid "Record"
