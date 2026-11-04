@@ -27,8 +27,8 @@ GUI usa PySide6 (Qt 6).
 - `m916/cli.py`: `python3 -m m916 …`.
 - `m916/gui.py`: `python3 -m m916.gui`. Un único hilo (`DeviceWorker`) es dueño del dispositivo.
   La ventana trabaja sobre una copia en memoria y **Aplicar** escribe la diferencia.
-- `m916/fake.py`: ratón simulado sobre un volcado de flash. Debe imitar el firmware real,
-  incluidas sus rarezas (ver más abajo).
+- `m916/fake.py`: ratón simulado sobre un volcado de flash, con el receptor y el cable
+  (`plug_cable()`). Debe imitar el firmware real, incluidas sus rarezas (ver más abajo).
 - `tests/`: `unittest`, con `tests/fixtures/m916_flash.bin` (volcado real).
 - `tools/`: utilidades de ingeniería inversa. El instalador oficial **no** está en el repo.
 - `m916/icons/`: icono de la aplicación (SVG). `APP_ID` en `gui.py`, el `.desktop` de `data/`
@@ -77,6 +77,9 @@ Para capturas de la GUI sin pantalla: `QT_QPA_PLATFORM=offscreen` y
   puede apuntar fuera de los niveles habilitados.
 - Los atajos guardan teclas físicas (usos HID), no caracteres: la distribución de teclado la
   aplica el ordenador.
+- Con el cable USB puesto (`3554:F55E`), el ratón solo responde por el cable y el receptor dice
+  que no está enlazado (0x03 = 0). Por cable no duerme. `protocol.open_mouse` elige el
+  dispositivo que responde «online», con el cable primero.
 - Solo se leen los bloques de atajo y de macro de los botones que los usan; el resto de la
   imagen queda en `0xFF` (desconocido).
 

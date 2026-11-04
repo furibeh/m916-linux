@@ -14,7 +14,7 @@ Leyenda de confianza:
 - `hidusb.dll` / `hidusb32.dll`: C++ nativo, embebido en el .exe con Costura
   (ver `tools/extract_native.py`). Usa `SetupDi*`, `CreateFileW`, `WriteFile`/`ReadFile`
   y `HidD_SetFeature`. Toda la lógica del protocolo está aquí.
-- `Config.ini`: valores en base64. VID `0x3554`; PID por cable `0xF55E`; PID del dongle
+- `Config.ini`: valores en base64. VID `0x3554`; PID por cable `0xF55E` (comprobado [HW]); PID del dongle
   `0xF55E,F55F`; sensor `3395` (PixArt PAW3395); MCU del ratón `CX52850P`; MCU del dongle
   `CX52650N`; `CH32V305`. El receptor que se probó usa **`0xF5D5`**, un PID que no aparece en
   `Config.ini` (la app también lee un campo `D4_PID`).
@@ -81,6 +81,35 @@ La respuesta tiene el mismo formato y checksum, con el mismo `CMD`. En la escrit
 | 1 | isReportRateChanged | 5 | isLedBarChanged |
 | 2 | isConfigChanged | 6 | isBatteryLevelChanged |
 | 3 | isDPILedChanged [HW] | | |
+
+### Conexión por cable  [HW]
+
+Con el cable USB puesto, el ratón aparece como otro dispositivo, `3554:F55E` («Compx 3-Mode
+Mouse», tres interfaces HID). Solo la que tiene `85 08` en el descriptor habla el protocolo. De
+las otras dos, una no responde y la otra da `EPIPE` al escribir. Mientras el cable está puesto,
+el ratón **solo habla por él**:
+
+| Comando | Receptor (`F5D5`) | Cable (`F55E`) |
+|---|---|---|
+| 0x03 | `LEN=1 00 25 81 06`: no enlazado | `LEN=1 01 25 81 06`: siempre online |
+| 0x06 | lo responde el receptor como siempre | byte 2 = `01`, `LEN=0` (¿rechazado?) |
+| 0x04, 0x08, 0x0E, 0x12, 0x17… | sin respuesta | responden igual que por radio |
+
+- Por cable, leer y escribir la flash funciona igual que por radio, con la misma verificación.
+  Se probó cambiando y restaurando la frecuencia de sondeo; la imagen quedó idéntica.
+- Por cable no entra en reposo: estuvo 190 s quieto y siguió respondiendo a 0x03 y 0x04. La
+  batería indica que está cargando.
+- Al enchufar, el receptor pierde el enlace al momento (puede volver un instante durante el
+  cambio). El nodo `hidraw` del cable tarda entre ~1 y ~6 s en aparecer.
+- Al desenchufar, si el interruptor del ratón está en 2.4G, el receptor recupera el enlace en
+  ~1,2–1,4 s. En la posición de solo cable, el ratón se apaga.
+- Por eso la herramienta prueba con 0x03 cada dispositivo, empezando por el cable, y usa el
+  primero que responde «online». La GUI cambia de conexión cuando la actual deja de verlo.
+- En 150 s escuchando por el cable (cargando, al 95–100 %) no llegó ningún 0x0A, tampoco al
+  cambiar el nivel de DPI activo desde el PC (0x04) y devolverlo a su valor. Es decir, cambiar
+  la flash desde el PC no genera aviso. [HW]
+- El 0x0A de los botones sí llega por el cable: con `m916 watch` por el cable, cada pulsación
+  del botón de DPI dio `dpi` (`data[0]=01`). [HW]
 
 ### Reposo  [HW]
 

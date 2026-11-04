@@ -8,7 +8,9 @@ Herramienta para configurar en Linux el ratón **Redragon M916-PRO-1K** sin el p
 oficial de Windows. Habla con el ratón por `hidraw` con el mismo protocolo que el configurador
 original, reconstruido por ingeniería inversa (ver [docs/PROTOCOL.md](docs/PROTOCOL.md)).
 
-Probado con el receptor inalámbrico `3554:F5D5`.
+Probado con el receptor inalámbrico `3554:F5D5` y por el cable USB (`3554:F55E`). Mientras el
+cable está puesto, el ratón solo responde por él, así que la herramienta usa el cable y vuelve
+al receptor al quitarlo. `-d /dev/hidrawN` fuerza un dispositivo.
 
 ## Requisitos
 

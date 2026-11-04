@@ -9,7 +9,9 @@ program. It talks to the mouse over `hidraw` with the same protocol as the origi
 configurator, reconstructed by reverse engineering (see [docs/PROTOCOL.md](docs/PROTOCOL.md),
 in Spanish).
 
-Tested with the `3554:F5D5` wireless receiver.
+Tested with the `3554:F5D5` wireless receiver and over the USB cable (`3554:F55E`). While the
+cable is plugged in the mouse only answers through it, so the tool uses the cable and goes back
+to the receiver when it is pulled out; `-d /dev/hidrawN` forces a device.
 
 ## Requirements
 
