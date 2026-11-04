@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: m916-linux\n"
 "Report-Msgid-Bugs-To: https://github.com/furibeh/m916-linux/issues\n"
-"POT-Creation-Date: 2026-11-03 23:53-0500\n"
+"POT-Creation-Date: 2026-11-04 01:00-0500\n"
 "PO-Revision-Date: 2026-10-31 12:00-0500\n"
 "Last-Translator: furibeh\n"
 "Language-Team: Spanish\n"
@@ -762,6 +762,13 @@ msgid "Breathing"
 msgstr "Respiración"
 
 #: m916/gui.py
+msgid ""
+"Breathing speed: the higher, the faster (3 is about one cycle every 5 s)."
+msgstr ""
+"Velocidad de la respiración: cuanto más alta, más rápida (3 es un ciclo cada "
+"5 s, aproximadamente)."
+
+#: m916/gui.py
 msgid "Brightness (1–10):"
 msgstr "Brillo (1–10):"
 
@@ -897,6 +904,10 @@ msgid "Favorites"
 msgstr "Favoritos"
 
 #: m916/gui.py
+msgid "Filters the movement, which makes it smoother."
+msgstr "Filtra el movimiento, que se vuelve más suave."
+
+#: m916/gui.py
 #, python-format
 msgid "Firmware %(firmware)s · v%(version)s"
 msgstr "Firmware %(firmware)s · v%(version)s"
@@ -947,6 +958,14 @@ msgstr ""
 "Tiempo que cada clic está pulsado y después suelto: un disparo dura el doble"
 
 #: m916/gui.py
+msgid ""
+"How many times per second the mouse sends its movement and buttons to the "
+"computer."
+msgstr ""
+"Cuántas veces por segundo envía el ratón al ordenador su movimiento y sus "
+"botones."
+
+#: m916/gui.py
 #, python-format
 msgid ""
 "In levels %s, X and Y must both be below or both above 12 800 DPI (and 25 "
@@ -981,6 +1000,16 @@ msgid "Invalid profile"
 msgstr "Perfil no válido"
 
 #: m916/gui.py
+msgid ""
+"Keeps the mouse awake longer after it stops moving. In one test, 30 s "
+"delayed deep sleep by about 14 s; how this depends on the time chosen is not "
+"known yet."
+msgstr ""
+"Mantiene el ratón despierto más tiempo después de dejar de moverlo. En una "
+"prueba, 30 s retrasaron el reposo profundo unos 14 s; aún no se sabe cómo "
+"depende del tiempo elegido."
+
+#: m916/gui.py
 #, python-format
 msgid ""
 "Key names: ctrl, shift, alt, super, a–z, 0–9, f1–f24, enter, esc, space, "
@@ -996,6 +1025,10 @@ msgstr "Tecla o botón"
 #: m916/gui.py
 msgid "Keyboard shortcut"
 msgstr "Atajo de teclado"
+
+#: m916/gui.py
+msgid "LED brightness with the steady effect."
+msgstr "Brillo del LED con el efecto fijo."
 
 #: m916/gui.py
 msgid "Left click"
@@ -1250,6 +1283,19 @@ msgid "Save profile…"
 msgstr "Guardar perfil…"
 
 #: m916/gui.py
+msgid ""
+"Saved in the mouse, but no clear difference between LP and HP has been "
+"measured."
+msgstr ""
+"Se guarda en el ratón, pero no se ha medido una diferencia clara entre LP y "
+"HP."
+
+#: m916/gui.py
+msgid "Saved in the mouse, but no effect has been seen on this model."
+msgstr ""
+"Se guarda en el ratón, pero en este modelo no se le ha visto ningún efecto."
+
+#: m916/gui.py
 msgid "Scroll: down"
 msgstr "Scroll: abajo"
 
@@ -1287,12 +1333,21 @@ msgid "Slot changed"
 msgstr "Ranura cambiada"
 
 #: m916/gui.py
+msgid "Snaps the movement to straight lines."
+msgstr "Ajusta el movimiento a líneas rectas."
+
+#: m916/gui.py
 msgid "Speed (1–5):"
 msgstr "Velocidad (1–5):"
 
 #: m916/gui.py
 msgid "Steady"
 msgstr "Fijo"
+
+#: m916/gui.py
+msgid "Steady keeps the LED lit; breathing fades it up and down smoothly."
+msgstr ""
+"Fijo mantiene el LED encendido; respiración lo apaga y enciende suavemente."
 
 #: m916/gui.py
 msgid "Stop"
@@ -1305,6 +1360,14 @@ msgid ""
 msgstr ""
 "El LED muestra el color de cada nivel de DPI (pestaña DPI). El brillo se "
 "aplica al efecto fijo y la velocidad a la respiración."
+
+#: m916/gui.py
+msgid ""
+"The LED turns off once the mouse has been still for this time, and the mouse "
+"goes to sleep (checked with 10 s and 1 min)."
+msgstr ""
+"El LED se apaga cuando el ratón lleva este tiempo quieto, y el ratón entra "
+"en reposo (comprobado con 10 s y 1 min)."
 
 #: m916/gui.py
 #, python-format
@@ -1368,12 +1431,6 @@ msgstr ""
 "El ratón ha cambiado por su cuenta a la ranura %d; no se ha escrito nada."
 
 #: m916/gui.py
-msgid "The sensor stays at full performance for this time before going to rest"
-msgstr ""
-"El sensor se mantiene a máximo rendimiento este tiempo antes de pasar a "
-"reposo"
-
-#: m916/gui.py
 #, python-format
 msgid ""
 "The unapplied changes to slot %(old)d will be lost. Switch to slot %(new)d?"
@@ -1384,6 +1441,24 @@ msgstr ""
 #: m916/gui.py
 msgid "There are unapplied changes. Quit anyway?"
 msgstr "Hay cambios sin aplicar. ¿Salir de todos modos?"
+
+#: m916/gui.py
+msgid ""
+"This time also decides when the mouse goes to sleep: once the lights are "
+"off, it does not answer this program until it is moved. Over the cable it "
+"does not sleep."
+msgstr ""
+"Este tiempo también decide cuándo entra en reposo el ratón: con las luces "
+"apagadas no responde a este programa hasta que se mueve. Por cable no entra "
+"en reposo."
+
+#: m916/gui.py
+msgid ""
+"Time the mouse waits for a button contact to settle before it counts a press "
+"or a release."
+msgstr ""
+"Tiempo que espera el ratón a que se estabilice el contacto de un botón antes "
+"de contar una pulsación o una liberación."
 
 #: m916/gui.py
 msgid "Turn the lights off when idle after:"
@@ -1433,6 +1508,14 @@ msgstr "Mientras se pulse"
 #: m916/gui.py
 msgid "While held down"
 msgstr "Mientras se mantenga pulsado"
+
+#: m916/gui.py
+msgid ""
+"With it off, movement felt less smooth (a subjective impression, not a "
+"measurement)."
+msgstr ""
+"Desactivado, el movimiento se notó menos fluido (impresión subjetiva, no una "
+"medida)."
 
 #: m916/gui.py
 #, python-format

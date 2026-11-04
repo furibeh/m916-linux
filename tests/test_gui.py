@@ -64,6 +64,23 @@ class GuiTest(unittest.TestCase):
         self.assertEqual(w.buttons.rows[11].combo.currentData(), "fire")
         self.assertFalse(w.apply_btn.isEnabled())
 
+    def test_option_controls_have_tooltips(self):
+        from PySide6.QtWidgets import QCheckBox, QComboBox, QFormLayout, QSpinBox
+        for tab in (self.window.performance, self.window.lights):
+            controls = [w for kind in (QComboBox, QSpinBox, QCheckBox) for w in tab.findChildren(kind)]
+            self.assertTrue(controls)
+            for w in controls:
+                name = w.text() if isinstance(w, QCheckBox) else type(w).__name__
+                with self.subTest(tab=type(tab).__name__, control=name):
+                    self.assertTrue(w.toolTip().strip(), "no tooltip")
+            for form in tab.findChildren(QFormLayout):
+                for row in range(form.rowCount()):
+                    field = form.itemAt(row, QFormLayout.ItemRole.FieldRole)
+                    label = field and form.labelForField(field.widget())
+                    if label is not None and field.widget() is not None:
+                        with self.subTest(tab=type(tab).__name__, row=row):
+                            self.assertEqual(label.toolTip(), field.widget().toolTip())
+
     def test_edit_apply_and_revert(self):
         w = self.window
         w.dpi.rows[2][2].setValue(3200)

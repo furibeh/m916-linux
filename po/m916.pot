@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: m916-linux 0.4.0\n"
 "Report-Msgid-Bugs-To: https://github.com/furibeh/m916-linux/issues\n"
-"POT-Creation-Date: 2026-11-04 00:28-0500\n"
+"POT-Creation-Date: 2026-11-04 01:00-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1034,15 +1034,27 @@ msgid "Polling rate:"
 msgstr ""
 
 #: m916/gui.py
+msgid ""
+"How many times per second the mouse sends its movement and buttons to the "
+"computer."
+msgstr ""
+
+#: m916/gui.py
 msgid "Button debounce:"
 msgstr ""
 
 #: m916/gui.py
-msgid "Height at which the sensor stops tracking when the mouse is lifted"
+msgid ""
+"Time the mouse waits for a button contact to settle before it counts a press "
+"or a release."
 msgstr ""
 
 #: m916/gui.py
 msgid "Lift-off distance (LOD):"
+msgstr ""
+
+#: m916/gui.py
+msgid "Height at which the sensor stops tracking when the mouse is lifted"
 msgstr ""
 
 #: m916/gui.py
@@ -1058,11 +1070,20 @@ msgid "Sensor mode:"
 msgstr ""
 
 #: m916/gui.py
+msgid ""
+"Saved in the mouse, but no clear difference between LP and HP has been "
+"measured."
+msgstr ""
+
+#: m916/gui.py
 msgid "Full performance for:"
 msgstr ""
 
 #: m916/gui.py
-msgid "The sensor stays at full performance for this time before going to rest"
+msgid ""
+"Keeps the mouse awake longer after it stops moving. In one test, 30 s "
+"delayed deep sleep by about 14 s; how this depends on the time chosen is not "
+"known yet."
 msgstr ""
 
 #: m916/gui.py
@@ -1070,11 +1091,25 @@ msgid "Motion Sync"
 msgstr ""
 
 #: m916/gui.py
+msgid ""
+"With it off, movement felt less smooth (a subjective impression, not a "
+"measurement)."
+msgstr ""
+
+#: m916/gui.py
 msgid "Linear correction (angle snapping)"
 msgstr ""
 
 #: m916/gui.py
+msgid "Snaps the movement to straight lines."
+msgstr ""
+
+#: m916/gui.py
 msgid "Ripple control"
+msgstr ""
+
+#: m916/gui.py
+msgid "Filters the movement, which makes it smoother."
 msgstr ""
 
 #: m916/gui.py
@@ -1103,11 +1138,24 @@ msgid "Effect:"
 msgstr ""
 
 #: m916/gui.py
+msgid "Steady keeps the LED lit; breathing fades it up and down smoothly."
+msgstr ""
+
+#: m916/gui.py
 msgid "Brightness (1–10):"
 msgstr ""
 
 #: m916/gui.py
+msgid "LED brightness with the steady effect."
+msgstr ""
+
+#: m916/gui.py
 msgid "Speed (1–5):"
+msgstr ""
+
+#: m916/gui.py
+msgid ""
+"Breathing speed: the higher, the faster (3 is about one cycle every 5 s)."
 msgstr ""
 
 #: m916/gui.py
@@ -1125,7 +1173,24 @@ msgid "Turn the lights off when idle after:"
 msgstr ""
 
 #: m916/gui.py
+msgid ""
+"The LED turns off once the mouse has been still for this time, and the mouse "
+"goes to sleep (checked with 10 s and 1 min)."
+msgstr ""
+
+#: m916/gui.py
 msgid "Turn the lights off while the mouse moves"
+msgstr ""
+
+#: m916/gui.py
+msgid "Saved in the mouse, but no effect has been seen on this model."
+msgstr ""
+
+#: m916/gui.py
+msgid ""
+"This time also decides when the mouse goes to sleep: once the lights are "
+"off, it does not answer this program until it is moved. Over the cable it "
+"does not sleep."
 msgstr ""
 
 #: m916/gui.py

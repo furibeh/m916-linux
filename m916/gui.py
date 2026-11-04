@@ -917,6 +917,13 @@ def time_choices(values):
     return [(v, cfg.format_time(v)) for v in values]
 
 
+def set_row_tip(form, field, tip):
+    """Same tooltip on a form field and on its label, if it has one."""
+    for w in (form.labelForField(field), field):
+        if w is not None:
+            w.setToolTip(tip)
+
+
 class PerformanceTab(QWidget):
     edited = Signal()
 
@@ -926,25 +933,40 @@ class PerformanceTab(QWidget):
         form = QFormLayout(main)
         self.rate = QComboBox()
         form.addRow(_("Polling rate:"), self.rate)
+        set_row_tip(form, self.rate, _("How many times per second the mouse sends its movement "
+                                       "and buttons to the computer."))
         self.debounce = QSpinBox()
         self.debounce.setRange(0, 255)
         self.debounce.setSuffix(" ms")
         form.addRow(_("Button debounce:"), self.debounce)
+        set_row_tip(form, self.debounce, _("Time the mouse waits for a button contact to settle "
+                                           "before it counts a press or a release."))
         self.lod = ChoiceBox(cfg.LOD_CHOICES.items())
-        self.lod.setToolTip(_("Height at which the sensor stops tracking when the mouse is lifted"))
         form.addRow(_("Lift-off distance (LOD):"), self.lod)
+        set_row_tip(form, self.lod,
+                    _("Height at which the sensor stops tracking when the mouse is lifted"))
         self.mode = ChoiceBox([(0, _("Low power (LP)")), (1, _("High performance (HP)"))])
         form.addRow(_("Sensor mode:"), self.mode)
+        set_row_tip(form, self.mode, _("Saved in the mouse, but no clear difference between LP "
+                                       "and HP has been measured."))
         self.full = QCheckBox(_("Full performance for:"))
-        self.full.setToolTip(_("The sensor stays at full performance for this time before "
-                               "going to rest"))
         self.full_time = ChoiceBox(time_choices(cfg.FULL_PERFORMANCE_TIMES))
         form.addRow(self.full, self.full_time)
+        set_row_tip(form, self.full_time,
+                    _("Keeps the mouse awake longer after it stops moving. In one test, 30 s "
+                      "delayed deep sleep by about 14 s; how this depends on the time chosen is "
+                      "not known yet."))
         self.checks = {}
-        for name, text in (("motion-sync", _("Motion Sync")),
-                           ("linear-correction", _("Linear correction (angle snapping)")),
-                           ("ripple-control", _("Ripple control"))):
+        for name, text, tip in (
+                ("motion-sync", _("Motion Sync"),
+                 _("With it off, movement felt less smooth (a subjective impression, not a "
+                   "measurement).")),
+                ("linear-correction", _("Linear correction (angle snapping)"),
+                 _("Snaps the movement to straight lines.")),
+                ("ripple-control", _("Ripple control"),
+                 _("Filters the movement, which makes it smoother."))):
             box = QCheckBox(text)
+            box.setToolTip(tip)
             box.toggled.connect(lambda *_: self.edited.emit())
             form.addRow(box)
             self.checks[name] = box
@@ -1007,11 +1029,16 @@ class LightsTab(QWidget):
         form = QFormLayout(dpi)
         self.effect = ChoiceBox([(DPI_LED_OFF, _("Off")), (1, _("Steady")), (2, _("Breathing"))])
         form.addRow(_("Effect:"), self.effect)
+        set_row_tip(form, self.effect, _("Steady keeps the LED lit; breathing fades it up and "
+                                         "down smoothly."))
         self.brightness = ChoiceBox((b, "%d" % (i + 1))
                                     for i, b in enumerate(cfg.DPI_LED_BRIGHTNESS))
         form.addRow(_("Brightness (1–10):"), self.brightness)
+        set_row_tip(form, self.brightness, _("LED brightness with the steady effect."))
         self.speed = ChoiceBox((v, "%d" % v) for v in cfg.DPI_LED_SPEEDS)
         form.addRow(_("Speed (1–5):"), self.speed)
+        set_row_tip(form, self.speed, _("Breathing speed: the higher, the faster (3 is about "
+                                        "one cycle every 5 s)."))
         note = QLabel(_("The LED shows the color of each DPI level (DPI tab). Brightness applies to "
                         "the steady effect and speed to breathing."))
         note.setWordWrap(True)
@@ -1022,8 +1049,19 @@ class LightsTab(QWidget):
         pform = QFormLayout(power)
         self.off_time = ChoiceBox(time_choices(cfg.LED_OFF_TIMES))
         pform.addRow(_("Turn the lights off when idle after:"), self.off_time)
+        set_row_tip(pform, self.off_time,
+                    _("The LED turns off once the mouse has been still for this time, and the "
+                      "mouse goes to sleep (checked with 10 s and 1 min)."))
         self.move_off = QCheckBox(_("Turn the lights off while the mouse moves"))
+        self.move_off.setToolTip(_("Saved in the mouse, but no effect has been seen on this "
+                                   "model."))
         pform.addRow(self.move_off)
+        note = QLabel(_("This time also decides when the mouse goes to sleep: once the lights "
+                        "are off, it does not answer this program until it is moved. Over the "
+                        "cable it does not sleep."))
+        note.setWordWrap(True)
+        note.setEnabled(False)
+        pform.addRow(note)
 
         layout = QVBoxLayout(self)
         layout.addWidget(dpi)
