@@ -269,6 +269,88 @@ class GuiTest(unittest.TestCase):
         self.assertEqual(w.performance.rate.currentText(), "1000 Hz")
         self.assertFalse(w._dirty())
 
+    def test_slot_selector_loads_the_slot(self):
+        w = self.window
+        fake = self.worker._fake
+        fake.flashes[1][0x4E:0x50] = bytes([0x10, 0x45])  # slot 2: DPI LED brightness 16
+        self.assertEqual((w.slot, w.slot_box.currentText()), (0, "Slot 1"))
+        w.slot_box.setCurrentIndex(1)
+        w._slot_selected(1)  # what the user's choice (activated) calls
+        self.wait_for(lambda: w.slot == 1 and not w._busy)
+        self.assertEqual(fake.slot, 1)
+        self.assertEqual(w.image[0x4E], 0x10)
+        self.assertFalse(w._dirty())
+
+    def test_selecting_a_slot_loads_it_once(self):
+        # 0x0F is notified (config) like a button would: that must not load the slot again
+        w = self.window
+        loads = []
+        self.worker.config_loaded.connect(lambda image, slot: loads.append(slot))
+        w._slot_selected(2)
+        self.wait_for(lambda: loads)
+        deadline = time.monotonic() + 1.5
+        while time.monotonic() < deadline:
+            self.app.processEvents()
+            time.sleep(0.01)
+        self.assertEqual(loads, [2])
+        self.assertFalse(w._busy)
+
+    def test_slot_selector_keeps_unapplied_changes_on_no(self):
+        from unittest import mock
+        from PySide6.QtWidgets import QMessageBox
+        w = self.window
+        w.dpi.rows[0][2].setValue(1200)
+        w.slot_box.setCurrentIndex(2)
+        with mock.patch.object(QMessageBox, "question",
+                               return_value=QMessageBox.StandardButton.No) as question:
+            w._slot_selected(2)
+        self.assertIn("unapplied changes to slot 1", question.call_args[0][2])
+        self.assertEqual(w.slot_box.currentIndex(), 0)
+        self.assertEqual(self.worker._fake.slot, 0)
+        self.assertTrue(w._dirty())
+
+    def switch_config_button(self):
+        """Make button 4 "switch config" (type 9) in the active slot and press it."""
+        fake = self.worker._fake
+        fake.flash[0x6C:0x70] = bytes([0x09, 0, 0, 0x4C])
+        fake.press(3)
+
+    def test_follows_the_switch_config_button(self):
+        # Notified at once (0x0A config), before the next periodic check
+        w = self.window
+        self.switch_config_button()
+        self.wait_for(lambda: w.slot == 1 and not w._busy, timeout=2)
+        self.assertEqual(w.slot_box.currentText(), "Slot 2")
+        self.assertEqual(w.image[:0x60], bytes(self.worker._fake.flashes[1][:0x60]))
+        self.assertFalse(w._dirty())
+
+    def test_switch_config_button_with_unapplied_changes(self):
+        from unittest import mock
+        w = self.window
+        w.dpi.rows[0][2].setValue(1200)
+        with mock.patch.object(w, "_ask_go_back", return_value=True) as ask:
+            self.switch_config_button()
+            self.wait_for(lambda: ask.called)
+            self.wait_for(lambda: self.worker._fake.slot == 0 and not w._busy)
+        self.assertEqual(w.slot, 0)
+        self.assertEqual(w.dpi.rows[0][2].value(), 1200)  # still there, ready to apply
+        self.assertTrue(w._dirty())
+
+    def test_apply_refused_after_the_mouse_switched(self):
+        from unittest import mock
+        from PySide6.QtWidgets import QMessageBox
+        w = self.window
+        w.dpi.rows[0][2].setValue(1200)
+        self.worker._fake.slot = 1  # behind the window's back
+        with mock.patch.object(QMessageBox, "warning") as warning, \
+                mock.patch.object(w, "_ask_go_back", return_value=False):
+            w.apply_btn.click()
+            self.wait_for(lambda: warning.called)
+            self.wait_for(lambda: w.slot == 1 and not w._busy)
+        self.assertIn("nothing was written", warning.call_args[0][2])
+        self.assertEqual([bytes(f) for f in self.worker._fake.flashes], [self.original] * 4)
+        self.assertFalse(w._dirty())  # discarded: showing slot 2
+
     def test_app_icon(self):
         from m916 import gui
         self.assertEqual(gui.APP_ID, "io.github.furibeh.m916-linux")

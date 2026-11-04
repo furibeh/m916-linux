@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: m916-linux\n"
 "Report-Msgid-Bugs-To: https://github.com/furibeh/m916-linux/issues\n"
-"POT-Creation-Date: 2026-11-04 00:13-0500\n"
+"POT-Creation-Date: 2026-11-03 23:53-0500\n"
 "PO-Revision-Date: 2026-10-31 12:00-0500\n"
 "Last-Translator: furibeh\n"
 "Language-Team: Spanish\n"
@@ -691,15 +691,17 @@ msgid ""
 "readable JSON file that can be edited by hand: for example, one for games "
 "and another for work. What you see on screen is saved. When you load it, its "
 "values appear as unapplied changes; whatever the profile leaves out stays as "
-"it is. By default they are saved in %s, where <tt>m916 profile list</tt> "
-"also finds them."
+"it is. A profile does not belong to any slot: it applies to the active one. "
+"By default they are saved in %s, where <tt>m916 profile list</tt> also finds "
+"them."
 msgstr ""
 "Un perfil guarda la configuración (DPI, botones, macros y opciones) en un "
 "archivo JSON legible que se puede editar a mano: por ejemplo, uno para "
 "juegos y otro para oficina. Se guarda lo que ves en pantalla. Al cargarlo, "
 "sus valores aparecen como cambios sin aplicar; lo que el perfil no incluya "
-"se queda como está. Por defecto se guardan en %s, donde también los "
-"encuentra <tt>m916 profile list</tt>."
+"se queda como está. Un perfil no pertenece a ninguna ranura: se aplica a la "
+"activa. Por defecto se guardan en %s, donde también los encuentra <tt>m916 "
+"profile list</tt>."
 
 #: m916/gui.py
 msgid "Action"
@@ -724,6 +726,11 @@ msgstr "Aplicar"
 #: m916/gui.py
 msgid "Back"
 msgstr "Atrás"
+
+#: m916/gui.py
+#, python-format
+msgid "Back to slot %d"
+msgstr "Volver a la ranura %d"
 
 #: m916/gui.py
 #, python-format
@@ -851,6 +858,11 @@ msgstr "Espera (ms)"
 #: m916/gui.py
 msgid "Disabled"
 msgstr "Desactivado"
+
+#: m916/gui.py
+#, python-format
+msgid "Discard and show slot %d"
+msgstr "Descartar y ver la ranura %d"
 
 #: m916/gui.py
 msgid "Discard changes"
@@ -1101,6 +1113,10 @@ msgid "Off"
 msgstr "Apagado"
 
 #: m916/gui.py
+msgid "Onboard slot:"
+msgstr "Ranura del ratón:"
+
+#: m916/gui.py
 msgid "Performance"
 msgstr "Rendimiento"
 
@@ -1207,13 +1223,15 @@ msgstr "Ejecución:"
 
 #: m916/gui.py
 msgid ""
-"Save a full copy of the mouse memory (6912 bytes) before making changes. "
-"Restoring only rewrites the parts that differ, and then the whole memory is "
-"verified."
+"Save a full copy of the memory of the active slot (6912 bytes) before making "
+"changes. Restoring only rewrites the parts that differ, and then the whole "
+"memory is verified. A backup can be restored to another slot to copy it "
+"there."
 msgstr ""
-"Guarda una copia completa de la memoria del ratón (6912 bytes) antes de "
-"hacer cambios. Al restaurar solo se reescriben las partes que difieren, y "
-"después se verifica toda la memoria."
+"Guarda una copia completa de la memoria de la ranura activa (6912 bytes) "
+"antes de hacer cambios. Al restaurar solo se reescriben las partes que "
+"difieren, y después se verifica toda la memoria. Una copia se puede "
+"restaurar en otra ranura para copiarla allí."
 
 #: m916/gui.py
 msgid "Save backup…"
@@ -1260,6 +1278,15 @@ msgid "Shots per press; 0 repeats while held down"
 msgstr "Disparos por pulsación; 0 repite mientras se mantenga pulsado"
 
 #: m916/gui.py
+#, python-format
+msgid "Slot %d"
+msgstr "Ranura %d"
+
+#: m916/gui.py
+msgid "Slot changed"
+msgstr "Ranura cambiada"
+
+#: m916/gui.py
 msgid "Speed (1–5):"
 msgstr "Velocidad (1–5):"
 
@@ -1278,6 +1305,19 @@ msgid ""
 msgstr ""
 "El LED muestra el color de cada nivel de DPI (pestaña DPI). El brillo se "
 "aplica al efecto fijo y la velocidad a la respiración."
+
+#: m916/gui.py
+#, python-format
+msgid ""
+"The memory of slot %(slot)d will be rewritten with the contents of\n"
+"%(file)s\n"
+"\n"
+"Unapplied changes will be lost. Continue?"
+msgstr ""
+"Se reescribirá la memoria de la ranura %(slot)d con el contenido de\n"
+"%(file)s\n"
+"\n"
+"Los cambios sin aplicar se perderán. ¿Continuar?"
 
 #: m916/gui.py
 msgid ""
@@ -1301,21 +1341,45 @@ msgstr ""
 #: m916/gui.py
 #, python-format
 msgid ""
-"The mouse memory will be rewritten with the contents of\n"
-"%s\n"
-"\n"
-"Unapplied changes will be lost. Continue?"
+"The mouse keeps %d independent configurations. Choosing one here makes it "
+"the active one in the mouse."
 msgstr ""
-"Se reescribirá la memoria del ratón con el contenido de\n"
-"%s\n"
-"\n"
-"Los cambios sin aplicar se perderán. ¿Continuar?"
+"El ratón guarda %d configuraciones independientes. La que elijas aquí pasa a "
+"ser la activa en el ratón."
+
+#: m916/gui.py
+#, python-format
+msgid ""
+"The mouse switched to slot %(new)d, but there are unapplied changes to slot "
+"%(old)d."
+msgstr ""
+"El ratón ha cambiado a la ranura %(new)d, pero hay cambios sin aplicar en la "
+"ranura %(old)d."
+
+#: m916/gui.py
+#, python-format
+msgid "The mouse switched to slot %d"
+msgstr "El ratón ha cambiado a la ranura %d"
+
+#: m916/gui.py
+#, python-format
+msgid "The mouse switched to slot %d by itself; nothing was written."
+msgstr ""
+"El ratón ha cambiado por su cuenta a la ranura %d; no se ha escrito nada."
 
 #: m916/gui.py
 msgid "The sensor stays at full performance for this time before going to rest"
 msgstr ""
 "El sensor se mantiene a máximo rendimiento este tiempo antes de pasar a "
 "reposo"
+
+#: m916/gui.py
+#, python-format
+msgid ""
+"The unapplied changes to slot %(old)d will be lost. Switch to slot %(new)d?"
+msgstr ""
+"Se perderán los cambios sin aplicar en la ranura %(old)d. ¿Cambiar a la "
+"ranura %(new)d?"
 
 #: m916/gui.py
 msgid "There are unapplied changes. Quit anyway?"

@@ -18,8 +18,8 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QButtonGroup, QC
 
 from . import __version__, config as cfg, i18n, keys, profile
 from .i18n import _, ngettext
-from .protocol import (FLASH_SIZE, STATUS_BATTERY, STATUS_DPI, MouseAsleep, ProtocolError,
-                       device_openers, open_mouse)
+from .protocol import (FLASH_SIZE, SLOTS, STATUS_BATTERY, STATUS_CONFIG, STATUS_DPI,
+                       MouseAsleep, ProtocolError, device_openers, open_mouse)
 
 STATE_DISCONNECTED, STATE_ASLEEP, STATE_ONLINE = "disconnected", "asleep", "online"
 APP_ID = "io.github.furibeh.m916-linux"
@@ -38,7 +38,8 @@ class DeviceWorker(QObject):
 
     state_changed = Signal(str, str, str)   # state, device path, link ("wired", "dongle", "")
     info = Signal(object)                   # {"firmware": bytes, "battery": (lvl, chg, mv)}
-    config_loaded = Signal(object)          # image from cfg.read_image()
+    config_loaded = Signal(object, int)     # image from cfg.read_image(), slot (0-based)
+    slot_changed = Signal(int)              # the mouse switched slots by itself (button)
     progress = Signal(int, int)
     job_done = Signal(str, object)
     job_failed = Signal(str, str)
@@ -52,6 +53,7 @@ class DeviceWorker(QObject):
         self._fake = None
         self.mouse = None
         self.state = None
+        self.slot = None  # last slot seen, to notice when the mouse switches by itself
 
     def submit(self, *job):
         self.jobs.put(job)
@@ -103,6 +105,7 @@ class DeviceWorker(QObject):
             except OSError:
                 pass
         self.mouse = None
+        self.slot = None
         self._set_state(STATE_DISCONNECTED)
 
     def run(self):
@@ -129,8 +132,13 @@ class DeviceWorker(QObject):
                         raise MouseAsleep(_("the mouse is asleep"))
                     self._run_job(job)
                 else:
-                    for flags in self.mouse.poll_notifications():
+                    notified = self.mouse.poll_notifications()
+                    for flags in notified:
                         self.notified.emit(flags)
+                    if self.state == STATE_ONLINE and any(f & STATUS_CONFIG for f in notified):
+                        # Another slot (0x0F or a "switch config" button); on the way to
+                        # online, "load" reads the slot anyway
+                        self._check_slot()
                     if time.monotonic() - last_online > 3:
                         last_online = time.monotonic()
                         online = self.mouse.online() or self._switch()
@@ -159,20 +167,57 @@ class DeviceWorker(QObject):
                 return
             self.job_failed.emit(job[0], msg)
 
+    def _check_slot(self):
+        """Ask for the active slot and announce it if the mouse switched by itself."""
+        slot = self.mouse.slot()
+        if self.slot is not None and slot != self.slot:
+            self.slot = slot
+            self.slot_changed.emit(slot)
+        self.slot = slot
+        return slot
+
+    def _same_slot(self, name, expected):
+        """Before writing: False (and the window is told) if the mouse is on another slot."""
+        slot = self.mouse.slot()
+        if slot == expected:
+            self.slot = slot
+            return True
+        self.job_failed.emit(name, _("The mouse switched to slot %d by itself; nothing was "
+                                     "written.") % (slot + 1))
+        if slot != self.slot:
+            self.slot = slot
+            self.slot_changed.emit(slot)
+        return False
+
+    def _load(self):
+        m = self.mouse
+        self.info.emit({"firmware": m.version(), "battery": m.battery()})
+        self.slot = m.slot()
+        self.config_loaded.emit(cfg.read_image(m), self.slot)
+
     def _run_job(self, job):
         name, args = job[0], job[1:]
         m = self.mouse
         if name == "load":
             if not m.online():
                 raise MouseAsleep(_("no response"))
-            self.info.emit({"firmware": m.version(), "battery": m.battery()})
-            self.config_loaded.emit(cfg.read_image(m))
+            self._load()
+        elif name == "slot":
+            slot, keep = args
+            m.set_slot(slot)
+            self.slot = slot
+            if keep:  # back to the slot the window shows, keeping its unapplied changes
+                self.job_done.emit(name, slot)
+            else:
+                self._load()
         elif name == "battery":
             self.info.emit({"battery": m.battery()})
         elif name == "active":
             self.job_done.emit(name, m.read_flash(cfg.OFF_DPI_ACTIVE, 1)[0])
         elif name == "apply":
-            old, new = args
+            old, new, slot = args
+            if not self._same_slot(name, slot):
+                return
             m.write_fields(cfg.changed_fields(old, new), new)
             self.job_done.emit(name, new)
         elif name == "dump":
@@ -181,7 +226,9 @@ class DeviceWorker(QObject):
                 f.write(data)
             self.job_done.emit(name, args[0])
         elif name == "restore":
-            image = args[0]
+            image, slot = args
+            if not self._same_slot(name, slot):
+                return
             current = m.read_flash(0, FLASH_SIZE, lambda d, t: self.progress.emit(d, 2 * t))
             writes = cfg.restore_writes(current, image)
             for i, (addr, data) in enumerate(writes):
@@ -191,7 +238,7 @@ class DeviceWorker(QObject):
                 raise ProtocolError(_("Verification failed after restoring"))
             self.progress.emit(1, 1)
             self.job_done.emit(name, len(writes))
-            self.config_loaded.emit(cfg.read_image(m))
+            self.config_loaded.emit(cfg.read_image(m), slot)
 
 
 class DpiSpinBox(QSpinBox):
@@ -1022,9 +1069,11 @@ class BackupTab(QWidget):
 
     def __init__(self):
         super().__init__()
-        text = QLabel(_("Save a full copy of the mouse memory (6912 bytes) before making changes. "
-                        "Restoring only rewrites the parts that differ, and then the whole "
-                        "memory is verified."))
+        self.slot = 0  # active slot, for the suggested file name
+        text = QLabel(_("Save a full copy of the memory of the active slot (6912 bytes) before "
+                        "making changes. Restoring only rewrites the parts that differ, and then "
+                        "the whole memory is verified. A backup can be restored to another slot "
+                        "to copy it there."))
         text.setWordWrap(True)
         self.dump_btn = QPushButton(QIcon.fromTheme("document-save"), _("Save backup…"))
         self.restore_btn = QPushButton(QIcon.fromTheme("document-revert"), _("Restore backup…"))
@@ -1044,7 +1093,8 @@ class BackupTab(QWidget):
                         "readable JSON file that can be edited by hand: for example, one for "
                         "games and another for work. What you see on screen is saved. When you "
                         "load it, its values appear as unapplied changes; whatever the profile "
-                        "leaves out stays as it is. By default they are saved in %s, where "
+                        "leaves out stays as it is. A profile does not belong to any slot: it "
+                        "applies to the active one. By default they are saved in %s, where "
                         "<tt>m916 profile list</tt> also finds them.")
                       % profile.profiles_dir().replace(os.path.expanduser("~"), "~", 1))
         text.setWordWrap(True)
@@ -1069,7 +1119,7 @@ class BackupTab(QWidget):
         self.load_profile_btn.clicked.connect(self._load_profile)
 
     def _dump(self):
-        name = "m916-%s.bin" % time.strftime("%Y%m%d-%H%M")
+        name = "m916-slot%d-%s.bin" % (self.slot + 1, time.strftime("%Y%m%d-%H%M"))
         path, _filter = QFileDialog.getSaveFileName(self, _("Save memory backup"),
                                               os.path.join(os.path.expanduser("~"), name),
                                               _("Flash dump (*.bin)"))
@@ -1122,6 +1172,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.worker = worker
         self.image = None      # cfg.read_image() of what is stored in the mouse
+        self.slot = None       # active slot (0-based) that self.image comes from
         self.state = STATE_DISCONNECTED
         self._loading = False
         self._busy = False
@@ -1135,8 +1186,17 @@ class MainWindow(QMainWindow):
         self.battery.setFormat(_("Battery %p %"))
         self.firmware = QLabel()
         self.firmware.setEnabled(False)
+        self.slot_box = QComboBox()
+        for i in range(SLOTS):
+            self.slot_box.addItem(_("Slot %d") % (i + 1), i)
+        self.slot_box.setToolTip(_("The mouse keeps %d independent configurations. Choosing one "
+                                   "here makes it the active one in the mouse.") % SLOTS)
+        slot_label = QLabel(_("Onboard slot:"))
+        slot_label.setBuddy(self.slot_box)
         header = QHBoxLayout()
         header.addWidget(self.status, 1)
+        header.addWidget(slot_label)
+        header.addWidget(self.slot_box)
         header.addWidget(self.firmware)
         header.addWidget(self.battery)
 
@@ -1176,6 +1236,7 @@ class MainWindow(QMainWindow):
         self.reload_btn.clicked.connect(lambda: self._submit("load"))
         self.revert_btn.clicked.connect(self._revert)
         self.apply_btn.clicked.connect(self._apply)
+        self.slot_box.activated.connect(self._slot_selected)  # only when the user picks one
         self.backup.dump_requested.connect(lambda p: self._submit("dump", p))
         self.backup.restore_requested.connect(self._restore)
         self.backup.profile_save_requested.connect(self.save_profile)
@@ -1188,6 +1249,7 @@ class MainWindow(QMainWindow):
         worker.job_done.connect(self._job_done)
         worker.job_failed.connect(self._job_failed)
         worker.notified.connect(self._notified)
+        worker.slot_changed.connect(self._slot_changed)
         self._state_changed(STATE_DISCONNECTED, "", "")
 
     # --- helpers -------------------------------------------------------------------------
@@ -1215,6 +1277,7 @@ class MainWindow(QMainWindow):
         self.apply_btn.setEnabled(ready and dirty)
         self.revert_btn.setEnabled(dirty and not self._busy)
         self.reload_btn.setEnabled(self.state == STATE_ONLINE and not self._busy)
+        self.slot_box.setEnabled(ready)
         self.tabs.setEnabled(self.image is not None)
         for btn in (self.backup.dump_btn, self.backup.restore_btn):
             btn.setEnabled(self.state == STATE_ONLINE and not self._busy)
@@ -1255,7 +1318,7 @@ class MainWindow(QMainWindow):
         if errors:
             QMessageBox.warning(self, _("Invalid configuration"), "\n".join(errors))
             return
-        self._submit("apply", self.image, conf.encode(self.image))
+        self._submit("apply", self.image, conf.encode(self.image), self.slot)
 
     def _restore(self, path):
         try:
@@ -1269,10 +1332,29 @@ class MainWindow(QMainWindow):
                                  % {"file": path, "size": len(image), "expected": FLASH_SIZE})
             return
         answer = QMessageBox.question(self, _("Restore backup"),
-                                      _("The mouse memory will be rewritten with the contents of"
-                                        "\n%s\n\nUnapplied changes will be lost. Continue?") % path)
+                                      _("The memory of slot %(slot)d will be rewritten with the "
+                                        "contents of\n%(file)s\n\nUnapplied changes will be lost. "
+                                        "Continue?") % {"slot": self.slot + 1, "file": path})
         if answer == QMessageBox.StandardButton.Yes:
-            self._submit("restore", image)
+            self._submit("restore", image, self.slot)
+
+    def _slot_selected(self, index):
+        """The user picked a slot: make it the active one in the mouse and load it."""
+        slot = self.slot_box.itemData(index)
+        if slot == self.slot:
+            return
+        if self._dirty():
+            answer = QMessageBox.question(
+                self, _("Unapplied changes"),
+                _("The unapplied changes to slot %(old)d will be lost. Switch to slot %(new)d?")
+                % {"old": self.slot + 1, "new": slot + 1})
+            if answer != QMessageBox.StandardButton.Yes:
+                self._show_slot(self.slot)
+                return
+        self._submit("slot", slot, False)
+
+    def _show_slot(self, slot):
+        self.slot_box.setCurrentIndex(self.slot_box.findData(slot))
 
     def save_profile(self, path):
         errors = self.buttons.errors()
@@ -1331,9 +1413,12 @@ class MainWindow(QMainWindow):
                                    % {"level": level, "charging": " ⚡" if charging else ""})
             self.battery.setToolTip("%d mV" % mv)
 
-    def _config_loaded(self, image):
+    def _config_loaded(self, image, slot):
         self._busy = False
         self.image = image
+        self.slot = slot
+        self.backup.slot = slot
+        self._show_slot(slot)
         self._load_widgets(image)
         self._update_actions()
 
@@ -1349,6 +1434,9 @@ class MainWindow(QMainWindow):
             self.image = bytes(img)
             if not dirty:
                 self.dpi.set_active(result)
+        elif name == "slot":  # back to the slot on screen, keeping the unapplied changes
+            self._busy = False
+            self._show_slot(result)
         elif name == "dump":
             self.statusBar().showMessage(_("Backup saved to %s") % result, 8000)
         elif name == "restore":
@@ -1363,6 +1451,8 @@ class MainWindow(QMainWindow):
     def _job_failed(self, name, message):
         self._busy = False
         self.backup.set_busy(False)
+        if self.slot is not None:
+            self._show_slot(self.slot)
         self._update_actions()
         if name == "load" and self.state != STATE_ONLINE:
             return  # the status line already says the mouse is asleep
@@ -1373,8 +1463,35 @@ class MainWindow(QMainWindow):
             self.worker.submit("battery")
         if flags & STATUS_DPI:
             self.worker.submit("active")
-        if flags & ~(STATUS_BATTERY | STATUS_DPI) and not self._dirty() and not self._busy:
+        # STATUS_CONFIG (another slot): the worker asks for the slot and reports it, if it
+        # changed, with slot_changed
+        if flags & ~(STATUS_BATTERY | STATUS_DPI | STATUS_CONFIG) and not self._dirty() \
+                and not self._busy:
             self._submit("load")
+
+    def _slot_changed(self, slot):
+        """The mouse switched slots by itself (a "switch config" button)."""
+        if self.image is None or slot == self.slot:
+            return
+        self.statusBar().showMessage(_("The mouse switched to slot %d") % (slot + 1), 8000)
+        if self._dirty() and self._ask_go_back(slot):
+            self._submit("slot", self.slot, True)
+        else:
+            self._submit("load")  # queued after a job that may be running
+
+    def _ask_go_back(self, slot):
+        """True to send the mouse back to the slot on screen, False to discard the changes."""
+        box = QMessageBox(QMessageBox.Icon.Question, _("Slot changed"),
+                          _("The mouse switched to slot %(new)d, but there are unapplied changes "
+                            "to slot %(old)d.") % {"new": slot + 1, "old": self.slot + 1},
+                          parent=self)
+        back = box.addButton(_("Back to slot %d") % (self.slot + 1),
+                             QMessageBox.ButtonRole.AcceptRole)
+        box.addButton(_("Discard and show slot %d") % (slot + 1),
+                      QMessageBox.ButtonRole.DestructiveRole)
+        box.setDefaultButton(back)
+        box.exec()
+        return box.clickedButton() is back
 
     def closeEvent(self, event):
         if self._dirty():
