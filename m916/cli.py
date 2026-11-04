@@ -6,8 +6,8 @@ import time
 
 from . import config as cfg, profile
 from .i18n import _, ngettext
-from .protocol import FLASH_SIZE, STATUS_NAMES, CMD_STATUS_CHANGED, REPORT_ID, Mouse, \
-    MouseAsleep, ProtocolError, describe_link, device_link, open_mouse
+from .protocol import FLASH_SIZE, SLOTS, STATUS_NAMES, CMD_STATUS_CHANGED, REPORT_ID, Mouse, \
+    MouseAsleep, ProtocolError, describe_link, device_link, on_slot, open_mouse
 
 
 def progress_printer(label):
@@ -50,7 +50,8 @@ def cmd_info(m, args):
     level, charging, mv = m.battery()
     print_fields([(_("device"), m.path), (_("connection"), describe_link(m.link)),
                   (_("firmware"), version),
-                  (_("battery"), "%d%%%s, %d mV" % (level, _(" (charging)") if charging else "", mv))],
+                  (_("battery"), "%d%%%s, %d mV" % (level, _(" (charging)") if charging else "", mv)),
+                  (_("slot"), _("%(slot)d of %(count)d") % {"slot": m.slot() + 1, "count": SLOTS})],
                  10)
     image, conf = load(m)
     rate = cfg.RATE_HZ.get(conf.report_rate)
@@ -74,10 +75,12 @@ def cmd_info(m, args):
 
 
 def cmd_dump(m, args):
+    slot = m.slot()
     data = m.read_flash(0, FLASH_SIZE, progress_printer(_("read")))
     with open(args.file, "wb") as f:
         f.write(data)
-    print(_("saved %(size)d bytes to %(file)s") % {"size": len(data), "file": args.file})
+    print(_("saved %(size)d bytes of slot %(slot)d to %(file)s")
+          % {"size": len(data), "slot": slot + 1, "file": args.file})
 
 
 def cmd_restore(m, args):
@@ -86,15 +89,17 @@ def cmd_restore(m, args):
     if len(image) != FLASH_SIZE:
         sys.exit(_("%(file)s is %(size)d bytes, expected %(expected)d")
                  % {"file": args.file, "size": len(image), "expected": FLASH_SIZE})
-    print(_("reading current flash to compare..."))
+    slot = m.slot() + 1
+    print(_("reading the flash of slot %d to compare...") % slot)
     current = m.read_flash(0, FLASH_SIZE, progress_printer(_("read")))
     writes = cfg.restore_writes(current, image)
     if not writes:
         print(_("flash already matches the image, nothing to do"))
         return
     blocks = ", ".join("0x%04x" % a for a, _data in writes[:20]) + (" ..." if len(writes) > 20 else "")
-    print(ngettext("%(count)d block differs: %(blocks)s", "%(count)d blocks differ: %(blocks)s",
-                   len(writes)) % {"count": len(writes), "blocks": blocks})
+    print(ngettext("%(count)d block differs in slot %(slot)d: %(blocks)s",
+                   "%(count)d blocks differ in slot %(slot)d: %(blocks)s",
+                   len(writes)) % {"count": len(writes), "slot": slot, "blocks": blocks})
     # TRANSLATORS: the answer to "[y/N]" questions; "y" is also accepted
     yes = ("y", _("y"))
     if not args.yes and input(_("write them? [y/N] ")).strip().lower() not in yes:
@@ -103,7 +108,7 @@ def cmd_restore(m, args):
         m.write_flash(a, data)
     if cfg.restore_writes(m.read_flash(0, FLASH_SIZE, progress_printer(_("verify"))), image):
         sys.exit(_("verification failed after restore"))
-    print(_("restored and verified"))
+    print(_("slot %d restored and verified") % slot)
 
 
 def cmd_rate(m, args):
@@ -257,6 +262,20 @@ def cmd_profile_list(m, args):
         print(("  %-*s  %s" % (width, name, description or "")).rstrip())
 
 
+def cmd_slot(m, args):
+    if args.number is not None:
+        m.set_slot(args.number - 1)
+        print(_("active slot set to %d") % args.number)
+    else:
+        print(_("active slot: %(slot)d of %(count)d") % {"slot": m.slot() + 1, "count": SLOTS})
+
+
+def slot_number(text):
+    if text.isdigit() and 1 <= int(text) <= SLOTS:
+        return int(text)
+    raise argparse.ArgumentTypeError(_("slot must be 1..%d") % SLOTS)
+
+
 def cmd_keys(m, args):
     from . import keys
     print_fields([(_("modifiers"), " ".join(keys.MODIFIERS)), (_("keys"), " ".join(keys.KEYS)),
@@ -282,12 +301,19 @@ def build_parser():
                                  description=_("Linux configuration tool for the Redragon M916-PRO-1K."))
     ap.add_argument("-d", "--device", help=_("hidraw node (default: auto-detect)"))
     sub = ap.add_subparsers(dest="command", required=True)
+    # For the commands that can work on a slot other than the active one
+    on_slot_parser = argparse.ArgumentParser(add_help=False)
+    on_slot_parser.add_argument("-s", "--slot", metavar="N", type=slot_number,
+                                help=_("work on onboard slot 1..%d and then go back to the active "
+                                       "one (default: the active slot)") % SLOTS)
 
     sub.add_parser("info", help=_("show device status and configuration")).set_defaults(func=cmd_info)
-    p = sub.add_parser("dump", help=_("save the whole flash to a file"))
+    p = sub.add_parser("dump", parents=[on_slot_parser],
+                       help=_("save the whole flash of a slot to a file"))
     p.add_argument("file")
     p.set_defaults(func=cmd_dump)
-    p = sub.add_parser("restore", help=_("write back a flash image (only changed chunks)"))
+    p = sub.add_parser("restore", parents=[on_slot_parser],
+                       help=_("write back a flash image (only changed chunks)"))
     p.add_argument("file")
     p.add_argument("-y", "--yes", action="store_true", help=_("do not ask for confirmation"))
     p.set_defaults(func=cmd_restore)
@@ -323,13 +349,13 @@ def build_parser():
                                 "INTERVAL_MS up; 0 shots = while held), dpi-lock:DPI, "
                                 "key:COMBO (e.g. key:ctrl+c, key:mute; see 'keys')")
                               % ", ".join(cfg.BUTTON_ACTIONS))
-    p.add_argument("button", type=int, help=_("slot 1..16 (see info)"))
+    p.add_argument("button", type=int, help=_("button 1..16 (see info)"))
     p.add_argument("action")
     p.set_defaults(func=cmd_button)
     p = sub.add_parser("macro", help=_("assign a macro to a button slot"),
                        epilog=_("steps: +KEY presses, -KEY releases, a number is the delay in ms "
                                 "after the previous step, e.g. \"+ctrl 10 +c 10 -c 10 -ctrl\""))
-    p.add_argument("button", type=int, help=_("slot 1..16 (see info)"))
+    p.add_argument("button", type=int, help=_("button 1..16 (see info)"))
     p.add_argument("name", help=_("up to %d characters") % cfg.MACRO_NAME_MAX)
     p.add_argument("steps", nargs="+")
     p.add_argument("-r", "--repeat", type=parse_repeat, default=1,
@@ -342,15 +368,22 @@ def build_parser():
                                 "loading it only writes the fields that change "
                                 "(see docs/PROFILES.md)") % profile.profiles_dir())
     psub = p.add_subparsers(dest="profile_command", required=True)
-    p = psub.add_parser("save", help=_("save the current configuration"))
+    p = psub.add_parser("save", parents=[on_slot_parser], help=_("save the current configuration"))
     p.add_argument("file", metavar="NAME|FILE")
     p.add_argument("-m", "--description", help=_("text shown by 'profile list'"))
     p.set_defaults(func=cmd_profile_save)
-    p = psub.add_parser("load", help=_("apply a profile (only the fields that change)"))
+    p = psub.add_parser("load", parents=[on_slot_parser],
+                        help=_("apply a profile (only the fields that change)"))
     p.add_argument("file", metavar="NAME|FILE")
     p.add_argument("-n", "--dry-run", action="store_true", help=_("only show what would change"))
     p.set_defaults(func=cmd_profile_load)
     psub.add_parser("list", help=_("list the saved profiles")).set_defaults(func=cmd_profile_list)
+    p = sub.add_parser("slot", help=_("show or select the active onboard slot"),
+                       epilog=_("the mouse keeps %d independent configurations (slots); the other "
+                                "commands work on the active one unless they take --slot")
+                       % SLOTS)
+    p.add_argument("number", metavar="N", nargs="?", type=slot_number, help=_("slot to select (1..%d)") % SLOTS)
+    p.set_defaults(func=cmd_slot)
     sub.add_parser("keys", help=_("list key names for shortcuts and macros")).set_defaults(func=cmd_keys)
     sub.add_parser("watch", help=_("print status notifications")).set_defaults(func=cmd_watch)
     return ap
@@ -383,7 +416,9 @@ def main(argv=None):
             print(_("mouse is asleep or off: move it or click a button..."), file=sys.stderr)
             if not m.wait_online():
                 sys.exit(_("error: %s") % _("the mouse did not wake up"))
-        args.func(m, args)
+        slot = getattr(args, "slot", None)  # --slot
+        with on_slot(m, None if slot is None else slot - 1):
+            args.func(m, args)
     except (MouseAsleep, ProtocolError, OSError) as e:
         sys.exit(_("error: %s") % e)
     finally:

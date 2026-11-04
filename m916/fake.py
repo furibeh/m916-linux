@@ -4,18 +4,18 @@ import os
 import socket
 import threading
 
-from .protocol import (CMD_BATTERY, CMD_DEVICE_ONLINE, CMD_READ_FLASH, CMD_READ_VERSION,
-                       CMD_STATUS_CHANGED, CMD_WRITE_FLASH, REPORT_ID, STATUS_DPI, STATUS_DPI_LED,
-                       Mouse, checksum, with_check)
+from .protocol import (CMD_BATTERY, CMD_DEVICE_ONLINE, CMD_GET_CONFIG, CMD_READ_FLASH,
+                       CMD_READ_VERSION, CMD_SET_CONFIG, CMD_STATUS_CHANGED, CMD_WRITE_FLASH,
+                       REPORT_ID, SLOTS, STATUS_CONFIG, STATUS_DPI, STATUS_DPI_LED, Mouse, checksum,
+                       with_check)
 
 
 # Macro area (config.OFF_MACROS, 16 blocks of config.MACRO_SIZE)
 MACRO_START, MACRO_SIZE = 0x300, 0x180
 
-CMD_PAIR_STATE, CMD_CLEAR_SETTING, CMD_GET_CONFIG, CMD_SET_CONFIG = 0x06, 0x09, 0x0E, 0x0F
+CMD_PAIR_STATE, CMD_CLEAR_SETTING = 0x06, 0x09
 CMD_GET_LONG_RANGE = 0x17
 SETTINGS_SIZE = 0xC0  # what ClearSetting resets (config.CONFIG_SIZE)
-PROFILES = 4  # each one has its own flash image at the same addresses
 # Answered by the receiver itself, also while the mouse sleeps
 RECEIVER_COMMANDS = {CMD_DEVICE_ONLINE, CMD_PAIR_STATE}
 
@@ -29,10 +29,10 @@ class FakeMouse:
     receiver still answers its own commands but reports the mouse as not linked."""
 
     def __init__(self, flash):
-        self.flashes = [bytearray(flash) for _p in range(PROFILES)]
+        self.flashes = [bytearray(flash) for _s in range(SLOTS)]
         self.factory = bytes(flash[:SETTINGS_SIZE])  # stands in for the firmware defaults
         self.asleep = False
-        self.profile = 0      # Get/SetCurrentConfig: which image the flash commands see
+        self.slot = 0         # Get/SetCurrentConfig: which image the flash commands see
         self.long_range = 0   # GetLongRangeMode
         self._macro = None  # (block address, bytes received so far)
         self._host, self._dev = self._endpoint(wired=False)
@@ -40,12 +40,12 @@ class FakeMouse:
 
     @property
     def flash(self):
-        """Flash image of the active profile."""
-        return self.flashes[self.profile]
+        """Flash image of the active slot."""
+        return self.flashes[self.slot]
 
     @flash.setter
     def flash(self, data):
-        self.flashes[self.profile] = bytearray(data)
+        self.flashes[self.slot] = bytearray(data)
 
     def _endpoint(self, wired):
         host, dev = socket.socketpair(socket.AF_UNIX, socket.SOCK_SEQPACKET)
@@ -81,9 +81,9 @@ class FakeMouse:
         return ([("fake-cable", self.wired)] if self.cable else []) + [("fake", self.mouse)]
 
     def press(self, k):
-        """Press button slot k (0-based). Like the firmware, "DPI loop" stores the next level
+        """Press button k (0-based). Like the firmware, "DPI loop" stores the next level
         and "Lights (all)" toggles the DPI LED enable byte in the flash, then notify it;
-        "Switch config" (type 9) selects the next profile."""
+        "Switch config" (type 9) selects the next slot (cycling through the 4) and notifies it."""
         action = tuple(self.flash[OFF_KEYS + 4 * k:OFF_KEYS + 4 * k + 3])
         if action == (0x02, 0x01, 0x00):
             level = (self.flash[OFF_DPI_ACTIVE] + 1) % self.flash[OFF_DPI_COUNT]
@@ -93,7 +93,8 @@ class FakeMouse:
             self.flash[OFF_DPI_LED:OFF_DPI_LED + 2] = with_check([int(not self.flash[OFF_DPI_LED])])
             self.notify(STATUS_DPI_LED)
         elif action[0] == 0x09:
-            self.profile = (self.profile + 1) % PROFILES
+            self.slot = (self.slot + 1) % SLOTS
+            self.notify(STATUS_CONFIG)
 
     def notify(self, flags):
         pkt = bytearray([REPORT_ID, CMD_STATUS_CHANGED, 0, 0, 0, 0x0A, flags]).ljust(16, b"\0")
@@ -115,6 +116,7 @@ class FakeMouse:
             if not linked and cmd not in RECEIVER_COMMANDS:
                 continue  # only the receiver answers while the mouse sleeps or is on the cable
             resp = bytearray(pkt)
+            notify = 0
             if cmd == CMD_READ_FLASH:
                 resp[6:16] = bytes(self.flash[addr:addr + n]).ljust(10, b"\0")
             elif cmd == CMD_WRITE_FLASH:
@@ -134,17 +136,20 @@ class FakeMouse:
                 # 0 = no pairing since plugged in, 1 = pairing (+ seconds left), 2 = paired
                 resp[5:8] = b"\x02\x00\x00"
             elif cmd == CMD_GET_CONFIG:
-                resp[5:7] = bytes([1, self.profile])
-            elif cmd == CMD_SET_CONFIG and pkt[6] < PROFILES:
-                self.profile = pkt[6]
+                resp[5:7] = bytes([1, self.slot])
+            elif cmd == CMD_SET_CONFIG and pkt[6] < SLOTS:
+                self.slot = pkt[6]
+                notify = STATUS_CONFIG  # verified through the receiver
             elif cmd == CMD_CLEAR_SETTING:
-                # Only the settings of the active profile; shortcut and macro blocks stay
+                # Only the settings of the active slot; shortcut and macro blocks stay
                 self.flash[:SETTINGS_SIZE] = self.factory
             elif cmd == CMD_GET_LONG_RANGE:
                 resp[5:16] = bytes([10, self.long_range]) + bytes(9)
             resp[16] = checksum(resp[:16])
             try:
                 dev.send(bytes(resp))
+                if notify:
+                    self.notify(notify)
             except OSError:
                 return
 

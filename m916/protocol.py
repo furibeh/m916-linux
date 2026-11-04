@@ -4,6 +4,7 @@
 Packet (17 bytes): 08 CMD 00 ADDR_H ADDR_L LEN DATA[10] CHK, CHK = 0x55 - sum(bytes 0..15).
 See docs/PROTOCOL.md.
 """
+import contextlib
 import glob
 import os
 import select
@@ -17,12 +18,15 @@ PIDS = {0xF55E: "wired", 0xF55F: "dongle", 0xF5D5: "dongle"}
 REPORT_ID = 0x08
 FLASH_SIZE = 0x1B00  # DataParser.MAX_FLASH_SIZE
 CHUNK = 10           # DataParser.USB_PACKET_DATA_SIZE
+SLOTS = 4            # onboard profiles, each with its own flash image at the same addresses
 
 CMD_DEVICE_ONLINE = 0x03
 CMD_BATTERY = 0x04
 CMD_WRITE_FLASH = 0x07
 CMD_READ_FLASH = 0x08
 CMD_STATUS_CHANGED = 0x0A
+CMD_GET_CONFIG = 0x0E  # active slot (onboard profile)
+CMD_SET_CONFIG = 0x0F
 CMD_READ_VERSION = 0x12
 
 # Bits of the StatusChanged notification (DriverLib.DeviceStatusChanged)
@@ -238,7 +242,51 @@ class Mouse:
             time.sleep(0.2)
         return True
 
+    def slot(self, retries=5, timeout=1.0):
+        """Active slot, 0-based (answered by the mouse, not by the receiver)."""
+        _pkt, r = self.transact(CMD_GET_CONFIG, retries=retries, timeout=timeout)
+        return r[6]
+
+    def set_slot(self, slot):
+        """Select the active slot (0-based): flash reads and writes go to its image at once."""
+        if not 0 <= slot < SLOTS:
+            raise ValueError(_("slot must be 1..%d") % SLOTS)
+        pkt, resp = self.transact(CMD_SET_CONFIG, data=[slot])
+        if resp != pkt:
+            raise ProtocolError(_("slot change not acknowledged (got %s)") % resp.hex(" "))
+        if self.slot() != slot:
+            raise ProtocolError(_("the mouse did not switch to slot %d") % (slot + 1))
+
     def battery(self):
         """(level %, charging, millivolts)"""
         _pkt, r = self.transact(CMD_BATTERY)
         return r[6], bool(r[7]), r[8] << 8 | r[9]
+
+
+@contextlib.contextmanager
+def on_slot(m, slot):
+    """Run the block on `slot` (0-based) and go back to the active slot afterwards, also when
+    the block fails. With None, or the slot already active, it just runs the block."""
+    if slot is None:
+        yield
+        return
+    original = m.slot()
+    if original == slot:
+        yield
+        return
+    m.set_slot(slot)
+    error = None
+    try:
+        yield
+    except BaseException as e:
+        error = e
+        raise
+    finally:
+        try:
+            m.set_slot(original)
+        except (MouseAsleep, ProtocolError, OSError) as e:
+            msg = _("could not go back to slot %(original)d (%(error)s); the mouse stayed on "
+                    "slot %(slot)d") % {"original": original + 1, "error": e, "slot": slot + 1}
+            if error is not None:
+                msg = "%s; %s" % (error, msg)
+            raise ProtocolError(msg) from (error or e)

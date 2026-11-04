@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: m916-linux\n"
 "Report-Msgid-Bugs-To: https://github.com/furibeh/m916-linux/issues\n"
-"POT-Creation-Date: 2026-11-03 22:40-0500\n"
+"POT-Creation-Date: 2026-11-04 00:13-0500\n"
 "PO-Revision-Date: 2026-10-31 12:00-0500\n"
 "Last-Translator: furibeh\n"
 "Language-Team: Spanish\n"
@@ -26,10 +26,10 @@ msgstr "%(count)d (activo: %(active)d)"
 
 #: m916/cli.py
 #, python-format
-msgid "%(count)d block differs: %(blocks)s"
-msgid_plural "%(count)d blocks differ: %(blocks)s"
-msgstr[0] "difiere %(count)d bloque: %(blocks)s"
-msgstr[1] "difieren %(count)d bloques: %(blocks)s"
+msgid "%(count)d block differs in slot %(slot)d: %(blocks)s"
+msgid_plural "%(count)d blocks differ in slot %(slot)d: %(blocks)s"
+msgstr[0] "difiere %(count)d bloque en la ranura %(slot)d: %(blocks)s"
+msgstr[1] "difieren %(count)d bloques en la ranura %(slot)d: %(blocks)s"
 
 #: m916/cli.py
 #, python-format
@@ -47,6 +47,11 @@ msgstr "%(file)s tiene %(size)d bytes; se esperaban %(expected)d"
 #, python-format
 msgid "%(option)s set to %(value)d"
 msgstr "%(option)s: %(value)d"
+
+#: m916/cli.py
+#, python-format
+msgid "%(slot)d of %(count)d"
+msgstr "%(slot)d de %(count)d"
 
 #: m916/cli.py
 #, python-format
@@ -120,6 +125,16 @@ msgid "active DPI level set to %d"
 msgstr "nivel de DPI activo: %d"
 
 #: m916/cli.py
+#, python-format
+msgid "active slot set to %d"
+msgstr "ranura activa: %d"
+
+#: m916/cli.py
+#, python-format
+msgid "active slot: %(slot)d of %(count)d"
+msgstr "ranura activa: %(slot)d de %(count)d"
+
+#: m916/cli.py
 msgid "apply a profile (only the fields that change)"
 msgstr "aplica un perfil (solo los campos que cambian)"
 
@@ -144,6 +159,10 @@ msgstr "batería"
 #, python-format
 msgid "button %(button)d set to %(action)s"
 msgstr "botón %(button)d: %(action)s"
+
+#: m916/cli.py
+msgid "button 1..16 (see info)"
+msgstr "botón 1..16 (ver info)"
 
 #: m916/cli.py
 #, python-format
@@ -292,8 +311,9 @@ msgid "read"
 msgstr "leyendo"
 
 #: m916/cli.py
-msgid "reading current flash to compare..."
-msgstr "leyendo la flash actual para comparar..."
+#, python-format
+msgid "reading the flash of slot %d to compare..."
+msgstr "leyendo la flash de la ranura %d para comparar..."
 
 #: m916/cli.py
 msgid "report rate"
@@ -305,16 +325,12 @@ msgid "report rate set to %d Hz"
 msgstr "frecuencia de sondeo: %d Hz"
 
 #: m916/cli.py
-msgid "restored and verified"
-msgstr "restaurada y verificada"
-
-#: m916/cli.py
 msgid "save the current configuration"
 msgstr "guarda la configuración actual"
 
 #: m916/cli.py
-msgid "save the whole flash to a file"
-msgstr "guarda toda la flash en un archivo"
+msgid "save the whole flash of a slot to a file"
+msgstr "guarda toda la flash de una ranura en un archivo"
 
 #: m916/cli.py
 msgid "save, load or list JSON profiles"
@@ -322,8 +338,8 @@ msgstr "guarda, carga o lista perfiles JSON"
 
 #: m916/cli.py
 #, python-format
-msgid "saved %(size)d bytes to %(file)s"
-msgstr "guardados %(size)d bytes en %(file)s"
+msgid "saved %(size)d bytes of slot %(slot)d to %(file)s"
+msgstr "guardados %(size)d bytes de la ranura %(slot)d en %(file)s"
 
 #: m916/cli.py
 msgid "select the active DPI level"
@@ -354,8 +370,27 @@ msgid "show device status and configuration"
 msgstr "muestra el estado y la configuración del dispositivo"
 
 #: m916/cli.py
-msgid "slot 1..16 (see info)"
-msgstr "posición 1..16 (ver info)"
+msgid "show or select the active onboard slot"
+msgstr "muestra o elige la ranura activa del ratón"
+
+#: m916/cli.py
+msgid "slot"
+msgstr "ranura"
+
+#: m916/cli.py
+#, python-format
+msgid "slot %d restored and verified"
+msgstr "ranura %d restaurada y verificada"
+
+#: m916/cli.py m916/protocol.py
+#, python-format
+msgid "slot must be 1..%d"
+msgstr "la ranura debe estar entre 1 y %d"
+
+#: m916/cli.py
+#, python-format
+msgid "slot to select (1..%d)"
+msgstr "ranura que se activa (1..%d)"
 
 #: m916/cli.py
 msgid ""
@@ -376,6 +411,15 @@ msgstr "el ratón ya coincide con el perfil; no hay nada que hacer"
 #: m916/cli.py
 msgid "the mouse did not wake up"
 msgstr "el ratón no se ha despertado"
+
+#: m916/cli.py
+#, python-format
+msgid ""
+"the mouse keeps %d independent configurations (slots); the other commands "
+"work on the active one unless they take --slot"
+msgstr ""
+"el ratón guarda %d configuraciones independientes (ranuras); los demás "
+"comandos trabajan sobre la activa, salvo los que admiten --slot"
 
 #: m916/cli.py
 #, python-format
@@ -414,6 +458,15 @@ msgstr "aviso: bytes de comprobación incorrectos en %s"
 #, python-format
 msgid "warning: unknown report rate code 0x%02x left out"
 msgstr "aviso: se omite el código de frecuencia de sondeo desconocido 0x%02x"
+
+#: m916/cli.py
+#, python-format
+msgid ""
+"work on onboard slot 1..%d and then go back to the active one (default: the "
+"active slot)"
+msgstr ""
+"trabaja sobre la ranura 1..%d del ratón y después vuelve a la activa (por "
+"defecto, la ranura activa)"
 
 #: m916/cli.py
 msgid "write back a flash image (only changed chunks)"
@@ -1515,6 +1568,15 @@ msgstr "cable"
 #: m916/protocol.py
 #, python-format
 msgid ""
+"could not go back to slot %(original)d (%(error)s); the mouse stayed on slot "
+"%(slot)d"
+msgstr ""
+"no se pudo volver a la ranura %(original)d (%(error)s); el ratón se quedó en "
+"la ranura %(slot)d"
+
+#: m916/protocol.py
+#, python-format
+msgid ""
 "no response to command 0x%(cmd)02x at 0x%(addr)04x (mouse asleep or off? "
 "move it and try again)"
 msgstr ""
@@ -1524,6 +1586,16 @@ msgstr ""
 #: m916/protocol.py
 msgid "receiver"
 msgstr "receptor"
+
+#: m916/protocol.py
+#, python-format
+msgid "slot change not acknowledged (got %s)"
+msgstr "cambio de ranura no confirmado (respuesta: %s)"
+
+#: m916/protocol.py
+#, python-format
+msgid "the mouse did not switch to slot %d"
+msgstr "el ratón no ha cambiado a la ranura %d"
 
 #: m916/protocol.py
 msgid "unknown"

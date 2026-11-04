@@ -11,12 +11,13 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 os.environ["LANGUAGE"] = "en"  # tests compare the English source strings
 from m916 import cli, config as cfg  # noqa: E402
 from m916.fake import FakeMouse  # noqa: E402
-from m916.protocol import FLASH_SIZE, MouseAsleep, open_mouse  # noqa: E402
+from m916.protocol import FLASH_SIZE, MouseAsleep, ProtocolError, on_slot, open_mouse  # noqa: E402
 
 FIXTURE = os.path.join(os.path.dirname(__file__), "fixtures", "m916_flash.bin")
 
@@ -85,6 +86,7 @@ class M916Test(unittest.TestCase):
         self.assertIn("* 2:  2000 DPI  colour #0000ff", out)
         self.assertIn("5: 26000 DPI", out)
         self.assertIn("12: fire (10 ms down, 10 ms up, 3 shots)", out)
+        self.assertIn("slot      : 1 of 4", out)
         self.assertNotIn("warning", out)
 
     def test_writes_touch_only_expected_bytes(self):
@@ -215,7 +217,7 @@ class M916Test(unittest.TestCase):
         self.assertEqual(self.mouse.read_flash(0x4E, 2), self.original[0x4E:0x50])
         self.mouse.transact(0x0F, data=b"\x00")
         self.assertEqual(self.mouse.read_flash(0x4E, 2), bytes([0x10, 0x45]))
-        # A "switch config" button goes to the next profile
+        # A "switch config" button goes to the next slot
         self.fake.flash[0x6C:0x70] = bytes([0x09, 0, 0, 0x4C])
         self.fake.press(3)
         self.assertEqual(self.mouse.transact(0x0E)[1][6], 1)
@@ -240,6 +242,135 @@ class M916Test(unittest.TestCase):
         time.sleep(0.1)
         self.assertEqual(self.mouse.poll_notifications(), [0x41, 0x01])
         self.assertEqual(self.mouse.poll_notifications(), [])
+
+
+class SlotTest(unittest.TestCase):
+    """The 4 onboard slots (GetCurrentConfig 0x0E / SetCurrentConfig 0x0F): each one has its own
+    flash image, verified on the hardware."""
+
+    def setUp(self):
+        with open(FIXTURE, "rb") as f:
+            self.original = f.read()
+        self.fake = FakeMouse(self.original)
+        self.fake.flashes[1][0x4E:0x50] = bytes([0x10, 0x45])  # slot 2: brightness 16
+        self.mouse = self.fake.mouse()
+        self.tmp = tempfile.TemporaryDirectory()
+
+    def tearDown(self):
+        self.mouse.close()
+        self.fake.close()
+        self.tmp.cleanup()
+
+    def main(self, *argv):
+        """Run the CLI on the fake mouse; returns (exit code or None, stdout)."""
+        out = io.StringIO()
+        with mock.patch.object(cli, "open_mouse", lambda: self.fake.mouse()), \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
+            try:
+                cli.main(list(argv))
+            except SystemExit as e:
+                return e.code, out.getvalue()
+        return None, out.getvalue()
+
+    def path(self, name):
+        return os.path.join(self.tmp.name, name)
+
+    def slot2_backup(self):
+        """A dump of slot 2, written directly (a real dump takes ~5 s)."""
+        with open(self.path("s2.bin"), "wb") as f:
+            f.write(self.fake.flashes[1])
+        return self.path("s2.bin")
+
+    def test_get_and_set(self):
+        self.assertEqual(self.mouse.slot(), 0)
+        self.mouse.set_slot(3)
+        self.assertEqual(self.fake.slot, 3)
+        self.assertEqual(self.mouse.slot(), 3)
+        with self.assertRaises(ValueError):
+            self.mouse.set_slot(4)
+        self.assertEqual(self.fake.slot, 3)
+
+    def test_slot_changes_are_notified(self):
+        # Verified on the hardware (receiver): 0x0F and a "switch config" button (type 9) send
+        # StatusChanged with isConfigChanged, and the button cycles through the 4 slots
+        self.mouse.set_slot(2)
+        time.sleep(0.1)
+        self.assertEqual(self.mouse.poll_notifications(), [0x04])
+        self.fake.press(4)  # button 5 is "forward" in every slot of the fixture
+        self.assertEqual(self.fake.slot, 2)
+        for flash in self.fake.flashes:
+            flash[0x70:0x74] = bytes([0x09, 0, 0, 0x4C])  # button 5: switch config
+        seen = []
+        for _press in range(4):
+            self.fake.press(4)
+            seen.append(self.mouse.slot())
+        self.assertEqual(seen, [3, 0, 1, 2])
+        time.sleep(0.1)
+        self.assertEqual(self.mouse.poll_notifications(), [0x04] * 4)
+
+    def test_on_slot_goes_back(self):
+        with on_slot(self.mouse, 2):
+            self.assertEqual(self.fake.slot, 2)
+        self.assertEqual(self.fake.slot, 0)
+        with on_slot(self.mouse, None):
+            self.assertEqual(self.fake.slot, 0)
+
+    def test_on_slot_goes_back_when_the_block_fails(self):
+        with self.assertRaises(ProtocolError):
+            with on_slot(self.mouse, 1):
+                raise ProtocolError("write failed")
+        self.assertEqual(self.fake.slot, 0)
+
+    def test_on_slot_reports_when_it_cannot_go_back(self):
+        with self.assertRaises(ProtocolError) as cm:
+            with on_slot(self.mouse, 1):
+                self.mouse.transact = mock.Mock(side_effect=MouseAsleep("no answer"))
+        self.assertIn("the mouse stayed on slot 2", str(cm.exception))
+        self.assertEqual(self.fake.slot, 1)
+
+    def test_slot_command(self):
+        self.assertEqual(self.main("slot"), (None, "active slot: 1 of 4\n"))
+        self.assertEqual(self.main("slot", "3"), (None, "active slot set to 3\n"))
+        self.assertEqual(self.fake.slot, 2)
+        code, _out = self.main("slot", "5")
+        self.assertEqual(code, 2)  # argparse rejects it before touching the mouse
+        self.assertEqual(self.fake.slot, 2)
+
+    def test_dump_slot(self):
+        code, out = self.main("dump", "--slot", "2", self.path("s2.bin"))
+        self.assertIsNone(code)
+        self.assertIn("of slot 2 to", out)
+        with open(self.path("s2.bin"), "rb") as f:
+            self.assertEqual(f.read(), bytes(self.fake.flashes[1]))
+        self.assertEqual(self.fake.slot, 0)
+
+    def test_restore_into_another_slot(self):
+        # Copy slot 2 into slot 3, without touching the active slot 1
+        code, out = self.main("restore", "--slot", "3", "--yes", self.slot2_backup())
+        self.assertIsNone(code)
+        self.assertIn("slot 3 restored and verified", out)
+        self.assertEqual(self.fake.flashes[2], self.fake.flashes[1])
+        self.assertEqual(bytes(self.fake.flashes[0]), self.original)
+        self.assertEqual(self.fake.slot, 0)
+
+    def test_restore_failure_goes_back(self):
+        backup = self.slot2_backup()
+        with mock.patch("m916.protocol.Mouse.write_flash",
+                        side_effect=ProtocolError("write not acknowledged")):
+            code, _out = self.main("restore", "--slot", "3", "--yes", backup)
+        self.assertIn("write not acknowledged", code)
+        self.assertEqual(self.fake.slot, 0)
+        self.assertEqual(bytes(self.fake.flashes[2]), self.original)
+
+    def test_profile_slot(self):
+        code, _out = self.main("profile", "save", "--slot", "2", self.path("p.json"))
+        self.assertIsNone(code)
+        code, out = self.main("profile", "load", "--slot", "4", self.path("p.json"))
+        self.assertIsNone(code)
+        self.assertIn("profile applied and verified", out)
+        self.assertEqual(self.fake.flashes[3][0x4E:0x50], bytes([0x10, 0x45]))
+        self.assertEqual(bytes(self.fake.flashes[0]), self.original)
+        self.assertEqual(self.fake.slot, 0)
 
 
 class CableTest(unittest.TestCase):

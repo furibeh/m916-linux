@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: m916-linux 0.3.1\n"
 "Report-Msgid-Bugs-To: https://github.com/furibeh/m916-linux/issues\n"
-"POT-Creation-Date: 2026-11-03 23:12-0500\n"
+"POT-Creation-Date: 2026-11-04 00:13-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -46,6 +46,15 @@ msgstr ""
 
 #: m916/cli.py
 msgid "battery"
+msgstr ""
+
+#: m916/cli.py
+#, python-format
+msgid "%(slot)d of %(count)d"
+msgstr ""
+
+#: m916/cli.py
+msgid "slot"
 msgstr ""
 
 #: m916/cli.py
@@ -89,7 +98,7 @@ msgstr ""
 
 #: m916/cli.py
 #, python-format
-msgid "saved %(size)d bytes to %(file)s"
+msgid "saved %(size)d bytes of slot %(slot)d to %(file)s"
 msgstr ""
 
 #: m916/cli.py
@@ -98,7 +107,8 @@ msgid "%(file)s is %(size)d bytes, expected %(expected)d"
 msgstr ""
 
 #: m916/cli.py
-msgid "reading current flash to compare..."
+#, python-format
+msgid "reading the flash of slot %d to compare..."
 msgstr ""
 
 #: m916/cli.py
@@ -107,8 +117,8 @@ msgstr ""
 
 #: m916/cli.py
 #, python-format
-msgid "%(count)d block differs: %(blocks)s"
-msgid_plural "%(count)d blocks differ: %(blocks)s"
+msgid "%(count)d block differs in slot %(slot)d: %(blocks)s"
+msgid_plural "%(count)d blocks differ in slot %(slot)d: %(blocks)s"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -130,7 +140,8 @@ msgid "verification failed after restore"
 msgstr ""
 
 #: m916/cli.py
-msgid "restored and verified"
+#, python-format
+msgid "slot %d restored and verified"
 msgstr ""
 
 #: m916/cli.py
@@ -235,6 +246,21 @@ msgid "profiles in %s:"
 msgstr ""
 
 #: m916/cli.py
+#, python-format
+msgid "active slot set to %d"
+msgstr ""
+
+#: m916/cli.py
+#, python-format
+msgid "active slot: %(slot)d of %(count)d"
+msgstr ""
+
+#: m916/cli.py m916/protocol.py
+#, python-format
+msgid "slot must be 1..%d"
+msgstr ""
+
+#: m916/cli.py
 msgid "keys"
 msgstr ""
 
@@ -271,11 +297,18 @@ msgid "hidraw node (default: auto-detect)"
 msgstr ""
 
 #: m916/cli.py
+#, python-format
+msgid ""
+"work on onboard slot 1..%d and then go back to the active one (default: the "
+"active slot)"
+msgstr ""
+
+#: m916/cli.py
 msgid "show device status and configuration"
 msgstr ""
 
 #: m916/cli.py
-msgid "save the whole flash to a file"
+msgid "save the whole flash of a slot to a file"
 msgstr ""
 
 #: m916/cli.py
@@ -335,7 +368,7 @@ msgid ""
 msgstr ""
 
 #: m916/cli.py
-msgid "slot 1..16 (see info)"
+msgid "button 1..16 (see info)"
 msgstr ""
 
 #: m916/cli.py
@@ -388,6 +421,22 @@ msgstr ""
 
 #: m916/cli.py
 msgid "list the saved profiles"
+msgstr ""
+
+#: m916/cli.py
+msgid "show or select the active onboard slot"
+msgstr ""
+
+#: m916/cli.py
+#, python-format
+msgid ""
+"the mouse keeps %d independent configurations (slots); the other commands "
+"work on the active one unless they take --slot"
+msgstr ""
+
+#: m916/cli.py
+#, python-format
+msgid "slot to select (1..%d)"
 msgstr ""
 
 #: m916/cli.py
@@ -1476,4 +1525,21 @@ msgstr ""
 #: m916/protocol.py
 #, python-format
 msgid "verification failed at 0x%04x"
+msgstr ""
+
+#: m916/protocol.py
+#, python-format
+msgid "slot change not acknowledged (got %s)"
+msgstr ""
+
+#: m916/protocol.py
+#, python-format
+msgid "the mouse did not switch to slot %d"
+msgstr ""
+
+#: m916/protocol.py
+#, python-format
+msgid ""
+"could not go back to slot %(original)d (%(error)s); the mouse stayed on slot "
+"%(slot)d"
 msgstr ""
