@@ -177,6 +177,13 @@ class GuiTest(unittest.TestCase):
         self.assertEqual(self.flash()[0x52], 0)
         self.assertEqual(self.flash()[0xAD], 30)
 
+    def test_title_marks_unsaved_changes(self):
+        from m916 import gui
+        w = self.window
+        self.assertEqual(w.windowTitle(), gui.APP_NAME)
+        w.dpi.count.setValue(2)
+        self.assertEqual(w.windowTitle(), gui.APP_NAME + " *")
+
     def test_fewer_levels_moves_active(self):
         w = self.window
         w.dpi.rows[3][0].setChecked(True)   # level 4 active

@@ -23,6 +23,7 @@ from .protocol import (FLASH_SIZE, STATUS_BATTERY, STATUS_DPI, Mouse, MouseAslee
 
 STATE_DISCONNECTED, STATE_ASLEEP, STATE_ONLINE = "disconnected", "asleep", "online"
 APP_ID = "io.github.furibeh.m916-linux"
+APP_NAME = "M916 Configurator"  # not "Redragon …": this is not an official Redragon app
 
 
 def app_icon():
@@ -1107,7 +1108,7 @@ class MainWindow(QMainWindow):
         self.state = STATE_DISCONNECTED
         self._loading = False
         self._busy = False
-        self.setWindowTitle("Redragon M916-PRO-1K")
+        self.setWindowTitle(APP_NAME)
         self.setWindowIcon(app_icon())
 
         self.status = QLabel()
@@ -1202,7 +1203,7 @@ class MainWindow(QMainWindow):
             btn.setEnabled(self.state == STATE_ONLINE and not self._busy)
         for btn in (self.backup.save_profile_btn, self.backup.load_profile_btn):
             btn.setEnabled(self.image is not None and not self._busy)
-        self.setWindowTitle("Redragon M916-PRO-1K" + (" *" if dirty else ""))
+        self.setWindowTitle(APP_NAME + (" *" if dirty else ""))
 
     def _load_widgets(self, image):
         self._loading = True
