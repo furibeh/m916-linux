@@ -6,8 +6,7 @@
 
 A tool to configure the **Redragon M916-PRO-1K** mouse on Linux, without the official Windows
 program. It talks to the mouse over `hidraw` with the same protocol as the original
-configurator, reconstructed by reverse engineering (see [docs/PROTOCOL.md](docs/PROTOCOL.md),
-in Spanish).
+configurator, reconstructed by reverse engineering (see [docs/PROTOCOL.md](docs/PROTOCOL.md)).
 
 Tested with the `3554:F5D5` wireless receiver and over the USB cable (`3554:F55E`). While the
 cable is plugged in the mouse only answers through it, so the tool uses the cable and goes back
@@ -164,7 +163,7 @@ partial profile only touches the polling rate, two DPI levels and three buttons:
 Profiles are saved in `~/.config/m916/profiles/`: on the CLI the name is enough
 (`m916 profile load games`), although any path ending in `.json` works too. `m916 profile save`
 writes a complete profile. The full format (options, rapid fire, media keys, macros and
-validation) is described in [docs/PROFILES.md](docs/PROFILES.md) (in Spanish).
+validation) is described in [docs/PROFILES.md](docs/PROFILES.md).
 
 ## Translations
 

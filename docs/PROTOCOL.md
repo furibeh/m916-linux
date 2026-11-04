@@ -1,314 +1,318 @@
-# Protocolo del Redragon M916-PRO-1K
+# Redragon M916-PRO-1K protocol
 
-Reconstruido por ingeniería inversa del configurador oficial de Windows
-("Mouse Drive Beta" 1.0.0.4) y verificado sobre el ratón real con el receptor `3554:F5D5`.
+Reconstructed by reverse engineering the official Windows configurator
+("Mouse Drive Beta" 1.0.0.4) and verified on the real mouse with the `3554:F5D5` receiver.
 
-Leyenda de confianza:
-**[HW]** comprobado en el ratón · **[RE]** leído en el código (DLL/IL), sin probar en hardware ·
-**[?]** hipótesis.
+Confidence legend:
+**[HW]** tested on the mouse · **[RE]** read in the code (DLL/IL), not tested on hardware ·
+**[?]** hypothesis.
 
-## Arquitectura del programa original
+## Architecture of the original program
 
-- `Mouse Drive Beta.exe`: interfaz WinForms en .NET Framework 4.8. La clase `DriverLib.UsbServer`
-  solo hace P/Invoke a la DLL nativa.
-- `hidusb.dll` / `hidusb32.dll`: C++ nativo, embebido en el .exe con Costura
-  (ver `tools/extract_native.py`). Usa `SetupDi*`, `CreateFileW`, `WriteFile`/`ReadFile`
-  y `HidD_SetFeature`. Toda la lógica del protocolo está aquí.
-- `Config.ini`: valores en base64. VID `0x3554`; PID por cable `0xF55E` (comprobado [HW]); PID del dongle
-  `0xF55E,F55F`; sensor `3395` (PixArt PAW3395); MCU del ratón `CX52850P`; MCU del dongle
-  `CX52650N`; `CH32V305`. El receptor que se probó usa **`0xF5D5`**, un PID que no aparece en
-  `Config.ini` (la app también lee un campo `D4_PID`).
+- `Mouse Drive Beta.exe`: WinForms interface on .NET Framework 4.8. The `DriverLib.UsbServer`
+  class only does P/Invoke into the native DLL.
+- `hidusb.dll` / `hidusb32.dll`: native C++, embedded in the .exe with Costura
+  (see `tools/extract_native.py`). It uses `SetupDi*`, `CreateFileW`, `WriteFile`/`ReadFile`
+  and `HidD_SetFeature`. All the protocol logic is here.
+- `Config.ini`: base64 values. VID `0x3554`; cable PID `0xF55E` (checked [HW]); dongle PID
+  `0xF55E,F55F`; sensor `3395` (PixArt PAW3395); mouse MCU `CX52850P`; dongle MCU
+  `CX52650N`; `CH32V305`. The tested receiver uses **`0xF5D5`**, a PID that does not appear in
+  `Config.ini` (the app also reads a `D4_PID` field).
 
-## Transporte  [HW]
+## Transport  [HW]
 
-- Interfaz HID 1 (`mi_01`), colección 5 (`col05`): página de fabricante `0xFF02`, report ID 8,
-  16 bytes de entrada y 16 de salida. En Linux es un único `/dev/hidrawN` por interfaz; se
-  identifica porque su descriptor contiene `85 08`.
-- La app de Windows abre el mismo dispositivo dos veces, una para lectura y otra para escritura.
-  En hidraw basta con `write()` + `read()` sobre el mismo nodo.
-- La DLL deja ≥ 8 ms entre envíos y espera 1 s por respuesta, con hasta 5 reintentos.
-- Comando 0x03 (online): **responde el receptor**; `data[0]=1` significa que el ratón está
-  despierto y enlazado. 0x06 también lo responde el receptor. Los demás (incluido 0x17) los
-  responde el ratón: si está dormido no hay respuesta. [HW]
-- Las peticiones de lectura sin parámetros van con `LEN=0` y los datos a cero. En algunas
-  respuestas hay datos válidos más allá de `LEN` (0x03 devuelve `LEN=1` con 4 bytes; 0x04,
-  `LEN=2` con 4). [HW]
+- HID interface 1 (`mi_01`), collection 5 (`col05`): vendor page `0xFF02`, report ID 8,
+  16 bytes of input and 16 of output. On Linux there is a single `/dev/hidrawN` per interface;
+  it is the one whose descriptor contains `85 08`.
+- The Windows app opens the same device twice, once for reading and once for writing.
+  With hidraw, `write()` + `read()` on the same node is enough.
+- The DLL waits ≥ 8 ms between sends and 1 s for a reply, with up to 5 retries.
+- Command 0x03 (online): **the receiver answers it**; `data[0]=1` means the mouse is awake
+  and linked. The receiver also answers 0x06. The mouse answers the rest (0x17 included):
+  if it is asleep there is no reply. [HW]
+- Read requests without parameters use `LEN=0` and zeroed data. Some replies carry valid data
+  beyond `LEN` (0x03 returns `LEN=1` with 4 bytes; 0x04, `LEN=2` with 4). [HW]
 
-## Paquete  [HW]
+## Packet  [HW]
 
 ```
 08 CMD 00 ADDR_H ADDR_L LEN DATA[10] CHK          (17 bytes)
-CHK = (0x55 - suma(bytes 0..15)) & 0xFF
+CHK = (0x55 - sum(bytes 0..15)) & 0xFF
 ```
 
-La respuesta tiene el mismo formato y checksum, con el mismo `CMD`. En la escritura de flash
-(0x07) el ratón devuelve el paquete idéntico byte a byte, y la DLL lo exige.
+The reply has the same format and checksum, with the same `CMD`. On flash writes (0x07) the
+mouse echoes the packet byte for byte, and the DLL requires it.
 
-## Comandos  (`DriverLib.UsbCommandID`)
+## Commands  (`DriverLib.UsbCommandID`)
 
-| ID | Nombre | Notas |
+| ID | Name | Notes |
 |---|---|---|
-| 0x01 | EncryptionData | La DLL envía `LEN=8` y 4 bytes aleatorios en `data[0..3]` (`UsbServer_ReadEncryption`). La UI principal no lo usa. [RE] Lo responde el ratón con `LEN=8`: `data[0..3]` es una función determinista de los 4 bytes enviados (`00 00 00 00` → `17 05 00 00`, `01 00 00 00` → `18 05 00 01`, `00 00 00 01` → `17 05 01 04`), y `data[4..5]` vale siempre `17 05`. Parece un desafío y respuesta. **No hace falta** para leer o escribir la flash ni para 0x0F o 0x16. [HW] |
-| 0x02 | PCDriverStatus | `data[0]=1` al conectar la app. No hace falta para leer ni escribir. [RE] |
-| 0x03 | DeviceOnLine | Respuesta `LEN=1`, `01 25 81 06`: online + 3 bytes del receptor. Los 3 bytes no cambian con el ratón dormido ni al desenchufar y enchufar el receptor; su significado sigue sin aclarar. [HW] |
-| 0x04 | BatteryLevel | `nivel%, cargando, mV_hi, mV_lo` (p. ej. `64 00 10 48` = 100 %, 4168 mV). [HW] |
-| 0x05 | DongleEnterPair | `LEN=2`, `[cid, mid]`; la app envía `00 00` (`UsbServer_EnterDonglePairWithCidMid`). La respuesta repite el paquete; el receptor suelta el ratón y espera ~20 s. Para volver a enlazarlo: izquierdo + derecho + central a la vez hasta que el LED parpadee en amarillo. [HW] |
-| 0x06 | GetPairState | Petición `LEN=0` (`UsbServer_ReadDonglePairStatus`). Lo responde el receptor, también con el ratón dormido: `LEN=2`, `[estado, segundos]`. `00 00` sin emparejamiento desde que se enchufó; `01 nn` emparejando, con nn = segundos restantes (empieza en 0x13 y baja uno por segundo); `02 00` emparejado y se mantiene así. El fallo no se ha visto. [HW] |
-| 0x07 | WriteFlashData | `ADDR`, `LEN ≤ 10`, datos. [HW] |
-| 0x08 | ReadFlashData | `ADDR`, `LEN ≤ 10`; los datos vuelven en `DATA`. [HW] |
-| 0x09 | ClearSetting | Petición `LEN=0` (`UsbServer_SetClearSetting`); la respuesta repite el paquete. Restablece **solo la cabecera 0x00–0xBF de la ranura activa** a los valores de fábrica (idéntica a la de las ranuras nunca usadas). No toca los bloques de atajo y macro, las demás ranuras, el largo alcance ni el emparejamiento. [HW] |
-| 0x0A | StatusChanged | **Notificación espontánea** del ratón (ver abajo). [HW] |
+| 0x01 | EncryptionData | The DLL sends `LEN=8` and 4 random bytes in `data[0..3]` (`UsbServer_ReadEncryption`). The main UI does not use it. [RE] The mouse answers with `LEN=8`: `data[0..3]` is a deterministic function of the 4 bytes sent (`00 00 00 00` → `17 05 00 00`, `01 00 00 00` → `18 05 00 01`, `00 00 00 01` → `17 05 01 04`), and `data[4..5]` is always `17 05`. It looks like a challenge and response. It is **not needed** to read or write the flash, nor for 0x0F or 0x16. [HW] |
+| 0x02 | PCDriverStatus | `data[0]=1` when the app connects. Not needed to read or write. [RE] |
+| 0x03 | DeviceOnLine | Reply `LEN=1`, `01 25 81 06`: online + 3 receiver bytes. The 3 bytes do not change with the mouse asleep or when the receiver is unplugged and plugged in again; their meaning is still unclear. [HW] |
+| 0x04 | BatteryLevel | `level%, charging, mV_hi, mV_lo` (e.g. `64 00 10 48` = 100 %, 4168 mV). [HW] |
+| 0x05 | DongleEnterPair | `LEN=2`, `[cid, mid]`; the app sends `00 00` (`UsbServer_EnterDonglePairWithCidMid`). The reply echoes the packet; the receiver drops the mouse and waits ~20 s. To link it again: left + right + middle at once until the LED blinks yellow. [HW] |
+| 0x06 | GetPairState | Request `LEN=0` (`UsbServer_ReadDonglePairStatus`). The receiver answers it, also with the mouse asleep: `LEN=2`, `[state, seconds]`. `00 00` no pairing since it was plugged in; `01 nn` pairing, with nn = seconds left (starts at 0x13 and counts down once per second); `02 00` paired, and it stays so. A failure has not been seen. [HW] |
+| 0x07 | WriteFlashData | `ADDR`, `LEN ≤ 10`, data. [HW] |
+| 0x08 | ReadFlashData | `ADDR`, `LEN ≤ 10`; the data comes back in `DATA`. [HW] |
+| 0x09 | ClearSetting | Request `LEN=0` (`UsbServer_SetClearSetting`); the reply echoes the packet. Resets **only the header 0x00–0xBF of the active slot** to the factory values (identical to the one of never used slots). It does not touch the shortcut and macro blocks, the other slots, long range or pairing. [HW] |
+| 0x0A | StatusChanged | **Spontaneous notification** from the mouse (see below). [HW] |
 | 0x0B/0x0C | SetDeviceVidPid / SetDeviceDescriptorString | [RE] |
-| 0x0D | EnterUsbUpdateMode | Actualización de firmware: no usar. [RE] |
-| 0x0E | GetCurrentConfig | Ranura activa (perfil interno, ver «Hay una imagen por ranura»). Petición `LEN=0` (`UsbServer_ReadConfig`); respuesta `LEN=1`, `data[0]` = ranura 0–3 (`00` = ranura 1). La responde el ratón, no el receptor: dormido, no hay respuesta. [HW] La app ofrece 4 (`customComboBox_Config`, valores 0–3). `Mouse.slot()` |
-| 0x0F | SetCurrentConfig | `LEN=1`, `data[0]` = ranura 0–3 (`UsbServer_SetCurrentConfig`). La respuesta repite el paquete; el cambio se aplica al instante y no hace falta 0x01. [HW] Después, el ratón envía un 0x0A con `isConfigChanged` (`data[0]=04`) en menos de 0,5 s, por el receptor y por el cable [HW]. `Mouse.set_slot()` lo verifica con 0x0E. |
+| 0x0D | EnterUsbUpdateMode | Firmware update: do not use. [RE] |
+| 0x0E | GetCurrentConfig | Active slot (onboard profile, see "One image per slot"). Request `LEN=0` (`UsbServer_ReadConfig`); reply `LEN=1`, `data[0]` = slot 0–3 (`00` = slot 1). The mouse answers it, not the receiver: asleep, there is no reply. [HW] The app offers 4 (`customComboBox_Config`, values 0–3). `Mouse.slot()` |
+| 0x0F | SetCurrentConfig | `LEN=1`, `data[0]` = slot 0–3 (`UsbServer_SetCurrentConfig`). The reply echoes the packet; the change applies at once and 0x01 is not needed. [HW] Then the mouse sends a 0x0A with `isConfigChanged` (`data[0]=04`) within 0.5 s, through the receiver and through the cable [HW]. `Mouse.set_slot()` verifies it with 0x0E. |
 | 0x10 | ReadCIDMID | [RE] |
 | 0x11 | EnterMTKMode | [RE] |
-| 0x12 | ReadVersionID | Respuesta `LEN=2`, `02 00`. [HW] |
+| 0x12 | ReadVersionID | Reply `LEN=2`, `02 00`. [HW] |
 | 0x14/0x15 | Set/Get4KDongleRGB | [RE] |
-| 0x16 | SetLongRangeMode | `LEN=10`, `data[0]` = 0 desactivado, 1 largo alcance (`UsbFinder_SetLongRangeMode`); la respuesta repite el paquete. El ratón sigue funcionando con normalidad. **Se conserva al desenchufar el receptor y no está en la imagen de flash de la ranura**, así que `restore` no lo deshace. [HW] |
-| 0x17 | GetLongRangeMode | Petición `LEN=0`; respuesta `LEN=10`, `data[0]` = 0/1. Lo responde el ratón: si está dormido, no hay respuesta. [HW] |
+| 0x16 | SetLongRangeMode | `LEN=10`, `data[0]` = 0 off, 1 long range (`UsbFinder_SetLongRangeMode`); the reply echoes the packet. The mouse keeps working normally. **It survives unplugging the receiver and is not in the flash image of the slot**, so `restore` does not undo it. [HW] |
+| 0x17 | GetLongRangeMode | Request `LEN=0`; reply `LEN=10`, `data[0]` = 0/1. The mouse answers it: if it is asleep, there is no reply. [HW] |
 | 0xF0/0xF1 | Write/ReadKBCIdMID | [RE] |
-| 0xB3 | GetSlaveVersion | Lectura `LEN=0`; versión en `data[0..1]` (`UsbFinder_GetSlaveVersion`). Falta en `UsbCommandID`. [RE] |
+| 0xB3 | GetSlaveVersion | Read `LEN=0`; version in `data[0..1]` (`UsbFinder_GetSlaveVersion`). Missing from `UsbCommandID`. [RE] |
 
-### Notificación StatusChanged (0x0A)  [HW parcial]
+### StatusChanged notification (0x0A)  [HW partial]
 
-`data[0]` es una máscara de bits (`DriverLib.DeviceStatusChanged`):
+`data[0]` is a bit mask (`DriverLib.DeviceStatusChanged`):
 
-| bit | campo | bit | campo |
+| bit | field | bit | field |
 |---|---|---|---|
 | 0 | isDPIChanged [HW] | 4 | isLogoLedChanged |
 | 1 | isReportRateChanged | 5 | isLedBarChanged |
-| 2 | isConfigChanged: cambio de ranura, con 0x0F o con la función 9 [HW] | 6 | isBatteryLevelChanged |
+| 2 | isConfigChanged: slot change, with 0x0F or with function 9 [HW] | 6 | isBatteryLevelChanged |
 | 3 | isDPILedChanged [HW] | | |
 
-### Conexión por cable  [HW]
+### Cable connection  [HW]
 
-Con el cable USB puesto, el ratón aparece como otro dispositivo, `3554:F55E` («Compx 3-Mode
-Mouse», tres interfaces HID). Solo la que tiene `85 08` en el descriptor habla el protocolo. De
-las otras dos, una no responde y la otra da `EPIPE` al escribir. Mientras el cable está puesto,
-el ratón **solo habla por él**:
+With the USB cable plugged in, the mouse shows up as another device, `3554:F55E` ("Compx 3-Mode
+Mouse", three HID interfaces). Only the one with `85 08` in its descriptor speaks the
+protocol. Of the other two, one does not answer and the other gives `EPIPE` on write. While the
+cable is plugged in, the mouse **only talks through it**:
 
-| Comando | Receptor (`F5D5`) | Cable (`F55E`) |
+| Command | Receiver (`F5D5`) | Cable (`F55E`) |
 |---|---|---|
-| 0x03 | `LEN=1 00 25 81 06`: no enlazado | `LEN=1 01 25 81 06`: siempre online |
-| 0x06 | lo responde el receptor como siempre | byte 2 = `01`, `LEN=0` (¿rechazado?) |
-| 0x04, 0x08, 0x0E, 0x12, 0x17… | sin respuesta | responden igual que por radio |
+| 0x03 | `LEN=1 00 25 81 06`: not linked | `LEN=1 01 25 81 06`: always online |
+| 0x06 | the receiver answers it as usual | byte 2 = `01`, `LEN=0` (rejected?) |
+| 0x04, 0x08, 0x0E, 0x12, 0x17… | no reply | same replies as over the air |
 
-- Por cable, leer y escribir la flash funciona igual que por radio, con la misma verificación.
-  Se probó cambiando y restaurando la frecuencia de sondeo; la imagen quedó idéntica.
-- Por cable no entra en reposo: estuvo 190 s quieto y siguió respondiendo a 0x03 y 0x04. La
-  batería indica que está cargando.
-- Al enchufar, el receptor pierde el enlace al momento (puede volver un instante durante el
-  cambio). El nodo `hidraw` del cable tarda entre ~1 y ~6 s en aparecer.
-- Al desenchufar, si el interruptor del ratón está en 2.4G, el receptor recupera el enlace en
-  ~1,2–1,4 s. En la posición de solo cable, el ratón se apaga.
-- Por eso la herramienta prueba con 0x03 cada dispositivo, empezando por el cable, y usa el
-  primero que responde «online». La GUI cambia de conexión cuando la actual deja de verlo.
-- En 150 s escuchando por el cable (cargando, al 95–100 %) no llegó ningún 0x0A, tampoco al
-  cambiar el nivel de DPI activo desde el PC (0x04) y devolverlo a su valor. Es decir, cambiar
-  la flash desde el PC no genera aviso. [HW] La excepción es 0x0F: cambiar de ranura sí envía
-  0x0A `isConfigChanged`, también por el cable. [HW]
-- El 0x0A de los botones sí llega por el cable: con `m916 watch` por el cable, cada pulsación
-  del botón de DPI dio `dpi` (`data[0]=01`). [HW]
+- Over the cable, reading and writing the flash works as over the air, with the same
+  verification. Tested by changing and restoring the polling rate; the image was identical.
+- Over the cable the mouse does not go idle: it sat still for 190 s and kept answering 0x03
+  and 0x04. The battery reports that it is charging.
+- On plugging in, the receiver loses the link at once (it may come back for a moment during
+  the switch). The cable `hidraw` node takes between ~1 and ~6 s to appear.
+- On unplugging, if the mouse switch is on 2.4G, the receiver gets the link back in
+  ~1.2–1.4 s. In the cable-only position, the mouse turns off.
+- That is why the tool probes each device with 0x03, the cable first, and uses the first one
+  that answers "online". The GUI switches connection when the current one stops seeing it.
+- In 150 s of listening on the cable (charging, at 95–100 %) no 0x0A arrived, not even when
+  changing the active DPI level from the PC (0x04) and setting it back. That is, changing the
+  flash from the PC does not send a notification. [HW] The exception is 0x0F: switching slots
+  does send 0x0A `isConfigChanged`, also over the cable. [HW]
+- The 0x0A from the buttons does arrive over the cable: with `m916 watch` on the cable, each
+  press of the DPI button gave `dpi` (`data[0]=01`). [HW]
 
-### Reposo  [HW]
+### Idle and sleep  [HW]
 
-Con el ratón quieto y los valores de este ejemplar (`led-off-time` = 1 min,
-`full-performance` = 0, modo LP): a los ~4 s, 0x03 empieza a dar `00` y el ratón se enlaza
-1 s de cada 5. A los ~55 s deja de enlazarse (sueño profundo) hasta que se mueve. Con
-`led-off-time` = 10 s, los LEDs se apagan a los 10 s y no hay ningún enlace periódico
-después de los ~3 s: el enlace periódico dura lo que los LEDs están encendidos (probado
-solo con esos dos valores). Consultar 0x03 cada segundo no lo mantiene despierto.
+With the mouse still and the values of this unit (`led-off-time` = 1 min,
+`full-performance` = 0, LP mode): after ~4 s, 0x03 starts returning `00` and the mouse links
+up for 1 s out of every 5. After ~55 s it stops linking up (deep sleep) until it moves. With
+`led-off-time` = 10 s, the LEDs turn off after 10 s and there is no periodic link-up after
+~3 s: the periodic link-up lasts as long as the LEDs are on (tested only with those two
+values). Polling 0x03 every second does not keep it awake.
 
-El ratón también escribe en la flash por su cuenta: el botón de DPI guarda el nivel
-activo (0x04) y el de Luces, el LED de DPI activado (0x52). Los dos lo notifican con 0x0A.
+The mouse also writes to the flash by itself: the DPI button saves the active level (0x04)
+and the Lights button, the DPI LED enable (0x52). Both notify it with 0x0A.
 
-## Mapa de la flash  (0x1B00 bytes, `DataParser.MAX_FLASH_SIZE`)
+## Flash map  (0x1B00 bytes, `DataParser.MAX_FLASH_SIZE`)
 
-**Hay una imagen por ranura** [HW]: el ratón tiene 4 perfiles internos, que la herramienta
-llama *ranuras* (*slots*) para no confundirlos con los perfiles JSON. Con 0x0F (o con un botón
-de función 9) las lecturas y escrituras de flash pasan a la imagen de otra ranura, en las
-mismas direcciones. El número de bytes distintos entre dos ranuras depende de cómo se ha usado
-cada una; en este ejemplar, la ranura 2 tenía otros colores y otro brillo, cuyo cambio se ve
-en el LED.
+**One image per slot** [HW]: the mouse has 4 onboard profiles, which the tool calls *slots*
+so as not to confuse them with JSON profiles. With 0x0F (or with a button set to function 9)
+flash reads and writes go to the image of another slot, at the same addresses. The number of
+bytes that differ between two slots depends on how each one has been used; on this unit,
+slot 2 had other colors and another brightness, whose change shows on the LED.
 
-Uso en la herramienta:
+Use in the tool:
 
-- `info` muestra la ranura activa y `m916 slot [N]` la lee o la cambia. `dump`, `restore` y
-  `profile save/load` trabajan sobre la activa o, con `--slot N`, cambian a la N y vuelven a la
-  original al terminar, también si falla (`protocol.on_slot`).
-- Un volcado es la imagen tal cual y no dice de qué ranura es. Como todas usan las mismas
-  direcciones, se puede restaurar en otra ranura para copiarla.
-- Cada cambio de ranura, con 0x0F o con un botón de función 9, se notifica con 0x0A
-  `isConfigChanged` [HW]. Con 0x0F se comprobó por el receptor y por el cable; con la función 9,
-  solo por el receptor. La función 9 recorre las 4 ranuras en ciclo
+- `info` shows the active slot and `m916 slot [N]` reads or changes it. `dump`, `restore` and
+  `profile save/load` work on the active one or, with `--slot N`, switch to N and go back to
+  the original when done, also if something fails (`protocol.on_slot`).
+- A dump is the image as is and does not say which slot it comes from. Since all slots use
+  the same addresses, it can be restored to another slot to copy it.
+- Each slot change, with 0x0F or with a button set to function 9, is notified with 0x0A
+  `isConfigChanged` [HW]. With 0x0F it was checked through the receiver and through the
+  cable; with function 9, only through the receiver. Function 9 cycles through the 4 slots
   (4 → 1 → 2 → 3 → 4 → 1) [HW].
-- La GUI consulta 0x0E al recibir un 0x0A con `isConfigChanged` y en cada carga; no la consulta
-  periódicamente. Antes de escribir (`apply`, `restore`) vuelve a consultarla y no escribe si ha
-  cambiado. El aviso de su propio 0x0F no provoca otra carga.
-- Consultar 0x0E cada 3 s (con 0x03 cada segundo) **no impide el reposo** [HW]. Con
-  `led-off-time` = 1 min y modo LP, por el receptor, el ratón pasa al enlace periódico (1 s de
-  cada 5) y al sueño profundo a los ~57 s del último movimiento, igual que consultando solo
-  0x03. Una consulta 0x0E que cae al final de un enlace periódico se queda sin respuesta. La
-  GUI no lo necesita, pero el dato sirve si alguna vez hay que sondear.
-- Por cable, `m916 slot 2`/`slot 1` y `dump --slot 2` funcionan y se verifican con 0x0E [HW].
+- The GUI queries 0x0E on a 0x0A with `isConfigChanged` and on every load; it does not poll
+  it. Before writing (`apply`, `restore`) it queries it again and does not write if it has
+  changed. The notification of its own 0x0F does not trigger another load.
+- Polling 0x0E every 3 s (with 0x03 every second) **does not prevent idling** [HW]. With
+  `led-off-time` = 1 min and LP mode, through the receiver, the mouse goes to the periodic
+  link-up (1 s out of every 5) and to deep sleep ~57 s after the last movement, the same as
+  polling only 0x03. A 0x0E query that falls at the end of a periodic link-up gets no reply.
+  The GUI does not need it, but the data point is useful if polling is ever needed.
+- Over the cable, `m916 slot 2`/`slot 1` and `dump --slot 2` work and are verified with 0x0E
+  [HW].
 
-Casi todo valor va seguido de un byte de comprobación. Para un byte suelto es
-`[v, 0x55 - v]`; para un bloque es `0x55 - suma(bloque)`. Si la comprobación falla, la DLL
-usa un valor por defecto.
+Almost every value is followed by a checksum byte. For a single byte (a *pair*) it is
+`[v, 0x55 - v]`; for a *block* it is `0x55 - sum(block)`. If the checksum fails, the DLL uses
+a default value.
 
-**Valores de fábrica** [HW] (ranuras 3 y 4 sin usar, y la ranura 1 tras 0x09): 1000 Hz, 5 niveles
-(activo el 2): 1000, 2000, 4000, 8000 y 26000 DPI, con los colores `ff0000`, `0000ff`, `00ff00`,
-`ff00ff` y `ffff00`; LED de DPI en respiración, brillo 0x80, velocidad 3, activado; LOD 1;
-debounce 8 ms; motion sync 1; luces apagadas a 1 min; el resto de opciones a 0;
-Peak Performance 1 min; LP; botones como en el volcado de `tests/fixtures` (el botón 12 es disparo 10 ms × 3). 0x54–0x5F = `ff 00 ff 57 00 55 80 d5 03 52 00 55`, 0xBB = 10, 0xBD
-sin escribir.
+**Factory values** [HW] (slots 3 and 4 never used, and slot 1 after 0x09): 1000 Hz, 5 levels
+(the 2nd active): 1000, 2000, 4000, 8000 and 26000 DPI, with the colors `ff0000`, `0000ff`,
+`00ff00`, `ff00ff` and `ffff00`; DPI LED breathing, brightness 0x80, speed 3, enabled; LOD 1;
+debounce 8 ms; motion sync 1; lights off after 1 min; the other options at 0;
+Peak Performance 1 min; LP; buttons as in the dump in `tests/fixtures` (button 12 is rapid
+fire 10 ms × 3). 0x54–0x5F = `ff 00 ff 57 00 55 80 d5 03 52 00 55`, 0xBB = 10, 0xBD not
+written.
 
-| Dirección | Contenido | Formato |
+| Address | Content | Format |
 |---|---|---|
-| 0x00 | Report rate: 1=1000 Hz, 2=500, 4=250, 8=125, 0x10=2000, 0x20=4000 [HW] | par |
-| 0x02 | Número de niveles DPI (1–8) [HW] | par |
-| 0x04 | Nivel DPI activo, empezando en 0. El ratón lo guarda en la flash al pulsar su botón de DPI [HW] | par |
-| 0x06 / 0x08 | xSpindown / ySpindown (los lee `MouseConfigParser`; la app no los muestra). Con xSpindown = 3 o 50 no se nota nada y los informes en bruto (hidraw, report ID 1) no cambian: con círculos dibujados a mano, X/Y = 1,17 con 50 y 1,13 con 0, y no hay cola de inercia. Significado desconocido [?] | par |
-| 0x0A | silenceHeight (LOD): 1 = 1 mm, 2 = 2 mm; con 2 el sensor sigue a más altura [HW] | par |
-| 0x0C + 4·i | DPI del nivel i: `[x, y, ex, chk]` [HW] | bloque |
-| 0x2C + 4·i | Color del nivel i: `[R, G, B, chk]` [HW] | bloque |
-| 0x4C, 4E, 50, 52 | LED de DPI: modo, brillo, velocidad, activado [HW] | pares |
-| 0x54–0x5F | Desconocido; la DLL no lo lee. Tiene la forma del LED de DPI: `[R, G, B, chk]` = `ff 00 ff 57` (el checksum cuadra) y los pares 0x58 `00`, 0x5A `80`, 0x5C `03`, 0x5E `00`, como modo, brillo, velocidad y activado. ¿El LED del logo (bit `isLogoLedChanged` de 0x0A)? [?] No cambia al pulsar el botón de DPI, y escribir 0x5E = 1 no enciende nada: el M916-PRO-1K solo tiene el LED de DPI [HW] | |
-| 0x60 + 4·k | Función del botón k: `[tipo, p1, p2, chk]` [HW] | bloque |
-| 0xA0–0xA6 | Barra LED: `[modo, R, G, B, velocidad, brillo, chk]` [RE] | bloque |
-| 0xA7 | Barra LED activada [RE] | par |
-| 0xA9 | keyDebounceTime en ms [HW] | par |
-| 0xAB | motionSyncEnable. Con 0 el movimiento se nota menos fluido (observación subjetiva) [HW] | par |
-| 0xAD | allLedOffTime, ×10 s. Con 1, el LED se apaga a los 10 s; el ratón deja de enlazarse a la vez (ver «Reposo») [HW] | par |
-| 0xAF | linearCorrectionEnable. Con 1 el movimiento se engancha a líneas rectas [HW] | par |
-| 0xB1 | rippleControlEnable. Con 1 el movimiento va más suave (filtrado) [HW] | par |
-| 0xB3 | moveOffLedEnable. Con 1 se guarda, pero no se ve efecto: el LED no cambia al mover ni al levantar el ratón (probado con el LED en respiración) [HW: se guarda; efecto no observado] | par |
-| 0xB5 | sensorCustomSleepTimeEnable («Peak Performance»). Con 1 y 0xB7 = 3 (30 s), tras soltar el ratón volvió a enlazarse 12 s seguidos y el sueño profundo llegó a los ~69 s en vez de ~55 s. Una sola medición [HW, provisional] | par |
-| 0xB7 | sensorSleepTime, ×10 s. Se guarda; su relación exacta con el tiempo observado (~14 s más con 30 s) sigue sin aclarar [HW: se guarda] | par |
-| 0xB9 | sensorPowerSavingModeEnable: 0 = LP, 1 = HP. Se guarda; en HP el reposo ligero empezó a los ~6 s en vez de ~4 s, y el sueño profundo a los ~56 s, igual que en LP: no hay diferencia clara [HW: se guarda; efecto no claro] | par |
-| 0xBB | Par desconocido: `0a 4b` (10) en las dos ranuras y en el volcado; `MouseConfigParser` (DLL) termina en 0xB9 y no lo lee [?] | par |
-| 0xBD | Par desconocido: `01 54` (1) en la ranura 2, `ff ff` (sin escribir) en la 1; tampoco lo lee `MouseConfigParser` [?] | par |
-| 0x100 + 0x20·k | Atajo de teclado del botón k [RE, formato confirmado en el volcado] | ver abajo |
-| 0x300 + 0x180·k | Macro del botón k [RE, formato confirmado en el volcado] | ver abajo |
+| 0x00 | Report rate: 1=1000 Hz, 2=500, 4=250, 8=125, 0x10=2000, 0x20=4000 [HW] | pair |
+| 0x02 | Number of DPI levels (1–8) [HW] | pair |
+| 0x04 | Active DPI level, starting at 0. The mouse saves it to the flash when its DPI button is pressed [HW] | pair |
+| 0x06 / 0x08 | xSpindown / ySpindown (read by `MouseConfigParser`; the app does not show them). With xSpindown = 3 or 50 nothing is noticeable and the raw reports (hidraw, report ID 1) do not change: with circles drawn by hand, X/Y = 1.17 with 50 and 1.13 with 0, and there is no inertia tail. Meaning unknown [?] | pair |
+| 0x0A | silenceHeight (LOD): 1 = 1 mm, 2 = 2 mm; with 2 the sensor tracks at a greater height [HW] | pair |
+| 0x0C + 4·i | DPI of level i: `[x, y, ex, chk]` [HW] | block |
+| 0x2C + 4·i | Color of level i: `[R, G, B, chk]` [HW] | block |
+| 0x4C, 4E, 50, 52 | DPI LED: mode, brightness, speed, enabled [HW] | pairs |
+| 0x54–0x5F | Unknown; the DLL does not read it. It has the shape of the DPI LED: `[R, G, B, chk]` = `ff 00 ff 57` (the checksum is right) and the pairs 0x58 `00`, 0x5A `80`, 0x5C `03`, 0x5E `00`, as mode, brightness, speed and enabled. The logo LED (bit `isLogoLedChanged` of 0x0A)? [?] It does not change when the DPI button is pressed, and writing 0x5E = 1 turns nothing on: the M916-PRO-1K only has the DPI LED [HW] | |
+| 0x60 + 4·k | Function of button k: `[type, p1, p2, chk]` [HW] | block |
+| 0xA0–0xA6 | LED bar: `[mode, R, G, B, speed, brightness, chk]` [RE] | block |
+| 0xA7 | LED bar enabled [RE] | pair |
+| 0xA9 | keyDebounceTime in ms [HW] | pair |
+| 0xAB | motionSyncEnable. With 0 the movement feels less smooth (subjective observation) [HW] | pair |
+| 0xAD | allLedOffTime, ×10 s. With 1, the LED turns off after 10 s; the mouse stops linking up at the same time (see "Idle and sleep") [HW] | pair |
+| 0xAF | linearCorrectionEnable. With 1 the movement snaps to straight lines [HW] | pair |
+| 0xB1 | rippleControlEnable. With 1 the movement is smoother (filtered) [HW] | pair |
+| 0xB3 | moveOffLedEnable. With 1 it is saved, but no effect is seen: the LED does not change when moving or lifting the mouse (tested with the LED breathing) [HW: saved; effect not observed] | pair |
+| 0xB5 | sensorCustomSleepTimeEnable ("Peak Performance"). With 1 and 0xB7 = 3 (30 s), after letting go of the mouse it stayed linked for 12 s in a row and deep sleep came after ~69 s instead of ~55 s. A single measurement [HW, provisional] | pair |
+| 0xB7 | sensorSleepTime, ×10 s. It is saved; its exact relation to the observed time (~14 s more with 30 s) is still unclear [HW: saved] | pair |
+| 0xB9 | sensorPowerSavingModeEnable: 0 = LP, 1 = HP. It is saved; in HP light sleep started after ~6 s instead of ~4 s, and deep sleep after ~56 s, the same as in LP: no clear difference [HW: saved; effect unclear] | pair |
+| 0xBB | Unknown pair: `0a 4b` (10) in both slots and in the dump; `MouseConfigParser` (DLL) ends at 0xB9 and does not read it [?] | pair |
+| 0xBD | Unknown pair: `01 54` (1) in slot 2, `ff ff` (not written) in slot 1; `MouseConfigParser` does not read it either [?] | pair |
+| 0x100 + 0x20·k | Keyboard shortcut of button k [RE, format confirmed in the dump] | see below |
+| 0x300 + 0x180·k | Macro of button k [RE, format confirmed in the dump] | see below |
 
-La escritura de la app original (`ProtocolDataCompareUpdate`) solo envía lo que cambió:
-cada par en su dirección, los bloques DPI y de color de 4 en 4, y los atajos y macros en
-trozos de 10 bytes.
+The original app's write (`ProtocolDataCompareUpdate`) only sends what changed: each pair at
+its address, the DPI and color blocks 4 bytes at a time, and shortcuts and macros in chunks of
+10 bytes.
 
-### DPI del PAW3395  [HW]
+### PAW3395 DPI  [HW]
 
-Sale de `DPIControl.ValueToDPI`, en el IL de .NET:
-`valor = dpi/50 - 1`; `x = y = valor & 0xFF`; `alto = valor >> 8`;
-`ex = (alto << 2) | (alto << 6)`. Ejemplo: 26000 DPI → `x=y=0x07, ex=0x88`.
-Los sensores que no son el 3395 usan las tablas de `driver_sensor.h`.
+From `DPIControl.ValueToDPI`, in the .NET IL:
+`value = dpi/50 - 1`; `x = y = value & 0xFF`; `high = value >> 8`;
+`ex = (high << 2) | (high << 6)`. Example: 26000 DPI → `x=y=0x07, ex=0x88`.
+Sensors other than the 3395 use the tables in `driver_sensor.h`.
 
-### Funciones de botón  (`DriverLib.KEY_CLASS`)
+### Button functions  (`DriverLib.KEY_CLASS`)
 
-| tipo | función | p1 / p2 |
+| type | function | p1 / p2 |
 |---|---|---|
-| 0 | Desactivado | |
-| 1 | Botón de ratón | p1: 1 izq., 2 der., 4 central, 8 atrás, 0x10 adelante [HW] |
-| 2 | DPI | p1: 1 ciclo, 2 subir, 3 bajar [HW] |
-| 3 | Scroll horizontal | p1: 1 izquierda, 2 derecha. Un paso de rueda (±120 en libinput) por pulsación; no se repite al mantener [HW] |
-| 4 | Disparo repetido | Clics de `BTN_LEFT`. p1: ms **pulsado y después suelto** en cada clic (10–255), así que un disparo dura 2·p1; p2: disparos (0–3; 0 = mientras se mantenga, y para al soltar). Medido con libinput: `fire:100:3` → 3 clics de 100 + 100 ms; `10:1`, `255:2` y `50:0` igual [HW] |
-| 5 | Atajo de teclado o tecla multimedia | p1 = p2 = 0; los eventos van en el bloque de atajo del botón. Los eventos de pulsar salen al apretar el botón y los de soltar, al soltarlo, con 20 ms entre eventos [HW] |
-| 6 | Macro | p1: índice del propio botón (su bloque de macro); p2: repetición, ver abajo [HW] |
-| 7 | Cambiar report rate | [HW] |
-| 8 | Luces | p1: 0 todas, 3 barra LED, 4 cambiar efecto (la app no lo ofrece en este modelo) [RE]. Con p1 = 0, cada pulsación alterna el LED de DPI: **el ratón reescribe 0x52 en la flash** y envía la notificación `dpi-led` (bit 3) [HW]. Con p1 = 4 no hace nada, ni en el LED ni en la flash [HW] |
-| 9 | Cambiar configuración | p1 = p2 = 0: una pulsación pasa a la ranura siguiente y lo notifica con 0x0A `isConfigChanged`; recorre las 4 en ciclo (de la 4 vuelve a la 1). Probado con la función 9 en el mismo botón de las 4 ranuras: cada ranura tiene sus propios botones. La app no la ofrece (`ConfigSelect`: «Switch config is not supported») [HW] |
-| 0xA | Bloqueo de DPI | p1 = dpi/50 − 1 (50–12800 DPI). Solo mientras se mantiene; al soltar vuelve al DPI del nivel y el LED no cambia. Probado con 400 y 12800 (p1 = 255) [HW] |
-| 0xB | Scroll vertical | p1: 1 arriba, 2 abajo. Un paso de rueda por pulsación; no se repite al mantener [HW] |
+| 0 | Disabled | |
+| 1 | Mouse button | p1: 1 left, 2 right, 4 middle, 8 back, 0x10 forward [HW] |
+| 2 | DPI | p1: 1 cycle, 2 up, 3 down [HW] |
+| 3 | Horizontal scroll | p1: 1 left, 2 right. One wheel step (±120 in libinput) per press; it does not repeat when held [HW] |
+| 4 | Rapid fire | `BTN_LEFT` clicks. p1: ms **down and then up** for each click (10–255), so a shot takes 2·p1; p2: shots (0–3; 0 = while held, and it stops on release). Measured with libinput: `fire:100:3` → 3 clicks of 100 + 100 ms; `10:1`, `255:2` and `50:0` likewise [HW] |
+| 5 | Keyboard shortcut or media key | p1 = p2 = 0; the events are in the button's shortcut block. The press events go out when the button is pressed and the release events when it is released, with 20 ms between events [HW] |
+| 6 | Macro | p1: index of the button itself (its macro block); p2: repeat, see below [HW] |
+| 7 | Switch report rate | [HW] |
+| 8 | Lights | p1: 0 all, 3 LED bar, 4 switch effect (the app does not offer it on this model) [RE]. With p1 = 0, each press toggles the DPI LED: **the mouse rewrites 0x52 in the flash** and sends the `dpi-led` notification (bit 3) [HW]. With p1 = 4 it does nothing, neither on the LED nor in the flash [HW] |
+| 9 | Switch config | p1 = p2 = 0: one press moves to the next slot and notifies it with 0x0A `isConfigChanged`; it cycles through the 4 (from 4 back to 1). Tested with function 9 on the same button of the 4 slots: each slot has its own buttons. The app does not offer it (`ConfigSelect`: "Switch config is not supported") [HW] |
+| 0xA | DPI lock | p1 = dpi/50 − 1 (50–12800 DPI). Only while held; on release it goes back to the DPI of the level and the LED does not change. Tested with 400 and 12800 (p1 = 255) [HW] |
+| 0xB | Vertical scroll | p1: 1 up, 2 down. One wheel step per press; it does not repeat when held [HW] |
 
-Los botones 1–16 son posiciones en la flash. La correspondencia física solo está confirmada
-para los 5 primeros.
+Buttons 1–16 are positions in the flash. The physical mapping is only confirmed for the first
+5.
 
-Origen [RE]: IL de `CustomKeyFunction.customSubKeyFunction_Main_ButtonSelect`,
-`customSubKeyFunction_Sub_ButtonSelect` y `UpdateMacro`, y la lista `KeyFunction` /
-`SubKeyFunction` de `Language/*.xml`, donde `value` es un número de 16 bits del que p1 es el byte
-bajo y p2 el alto (`LanguageFile.SetLanguage`). Las funciones `KeyFunMapDriver.Set*Key` de la
-DLL de .NET no se usan.
+Source [RE]: IL of `CustomKeyFunction.customSubKeyFunction_Main_ButtonSelect`,
+`customSubKeyFunction_Sub_ButtonSelect` and `UpdateMacro`, and the `KeyFunction` /
+`SubKeyFunction` list in `Language/*.xml`, where `value` is a 16-bit number whose low byte is
+p1 and high byte is p2 (`LanguageFile.SetLanguage`). The `KeyFunMapDriver.Set*Key` functions
+of the .NET DLL are not used.
 
-**p2 de las macros** (`FormMain.customButton_Save_Click`): 1–252 = número de veces,
-253 = hasta volver a pulsar el botón, 254 = mientras se mantenga pulsado, 255 = hasta pulsar
-cualquier botón. [HW] Cada modo se probó con `+a 50 -a 200`, y en todos la macro se para al
-terminar un paso, sin dejar teclas pulsadas. En el modo 255, el clic que la detiene **no llega
-al ordenador** (con clic derecho no aparece `BTN_RIGHT`).
+**Macro p2** (`FormMain.customButton_Save_Click`): 1–252 = number of times,
+253 = until the button is pressed again, 254 = while held, 255 = until any button is pressed.
+[HW] Each mode was tested with `+a 50 -a 200`, and in all of them the macro stops at the end
+of a step, without leaving keys pressed. In mode 255, the click that stops it **does not reach
+the computer** (with a right click no `BTN_RIGHT` shows up).
 
-### Atajos de teclado  (32 bytes)  [HW]
+### Keyboard shortcuts  (32 bytes)  [HW]
 
 ```
-[n]  n×[estado|tipo, código, código2]  chk        n = 2..6 acciones
-estado: 0x80 = pulsar, 0x40 = soltar      tipo (nibble bajo) = HID_CODE_TYPE
-HID_CODE_TYPE: 0 modificador (bitmask), 1 tecla normal (uso HID), 2 multimedia,
-               3 power, 4 ratón, 5 mover XY
-chk = 0x55 - suma(bytes 0..3n)
+[n]  n×[state|type, code, code2]  chk        n = 2..6 actions
+state: 0x80 = press, 0x40 = release      type (low nibble) = HID_CODE_TYPE
+HID_CODE_TYPE: 0 modifier (bitmask), 1 normal key (HID usage), 2 media,
+               3 power, 4 mouse, 5 move XY
+chk = 0x55 - sum(bytes 0..3n)
 ```
-Ejemplo del volcado (Ctrl+C): `04 80 01 00 81 06 00 41 06 00 40 01 00 c1`.
+Example from the dump (Ctrl+C): `04 80 01 00 81 06 00 41 06 00 40 01 00 c1`.
 
-La app (`ValueConvert.App_AddShortCutKey`) admite hasta 3 teclas: las pulsa en orden y las
-suelta en orden inverso. Una tecla multimedia (`App_AddMultiMedia`) son dos eventos de tipo 2
-con el uso de la página Consumer en `código` (byte bajo) y `código2` (alto), p. ej. Silenciar:
+The app (`ValueConvert.App_AddShortCutKey`) allows up to 3 keys: it presses them in order and
+releases them in reverse order. A media key (`App_AddMultiMedia`) is two events of type 2
+with the Consumer page usage in `code` (low byte) and `code2` (high), e.g. Mute:
 `02 82 e2 00 42 e2 00 cb`.
 
-Comprobado en el hardware [HW]: `shift+a` (`04 80 02 00 81 04 00 41 04 00 40 02 00 c3`) escribe
-«A»; `ctrl+alt+shift` pulsa ctrl, alt y shift y los suelta en orden inverso. Las teclas
-vienen de un dispositivo de teclado del receptor distinto del ratón. Al mantener el botón,
-las teclas siguen pulsadas hasta soltarlo: libinput no ve las liberaciones hasta entonces.
-Volumen arriba (`e9 00`) y Silenciar (`e2 00`) funcionan; al mantener Volumen arriba, el
-sistema lo repite. libinput no muestra las teclas de la página Consumer.
+Checked on the hardware [HW]: `shift+a` (`04 80 02 00 81 04 00 41 04 00 40 02 00 c3`) types
+"A"; `ctrl+alt+shift` presses ctrl, alt and shift and releases them in reverse order. The keys
+come from a keyboard device of the receiver, separate from the mouse. While the button is
+held, the keys stay pressed until it is released: libinput does not see the releases until
+then. Volume up (`e9 00`) and Mute (`e2 00`) work; when Volume up is held, the system repeats
+it. libinput does not show Consumer page keys.
 
 ### Macros  (0x180 bytes)  [HW]
 
 ```
-[0]      longitud del nombre (1..30)
-[1..30]  nombre (ASCII)
-[0x1F]   n = número de pasos (2..70)
-[0x20..] n×[estado|tipo, código, código2, retardo_hi, retardo_lo]   (retardo en ms, big-endian)
-chk      0x55 - suma(bytes 0x1F .. 0x1F+5n)
+[0]      name length (1..30)
+[1..30]  name (ASCII)
+[0x1F]   n = number of steps (2..70)
+[0x20..] n×[state|type, code, code2, delay_hi, delay_lo]   (delay in ms, big-endian)
+chk      0x55 - sum(bytes 0x1F .. 0x1F+5n)
 ```
-Ejemplo del volcado ("jitter"): `84 01 00 00 0a` = pulsar botón izquierdo y esperar 10 ms;
-`44 01 00 00 0a` = soltar y esperar 10 ms.
-Los retardos se cumplen al milisegundo (medido con libinput): `+a 50 -a 200` da un ciclo de 250 ms. [HW]
+Example from the dump ("jitter"): `84 01 00 00 0a` = press the left button and wait 10 ms;
+`44 01 00 00 0a` = release and wait 10 ms.
+The delays are kept to the millisecond (measured with libinput): `+a 50 -a 200` gives a
+250 ms cycle. [HW]
 
-**Escritura** [HW]: el firmware solo guarda un bloque de macro si se escribe desde su inicio
-y forma una macro con checksum correcto. Cualquier otra escritura en esa zona (a mitad de
-bloque, o un bloque todo `0xFF`) se confirma pero se descarta. Para borrar una macro, la app
-escribe la forma vacía `00` + 30×`ff` + `00 55` (longitud 0, 0 pasos); los bytes de pasos
-anteriores quedan detrás, pero el firmware los ignora.
+**Writing** [HW]: the firmware only saves a macro block if it is written from its start and
+forms a macro with a correct checksum. Any other write to that area (in the middle of a
+block, or an all-`0xFF` block) is acknowledged but discarded. To clear a macro, the app
+writes the empty form `00` + 30×`ff` + `00 55` (length 0, 0 steps); the bytes of earlier steps
+stay behind, but the firmware ignores them.
 
-## Opciones de un byte
+## Single-byte options
 
-Qué escribe cada control de la app (manejadores `_3In1.customComboBox_*`,
-`FormMain.customComboBox_*` y `customCheckBox_*`) y los valores de sus listas en
-`Language/*.xml`. Los valores de las listas son decimales salvo que lleven `0x`
+What each control of the app writes (handlers `_3In1.customComboBox_*`,
+`FormMain.customComboBox_*` and `customCheckBox_*`) and the values of its lists in
+`Language/*.xml`. The list values are decimal unless they have `0x`
 (`ValueConvert.StringToInt`).
 
-| Control | Campo | Valores |
+| Control | Field | Values |
 |---|---|---|
 | LOD | 0x0A `silenceHeight` | 1 = 1 mm, 2 = 2 mm [HW] |
-| Modo (`ModeSelect`) | 0xB9 `sensorPowerSavingModeEnable` | 0 = LP (bajo consumo), 1 = HP (alto rendimiento); la opción "con cable" (10) no se escribe |
-| Casilla `FullPerformance` | 0xB5 `sensorCustomSleepTimeEnable` | 0/1; activa la lista siguiente |
-| Lista `FullPerformance` | 0xB7 `sensorSleepTime` | ×10 s: 3, 6, 12, 30, 60, 90 (30 s … 15 min) |
-| `PowerSaveTime` (luces en reposo) | 0xAD `allLedOffTime` | ×10 s: 1, 3, 6, 30, 60, 90, 120, 150, 180, 210, 240 (10 s … 40 min) |
-| Efecto del LED de DPI | 0x52 activado, 0x4C modo | apagado: activado = 0 y el modo no cambia; 1 fijo, 2 «Flicker» en la app, que en realidad es una **respiración** (sube y baja suavemente) [HW] |
-| Brillo del LED de DPI | 0x4E | niveles 1–10 → 16, 30, 60, 90, 128, 150, 180, 210, 230, 255 (`DPIIndexToBrightness`) [HW] |
-| Velocidad del LED de DPI | 0x50 | 1–5: la respiración va más rápida cuanto mayor es el valor (3 ≈ 1 ciclo cada 5 s, 5 ≈ 2 cada 5 s) [HW] |
-| `LEDMode` (barra LED; el M916-PRO-1K no la tiene) | 0xA7 activado, 0xA0 modo | 0 apagado, 1 arcoíris en movimiento, 2 color fijo, 3 arcoíris fijo, 4 neón, 5 arcoíris parpadeante, 6 multicolor fijo |
+| Mode (`ModeSelect`) | 0xB9 `sensorPowerSavingModeEnable` | 0 = LP (low power), 1 = HP (high performance); the "wired" option (10) is not written |
+| `FullPerformance` checkbox | 0xB5 `sensorCustomSleepTimeEnable` | 0/1; enables the next list |
+| `FullPerformance` list | 0xB7 `sensorSleepTime` | ×10 s: 3, 6, 12, 30, 60, 90 (30 s … 15 min) |
+| `PowerSaveTime` (lights when idle) | 0xAD `allLedOffTime` | ×10 s: 1, 3, 6, 30, 60, 90, 120, 150, 180, 210, 240 (10 s … 40 min) |
+| DPI LED effect | 0x52 enabled, 0x4C mode | off: enabled = 0 and the mode does not change; 1 steady, 2 "Flicker" in the app, which is actually **breathing** (fades up and down smoothly) [HW] |
+| DPI LED brightness | 0x4E | levels 1–10 → 16, 30, 60, 90, 128, 150, 180, 210, 230, 255 (`DPIIndexToBrightness`) [HW] |
+| DPI LED speed | 0x50 | 1–5: the higher the value, the faster the breathing (3 ≈ 1 cycle every 5 s, 5 ≈ 2 every 5 s) [HW] |
+| `LEDMode` (LED bar; the M916-PRO-1K does not have one) | 0xA7 enabled, 0xA0 mode | 0 off, 1 moving rainbow, 2 steady color, 3 steady rainbow, 4 neon, 5 blinking rainbow, 6 steady multicolor |
 
-La app solo muestra el brillo con el efecto fijo y la velocidad con la respiración
+The app only shows the brightness with the steady effect and the speed with breathing
 (`ValueConvert.SetDPIEffect`).
 
-## Pendiente
+## Pending
 
-- xSpindown/ySpindown (0x06/0x08): sin efecto medible; ¿se usa en otros sensores?
-- Peak Performance (0xB5/0xB7): repetir la medición con otros tiempos para ver la relación
-  con 0xB7.
-- Modo del sensor (0xB9): ver si cambia el consumo con una medición larga de la batería.
-- Bloque 0x54–0x5F, pares 0xBB y 0xBD y los 3 bytes extra de la respuesta online.
-- Función 9 por cable: ¿también notifica `isConfigChanged`? (0x0F sí, y la función 9 por el receptor.)
-- Comando 0x01 (EncryptionData): no hace falta para nada de lo probado; el algoritmo sigue sin conocerse.
-- Largo alcance (0x16): no se ha medido la mejora de alcance.
-- Emparejamiento: ¿el estado 02 llega al emparejar o al acabar la ventana de 20 s? No se ha visto el fallo.
-- Botones 6–16: la correspondencia física sigue sin confirmar.
+- xSpindown/ySpindown (0x06/0x08): no measurable effect; is it used with other sensors?
+- Peak Performance (0xB5/0xB7): repeat the measurement with other times to see the relation
+  with 0xB7.
+- Sensor mode (0xB9): see whether the power draw changes with a long battery measurement.
+- Block 0x54–0x5F, pairs 0xBB and 0xBD and the 3 extra bytes of the online reply.
+- Function 9 over the cable: does it also notify `isConfigChanged`? (0x0F does, and so does
+  function 9 through the receiver.)
+- Command 0x01 (EncryptionData): not needed for anything tested; the algorithm is still
+  unknown.
+- Long range (0x16): the range improvement has not been measured.
+- Pairing: does state 02 arrive on pairing or at the end of the 20 s window? A failure has not
+  been seen.
+- Buttons 6–16: the physical mapping is still unconfirmed.

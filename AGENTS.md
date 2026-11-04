@@ -91,9 +91,10 @@ Si descubres otra regla del firmware, impleméntala también en `m916/fake.py` y
 
 ## Ingeniería inversa
 
-- Etiqueta cada dato de `docs/PROTOCOL.md` con su nivel de confianza: **[HW]** probado en el
-  ratón, **[RE]** leído en el código, **[?]** hipótesis. Indica también el origen (método .NET
-  o función de la DLL).
+- `docs/PROTOCOL.md` se escribe en inglés, con los términos de la GUI y la CLI (slot, receiver,
+  rapid fire…). Etiqueta cada dato con su nivel de confianza: **[HW]** probado en el ratón,
+  **[RE]** leído en el código, **[?]** hipótesis. Indica también el origen (método .NET o
+  función de la DLL).
 - El código de la interfaz está en el IL de .NET (`Mouse Drive Beta.exe`, clases
   `Mouse_Drive_Beta.*`, `DriverLib.*`). El protocolo de bajo nivel está en la DLL nativa
   embebida (`tools/extract_native.py` + Ghidra).
@@ -112,7 +113,7 @@ Si descubres otra regla del firmware, impleméntala también en `m916/fake.py` y
   Los nombres que se escriben en comandos y perfiles (acciones, opciones, teclas) no se
   traducen.
 - Documentación: `README.md` en inglés y `README.es.md` en español (mantén las dos al día);
-  `docs/` en **español**.
+  `docs/` en **inglés**.
 - Cabecera `# SPDX-License-Identifier: GPL-3.0-or-later` en cada archivo Python.
 - Estilo del código existente: funciones pequeñas, docstrings breves, sin dependencias nuevas
   sin motivo. La CLI debe seguir funcionando sin PySide6.

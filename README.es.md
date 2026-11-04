@@ -6,7 +6,8 @@
 
 Herramienta para configurar en Linux el ratón **Redragon M916-PRO-1K** sin el programa
 oficial de Windows. Habla con el ratón por `hidraw` con el mismo protocolo que el configurador
-original, reconstruido por ingeniería inversa (ver [docs/PROTOCOL.md](docs/PROTOCOL.md)).
+original, reconstruido por ingeniería inversa (ver [docs/PROTOCOL.md](docs/PROTOCOL.md), en
+inglés).
 
 Probado con el receptor inalámbrico `3554:F5D5` y por el cable USB (`3554:F55E`). Mientras el
 cable está puesto, el ratón solo responde por él, así que la herramienta usa el cable y vuelve
@@ -168,7 +169,8 @@ parcial solo toca la frecuencia, dos niveles de DPI y tres botones:
 Los perfiles se guardan en `~/.config/m916/profiles/`: en la CLI basta con el nombre
 (`m916 profile load juegos`), aunque también se puede dar cualquier ruta terminada en `.json`.
 `m916 profile save` escribe un perfil completo. El formato completo (opciones, disparo
-repetido, teclas multimedia, macros y validación) está en [docs/PROFILES.md](docs/PROFILES.md).
+repetido, teclas multimedia, macros y validación) está en [docs/PROFILES.md](docs/PROFILES.md)
+(en inglés).
 
 ## Tests
 
