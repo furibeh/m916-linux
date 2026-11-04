@@ -1,124 +1,126 @@
 # AGENTS.md
 
-Guía para agentes de código que trabajen en este repositorio. Para el uso, ver `README.md`. El
-protocolo completo está en `docs/PROTOCOL.md`, que es la referencia: actualízalo cuando
-descubras algo.
+Guide for coding agents working in this repository. For usage, see `README.md`. The full
+protocol is in `docs/PROTOCOL.md`, which is the reference: update it when you discover
+something.
 
-## Qué es
+## What it is
 
-Configurador en Linux para el ratón Redragon M916-PRO-1K (receptor `3554:F5D5`). Habla por
-`hidraw` con el protocolo del configurador oficial de Windows ("Mouse Drive Beta"),
-reconstruido por ingeniería inversa. Python 3.9 o superior. La CLI no tiene dependencias y la
-GUI usa PySide6 (Qt 6).
+A Linux configurator for the Redragon M916-PRO-1K mouse (receiver `3554:F5D5`). It talks over
+`hidraw` with the protocol of the official Windows configurator ("Mouse Drive Beta"),
+reconstructed by reverse engineering. Python 3.9 or later. The CLI has no dependencies and the
+GUI uses PySide6 (Qt 6).
 
-## Estructura
+## Layout
 
-- `m916/protocol.py`: transporte HID (paquetes de 17 bytes con checksum), lectura y escritura
-  de flash, `MouseAsleep` / `ProtocolError`.
-- `m916/config.py`: modelo de la configuración. Decodifica y codifica la imagen de flash,
-  valida y calcula qué campos cambiaron (`changed_fields`) y qué escribir al restaurar
-  (`restore_writes`). Las dos interfaces se apoyan en él: la lógica va aquí, no en la CLI ni
-  en la GUI.
-- `m916/profile.py`: perfiles JSON (`docs/PROFILES.md`) sobre el modelo de `config.py`:
-  `dumps`/`save` y `apply`, que valida y acepta perfiles parciales; los nombres sin ruta van a
-  `profiles_dir()` (XDG). En los tests, apunta `XDG_CONFIG_HOME` a un directorio temporal. Si añades un campo al
-  modelo, añádelo también aquí y en la documentación del formato.
-- `m916/keys.py`: nombres de tecla, usos HID y códigos evdev de Linux.
+- `m916/protocol.py`: HID transport (17-byte packets with checksum), flash reads and writes,
+  `MouseAsleep` / `ProtocolError`.
+- `m916/config.py`: configuration model. It decodes and encodes the flash image, validates,
+  and works out which fields changed (`changed_fields`) and what to write on restore
+  (`restore_writes`). Both interfaces rely on it: the logic goes here, not in the CLI or the
+  GUI.
+- `m916/profile.py`: JSON profiles (`docs/PROFILES.md`) on top of the `config.py` model:
+  `dumps`/`save` and `apply`, which validates and accepts partial profiles; names without a
+  path go to `profiles_dir()` (XDG). In tests, point `XDG_CONFIG_HOME` to a temporary
+  directory. If you add a field to the model, add it here too and in the format docs.
+- `m916/keys.py`: key names, HID usages and Linux evdev codes.
 - `m916/cli.py`: `python3 -m m916 …`.
-- `m916/gui.py`: `python3 -m m916.gui`. Un único hilo (`DeviceWorker`) es dueño del dispositivo.
-  La ventana trabaja sobre una copia en memoria y **Aplicar** escribe la diferencia.
-- `m916/fake.py`: ratón simulado sobre un volcado de flash, con el receptor y el cable
-  (`plug_cable()`). Debe imitar el firmware real, incluidas sus rarezas (ver más abajo).
-- `tests/`: `unittest`, con `tests/fixtures/m916_flash.bin` (volcado real).
-- `tools/`: utilidades de ingeniería inversa. El instalador oficial **no** está en el repo.
-- `m916/icons/`: icono de la aplicación (SVG). `APP_ID` en `gui.py`, el `.desktop` de `data/`
-  y el nombre del SVG deben coincidir.
-- `packaging/m916-linux.spec` + `.copr/Makefile`: RPM para COPR
-  (`make -f .copr/Makefile srpm outdir=DIR` empaqueta el `HEAD`, no el árbol de trabajo).
-- `.github/workflows/tests.yml`: tests en Fedora con PySide6 y en Python 3.9 sin PySide6.
-- `m916/i18n.py`: traducciones con gettext (`_`, `ngettext`). Los textos del código están en
-  inglés; `po/es.po` es la traducción al español y `m916/locale/*/LC_MESSAGES/m916.mo`, el
-  catálogo compilado, que va en el repo. `tools/i18n.sh` regenera `po/m916.pot`, actualiza
-  los `.po` y compila los `.mo`. Los tests fijan `LANGUAGE=en` y comparan los textos en
-  inglés; `tests/test_i18n.py` comprueba que todo esté traducido y que los `.mo` estén al día.
+- `m916/gui.py`: `python3 -m m916.gui`. A single thread (`DeviceWorker`) owns the device.
+  The window works on an in-memory copy and **Apply** writes the difference.
+- `m916/fake.py`: simulated mouse on top of a flash dump, with the receiver and the cable
+  (`plug_cable()`). It must imitate the real firmware, quirks included (see below).
+- `tests/`: `unittest`, with `tests/fixtures/m916_flash.bin` (a real dump).
+- `tools/`: reverse engineering utilities. The official installer is **not** in the repo.
+- `m916/icons/`: application icon (SVG). `APP_ID` in `gui.py`, the `.desktop` file in `data/`
+  and the SVG name must match.
+- `packaging/m916-linux.spec` + `.copr/Makefile`: RPM for COPR
+  (`make -f .copr/Makefile srpm outdir=DIR` packages `HEAD`, not the working tree).
+- `.github/workflows/tests.yml`: tests on Fedora with PySide6 and on Python 3.9 without
+  PySide6.
+- `m916/i18n.py`: translations with gettext (`_`, `ngettext`). The strings in the code are in
+  English; `po/es.po` is the Spanish translation and `m916/locale/*/LC_MESSAGES/m916.mo` the
+  compiled catalog, which is committed. `tools/i18n.sh` regenerates `po/m916.pot`, updates
+  the `.po` files and compiles the `.mo` files. The tests set `LANGUAGE=en` and compare the
+  English strings; `tests/test_i18n.py` checks that everything is translated and that the
+  `.mo` files are up to date.
 
-## Comandos
+## Commands
 
 ```sh
-python3 -m unittest discover -s tests       # todos los tests (~40 s; la GUI va offscreen)
-python3 -m m916.gui --fake tests/fixtures/m916_flash.bin   # GUI sin hardware
-python3 -m m916 info                         # estado del ratón real (solo lee)
-tools/i18n.sh                                # tras cambiar textos: actualiza po/ y los .mo
-LANGUAGE=en python3 -m m916.gui --fake …     # la GUI en otro idioma (es, en)
+python3 -m unittest discover -s tests       # all tests (~40 s; the GUI runs offscreen)
+python3 -m m916.gui --fake tests/fixtures/m916_flash.bin   # GUI without hardware
+python3 -m m916 info                         # status of the real mouse (read only)
+tools/i18n.sh                                # after changing strings: update po/ and the .mo
+LANGUAGE=en python3 -m m916.gui --fake …     # the GUI in another language (es, en)
 ```
 
-Para capturas de la GUI sin pantalla: `QT_QPA_PLATFORM=offscreen` y
+For GUI screenshots without a display: `QT_QPA_PLATFORM=offscreen` and
 `python3 -m m916.gui --fake … --screenshot DIR`.
 
-## Trabajar con el ratón real
+## Working with the real mouse
 
-- Leer (`info`, `dump`) es seguro. **Escribir modifica la flash del ratón del usuario**:
-  pide confirmación antes, salvo que el usuario lo haya pedido explícitamente, y haz antes
-  una copia con `m916 dump`.
-- Si el ratón está dormido, solo responde el receptor (comando 0x03). Pide al usuario que lo
-  mueva y reintenta.
-- Toda escritura se verifica volviendo a leer. No quites esa verificación.
+- Reading (`info`, `dump`) is safe. **Writing modifies the flash of the user's mouse**: ask
+  for confirmation first, unless the user asked for it explicitly, and make a backup with
+  `m916 dump` beforehand.
+- If the mouse is asleep, only the receiver answers (command 0x03). Ask the user to move it
+  and retry.
+- Every write is verified by reading it back. Do not remove that verification.
 
-## Particularidades del firmware (comprobadas en el hardware)
+## Firmware quirks (checked on the hardware)
 
-- Los valores de un byte se guardan como `[v, 0x55 - v]` y los bloques terminan en
-  `0x55 - suma`. Si un checksum no cuadra, el ratón usa un valor por defecto.
-- **Bloques de macro (0x300 + 0x180·k):** el firmware solo guarda el bloque si se escribe desde
-  su inicio como una macro válida con checksum. Cualquier otra escritura se confirma pero se
-  descarta. Para borrar una macro se escribe `EMPTY_MACRO`. Por eso la restauración compara
-  las macros por contenido y no byte a byte.
-- Orden de escritura (`changed_fields`): primero el bloque de atajo o de macro y después la
-  función del botón que lo usa. Al cambiar el número de niveles de DPI, el nivel activo nunca
-  puede apuntar fuera de los niveles habilitados.
-- Los atajos guardan teclas físicas (usos HID), no caracteres: la distribución de teclado la
-  aplica el ordenador.
-- Con el cable USB puesto (`3554:F55E`), el ratón solo responde por el cable y el receptor dice
-  que no está enlazado (0x03 = 0). Por cable no duerme. `protocol.open_mouse` elige el
-  dispositivo que responde «online», con el cable primero.
-- Hay 4 ranuras (perfiles internos, 0x0E/0x0F), cada una con su propia imagen de flash en las
-  mismas direcciones y sus propios botones. Cambiar de ranura (con 0x0F o con un botón de
-  función 9, que las recorre en ciclo) se notifica con 0x0A `isConfigChanged`. En el código y
-  en la interfaz se llaman «slot»/«ranura»; «profile» es el perfil JSON.
-- Solo se leen los bloques de atajo y de macro de los botones que los usan; el resto de la
-  imagen queda en `0xFF` (desconocido).
+- Single-byte values are stored as `[v, 0x55 - v]` and blocks end in `0x55 - sum`. If a
+  checksum does not match, the mouse uses a default value.
+- **Macro blocks (0x300 + 0x180·k):** the firmware only saves the block if it is written from
+  its start as a valid macro with checksum. Any other write is acknowledged but discarded. To
+  clear a macro, write `EMPTY_MACRO`. That is why restore compares macros by content and not
+  byte for byte.
+- Write order (`changed_fields`): first the shortcut or macro block and then the function of
+  the button that uses it. When the number of DPI levels changes, the active level can never
+  point outside the enabled levels.
+- Shortcuts store physical keys (HID usages), not characters: the keyboard layout is applied
+  by the computer.
+- With the USB cable plugged in (`3554:F55E`), the mouse only answers through the cable and the
+  receiver says it is not linked (0x03 = 0). Over the cable it does not sleep.
+  `protocol.open_mouse` picks the device that answers "online", the cable first.
+- There are 4 slots (onboard profiles, 0x0E/0x0F), each with its own flash image at the same
+  addresses and its own buttons. Switching slots (with 0x0F or with a button set to function
+  9, which cycles through them) is notified with 0x0A `isConfigChanged`. In the code and the
+  interface they are called "slot" ("ranura" in the Spanish translation); "profile" always
+  means the JSON profile.
+- Only the shortcut and macro blocks of the buttons that use them are read; the rest of the
+  image stays at `0xFF` (unknown).
 
-Si descubres otra regla del firmware, impleméntala también en `m916/fake.py` y añade un test.
+If you discover another firmware rule, implement it in `m916/fake.py` too and add a test.
 
-## Ingeniería inversa
+## Reverse engineering
 
-- `docs/PROTOCOL.md` se escribe en inglés, con los términos de la GUI y la CLI (slot, receiver,
-  rapid fire…). Etiqueta cada dato con su nivel de confianza: **[HW]** probado en el ratón,
-  **[RE]** leído en el código, **[?]** hipótesis. Indica también el origen (método .NET o
-  función de la DLL).
-- El código de la interfaz está en el IL de .NET (`Mouse Drive Beta.exe`, clases
-  `Mouse_Drive_Beta.*`, `DriverLib.*`). El protocolo de bajo nivel está en la DLL nativa
-  embebida (`tools/extract_native.py` + Ghidra).
-- `Language/*.xml` del instalador contiene las listas de funciones y opciones con sus valores.
-  Merece la pena mirarlo antes de desensamblar.
-- Algunos métodos de la DLL de .NET no se usan (p. ej. `KeyFunMapDriver.Set*Key`). Antes de
-  dar un valor por bueno, comprueba quién escribe de verdad el campo.
+- Write `docs/PROTOCOL.md` in English, with the terms of the GUI and the CLI (slot, receiver,
+  rapid fire…). Tag each fact with its confidence level: **[HW]** tested on the mouse,
+  **[RE]** read in the code, **[?]** hypothesis. Also give the source (.NET method or DLL
+  function).
+- The interface code is in the .NET IL (`Mouse Drive Beta.exe`, classes
+  `Mouse_Drive_Beta.*`, `DriverLib.*`). The low-level protocol is in the embedded native DLL
+  (`tools/extract_native.py` + Ghidra).
+- `Language/*.xml` in the installer has the lists of functions and options with their values.
+  It is worth looking at before disassembling.
+- Some methods of the .NET DLL are not used (e.g. `KeyFunMapDriver.Set*Key`). Before trusting
+  a value, check who actually writes the field.
 
-## Convenciones
+## Conventions
 
-- Código, identificadores, comentarios, textos de la GUI y de la CLI y mensajes de commit en
-  **inglés**. Todo texto que vea el usuario se marca con `_()` (o `ngettext()` si lleva un
-  número) y se traduce en `po/es.po`; después, `tools/i18n.sh`. Si un texto tiene más de un
-  marcador, usa marcadores con nombre (`%(file)s`) para que el traductor pueda reordenarlos.
-  No uses `_` como variable de descarte: una función que lo asigna no puede llamar a `_()`.
-  Los nombres que se escriben en comandos y perfiles (acciones, opciones, teclas) no se
-  traducen.
-- Documentación: `README.md` en inglés y `README.es.md` en español (mantén las dos al día);
-  `docs/` en **inglés**.
-- Cabecera `# SPDX-License-Identifier: GPL-3.0-or-later` en cada archivo Python.
-- Estilo del código existente: funciones pequeñas, docstrings breves, sin dependencias nuevas
-  sin motivo. La CLI debe seguir funcionando sin PySide6.
-- Cada cambio de comportamiento lleva su test, contra el ratón simulado.
-- Al subir de versión: `__version__` en `m916/__init__.py`, `Version:` y `%changelog` del spec,
-  y la etiqueta `vX.Y.Z` (el spec descarga el tarball de esa etiqueta).
-- Commits pequeños y temáticos: un título en imperativo y una lista de puntos en el cuerpo.
-  Haz commit o push solo cuando el usuario lo pida.
+- Code, identifiers, comments, GUI and CLI strings, commit messages and documentation in
+  **English**. Every user-visible string is marked with `_()` (or `ngettext()` if it has a
+  number) and translated in `po/es.po`; then run `tools/i18n.sh`. If a string has more than
+  one placeholder, use named placeholders (`%(file)s`) so the translator can reorder them.
+  Do not use `_` as a throwaway variable: a function that assigns it cannot call `_()`.
+  The names typed in commands and profiles (actions, options, keys) are not translated.
+- Documentation: `README.md` and `docs/` in English. The only Spanish files are
+  `README.es.md` (keep it in step with `README.md`) and `po/es.po`.
+- `# SPDX-License-Identifier: GPL-3.0-or-later` header in every Python file.
+- Style of the existing code: small functions, short docstrings, no new dependencies without
+  a reason. The CLI must keep working without PySide6.
+- Every behavior change comes with its test, against the simulated mouse.
+- When bumping the version: `__version__` in `m916/__init__.py`, `Version:` and `%changelog`
+  in the spec, and the `vX.Y.Z` tag (the spec downloads the tarball of that tag).
+- Small, focused commits: an imperative title and a list of points in the body.
+  Commit or push only when the user asks.
