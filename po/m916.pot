@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: m916-linux 0.3.0\n"
 "Report-Msgid-Bugs-To: https://github.com/furibeh/m916-linux/issues\n"
-"POT-Creation-Date: 2026-11-03 19:16-0500\n"
+"POT-Creation-Date: 2026-11-03 22:58-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -26,6 +26,10 @@ msgstr ""
 #: m916/cli.py
 #, python-format
 msgid "DPI level must be 1..%d"
+msgstr ""
+
+#: m916/cli.py
+msgid "connection"
 msgstr ""
 
 #: m916/cli.py
@@ -395,14 +399,14 @@ msgid "print status notifications"
 msgstr ""
 
 #: m916/cli.py
-msgid "Mouse not found (VID 3554, vendor collection with report ID 8)."
-msgstr ""
-
-#: m916/cli.py
 #, python-format
 msgid ""
 "Permission denied on %s: install udev/70-redragon-m916.rules or run with "
 "sudo."
+msgstr ""
+
+#: m916/cli.py
+msgid "Mouse not found (VID 3554, vendor collection with report ID 8)."
 msgstr ""
 
 #: m916/cli.py
@@ -1433,6 +1437,18 @@ msgstr ""
 
 #: m916/profile.py
 msgid "must be a list of steps such as [\"+ctrl 10\", \"-ctrl\"]"
+msgstr ""
+
+#: m916/protocol.py
+msgid "cable"
+msgstr ""
+
+#: m916/protocol.py
+msgid "receiver"
+msgstr ""
+
+#: m916/protocol.py
+msgid "unknown"
 msgstr ""
 
 #: m916/protocol.py

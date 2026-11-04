@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: m916-linux\n"
 "Report-Msgid-Bugs-To: https://github.com/furibeh/m916-linux/issues\n"
-"POT-Creation-Date: 2026-10-31 17:56-0500\n"
+"POT-Creation-Date: 2026-11-03 22:58-0500\n"
 "PO-Revision-Date: 2026-10-31 12:00-0500\n"
 "Last-Translator: furibeh\n"
 "Language-Team: Spanish\n"
@@ -165,6 +165,10 @@ msgstr "color"
 #: m916/cli.py
 msgid "colour must be RRGGBB"
 msgstr "el color debe ser RRGGBB"
+
+#: m916/cli.py
+msgid "connection"
+msgstr "conexión"
 
 #: m916/cli.py
 msgid "device"
@@ -1495,6 +1499,10 @@ msgstr ""
 "%(supported)d)"
 
 #: m916/protocol.py
+msgid "cable"
+msgstr "cable"
+
+#: m916/protocol.py
 #, python-format
 msgid ""
 "no response to command 0x%(cmd)02x at 0x%(addr)04x (mouse asleep or off? "
@@ -1502,6 +1510,14 @@ msgid ""
 msgstr ""
 "sin respuesta al comando 0x%(cmd)02x en 0x%(addr)04x (¿ratón dormido o "
 "apagado? muévelo y vuelve a intentarlo)"
+
+#: m916/protocol.py
+msgid "receiver"
+msgstr "receptor"
+
+#: m916/protocol.py
+msgid "unknown"
+msgstr "desconocida"
 
 #: m916/protocol.py
 #, python-format

@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 os.environ["LANGUAGE"] = "en"  # tests compare the English source strings
 from m916 import cli, config as cfg  # noqa: E402
 from m916.fake import FakeMouse  # noqa: E402
-from m916.protocol import FLASH_SIZE, MouseAsleep  # noqa: E402
+from m916.protocol import FLASH_SIZE, MouseAsleep, open_mouse  # noqa: E402
 
 FIXTURE = os.path.join(os.path.dirname(__file__), "fixtures", "m916_flash.bin")
 
@@ -240,6 +240,85 @@ class M916Test(unittest.TestCase):
         time.sleep(0.1)
         self.assertEqual(self.mouse.poll_notifications(), [0x41, 0x01])
         self.assertEqual(self.mouse.poll_notifications(), [])
+
+
+class CableTest(unittest.TestCase):
+    """Verified on the hardware: with the cable plugged in the mouse answers only through it
+    (3554:F55E) and does not sleep; the receiver reports it as not linked."""
+
+    def setUp(self):
+        with open(FIXTURE, "rb") as f:
+            self.original = f.read()
+        self.fake = FakeMouse(self.original)
+        self.fake.plug_cable()
+        self.receiver = self.fake.mouse()
+        self.cable = self.fake.wired()
+
+    def tearDown(self):
+        self.receiver.close()
+        self.cable.close()
+        self.fake.close()
+
+    def openers(self):
+        return [opener for _path, opener in self.fake.openers()]
+
+    def test_receiver_loses_the_mouse(self):
+        self.assertFalse(self.receiver.online())
+        self.assertEqual(self.receiver.transact(0x06)[1][5:8], b"\x02\x00\x00")
+        with self.assertRaises(MouseAsleep):
+            self.receiver.transact(0x08, length=2, retries=1, timeout=0.1)
+
+    def test_cable_reads_and_writes(self):
+        self.fake.asleep = True  # what the mouse would do over the radio; not on the cable
+        self.assertTrue(self.cable.online())
+        self.assertEqual(self.cable.read_flash(0x4E, 2), self.original[0x4E:0x50])
+        self.cable.write_verified(0x4E, bytes([0x10, 0x45]))
+        self.assertEqual(bytes(self.fake.flash[0x4E:0x50]), bytes([0x10, 0x45]))
+        self.assertEqual(self.cable.transact(0x06)[1][2], 1)  # pairing is the receiver's job
+
+    def test_notifications_come_through_the_cable(self):
+        self.fake.notify(0x01)
+        time.sleep(0.1)
+        self.assertEqual(self.cable.poll_notifications(), [0x01])
+        self.assertEqual(self.receiver.poll_notifications(), [])
+
+    def test_unplugging_breaks_the_cable_connection(self):
+        self.fake.unplug_cable()
+        with self.assertRaises(OSError):
+            self.cable.transact(0x03, retries=1, timeout=0.1)
+        self.assertTrue(self.receiver.online())
+
+    def test_open_mouse_prefers_the_linked_connection(self):
+        m = open_mouse(self.openers())
+        self.assertEqual(m.link, "wired")
+        m.close()
+        self.fake.unplug_cable()
+        m = open_mouse(self.openers())
+        self.assertEqual(m.link, "dongle")
+        m.close()
+
+    def test_open_mouse_falls_back_to_the_receiver(self):
+        self.fake.unplug_cable()
+        self.fake.asleep = True
+        m = open_mouse(self.openers())
+        self.assertEqual(m.link, "dongle")  # the caller waits for the mouse to wake up
+        m.close()
+        self.assertIsNone(open_mouse(self.openers(), fallback=False))
+
+    def test_open_mouse_skips_broken_nodes(self):
+        def broken():
+            raise OSError(32, "Broken pipe")
+
+        def denied():
+            raise PermissionError(13, "Permission denied", "/dev/hidraw9")
+
+        m = open_mouse([broken, denied] + self.openers())
+        self.assertEqual(m.link, "wired")
+        m.close()
+        with self.assertRaises(PermissionError) as ctx:
+            open_mouse([broken, denied])
+        self.assertEqual(ctx.exception.filename, "/dev/hidraw9")
+        self.assertIsNone(open_mouse([]))
 
 
 class PackagingTest(unittest.TestCase):

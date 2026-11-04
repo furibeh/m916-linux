@@ -24,7 +24,9 @@ OFF_DPI_COUNT, OFF_DPI_ACTIVE, OFF_KEYS, OFF_DPI_LED = 0x02, 0x04, 0x60, 0x52
 
 
 class FakeMouse:
-    """Answers the vendor protocol like the real hardware (verified on 3554:F5D5)."""
+    """Answers the vendor protocol like the real hardware (verified on 3554:F5D5 and, over
+    the cable, 3554:F55E). While the cable is plugged in the mouse talks only through it: the
+    receiver still answers its own commands but reports the mouse as not linked."""
 
     def __init__(self, flash):
         self.flashes = [bytearray(flash) for _p in range(PROFILES)]
@@ -33,8 +35,8 @@ class FakeMouse:
         self.profile = 0      # Get/SetCurrentConfig: which image the flash commands see
         self.long_range = 0   # GetLongRangeMode
         self._macro = None  # (block address, bytes received so far)
-        self._host, self._dev = socket.socketpair(socket.AF_UNIX, socket.SOCK_SEQPACKET)
-        threading.Thread(target=self._serve, daemon=True).start()
+        self._host, self._dev = self._endpoint(wired=False)
+        self._cable = None  # (host, device) sockets of the cable while it is plugged in
 
     @property
     def flash(self):
@@ -45,8 +47,38 @@ class FakeMouse:
     def flash(self, data):
         self.flashes[self.profile] = bytearray(data)
 
+    def _endpoint(self, wired):
+        host, dev = socket.socketpair(socket.AF_UNIX, socket.SOCK_SEQPACKET)
+        threading.Thread(target=self._serve, args=(dev, wired), daemon=True).start()
+        return host, dev
+
+    @property
+    def cable(self):
+        return self._cable is not None
+
+    def plug_cable(self):
+        if not self._cable:
+            self._cable = self._endpoint(wired=True)
+
+    def unplug_cable(self):
+        """Like pulling the cable: writes on its open connections fail with EPIPE."""
+        if self._cable:
+            for sock in self._cable:
+                sock.shutdown(socket.SHUT_RDWR)  # wakes up the thread blocked in recv()
+                sock.close()
+            self._cable = None
+
     def mouse(self):
-        return Mouse("fake", fd=os.dup(self._host.fileno()))
+        """Connection through the receiver."""
+        return Mouse("fake", fd=os.dup(self._host.fileno()), link="dongle")
+
+    def wired(self):
+        """Connection through the cable (plug_cable() first)."""
+        return Mouse("fake-cable", fd=os.dup(self._cable[0].fileno()), link="wired")
+
+    def openers(self):
+        """(path, opener) like protocol.device_openers(): the cable first."""
+        return ([("fake-cable", self.wired)] if self.cable else []) + [("fake", self.mouse)]
 
     def press(self, k):
         """Press button slot k (0-based). Like the firmware, "DPI loop" stores the next level
@@ -65,12 +97,13 @@ class FakeMouse:
 
     def notify(self, flags):
         pkt = bytearray([REPORT_ID, CMD_STATUS_CHANGED, 0, 0, 0, 0x0A, flags]).ljust(16, b"\0")
-        self._dev.send(bytes(pkt) + bytes([checksum(pkt)]))
+        dev = self._cable[1] if self._cable else self._dev  # the connection the mouse uses (verified)
+        dev.send(bytes(pkt) + bytes([checksum(pkt)]))
 
-    def _serve(self):
+    def _serve(self, dev, wired):
         while True:
             try:
-                pkt = self._dev.recv(64)
+                pkt = dev.recv(64)
             except OSError:
                 return
             if not pkt:
@@ -78,8 +111,9 @@ class FakeMouse:
             if len(pkt) != 17 or pkt[16] != checksum(pkt[:16]):
                 continue
             cmd, addr, n = pkt[1], pkt[3] << 8 | pkt[4], pkt[5]
-            if self.asleep and cmd not in RECEIVER_COMMANDS:
-                continue  # only the receiver answers while the mouse sleeps
+            linked = wired or not (self.asleep or self.cable)
+            if not linked and cmd not in RECEIVER_COMMANDS:
+                continue  # only the receiver answers while the mouse sleeps or is on the cable
             resp = bytearray(pkt)
             if cmd == CMD_READ_FLASH:
                 resp[6:16] = bytes(self.flash[addr:addr + n]).ljust(10, b"\0")
@@ -91,9 +125,11 @@ class FakeMouse:
             elif cmd == CMD_READ_VERSION:
                 resp[5:8] = b"\x02\x02\x00"
             elif cmd == CMD_DEVICE_ONLINE:
-                resp[5:10] = b"\x01" + (b"\x00" if self.asleep else b"\x01") + b"\x25\x81\x06"
+                resp[5:10] = b"\x01" + bytes([linked]) + b"\x25\x81\x06"
             elif cmd == CMD_BATTERY:
                 resp[5:10] = b"\x02\x64\x00\x10\x48"
+            elif cmd == CMD_PAIR_STATE and wired:
+                resp[2] = 1  # the mouse rejects it over the cable (LEN stays 0)
             elif cmd == CMD_PAIR_STATE:
                 # 0 = no pairing since plugged in, 1 = pairing (+ seconds left), 2 = paired
                 resp[5:8] = b"\x02\x00\x00"
@@ -107,7 +143,10 @@ class FakeMouse:
             elif cmd == CMD_GET_LONG_RANGE:
                 resp[5:16] = bytes([10, self.long_range]) + bytes(9)
             resp[16] = checksum(resp[:16])
-            self._dev.send(bytes(resp))
+            try:
+                dev.send(bytes(resp))
+            except OSError:
+                return
 
     def _write_macro(self, addr, data):
         """Like the firmware: a macro block is only stored once it has been written from its
@@ -130,5 +169,6 @@ class FakeMouse:
                 self._macro = None
 
     def close(self):
+        self.unplug_cable()
         self._host.close()
         self._dev.close()

@@ -53,28 +53,93 @@ def with_check(data):
     return data + bytes([checksum(data)])
 
 
+def _hid_id(node):
+    """(vendor, product) of a /sys/class/hidraw node, or None."""
+    try:
+        with open(os.path.join(node, "device/uevent")) as f:
+            uevent = f.read()
+    except OSError:
+        return None
+    hid_id = next((l.split("=")[1] for l in uevent.splitlines() if l.startswith("HID_ID=")), "")
+    parts = hid_id.split(":")
+    return (int(parts[1], 16), int(parts[2], 16)) if len(parts) == 3 else None
+
+
+def device_link(path):
+    """"wired" or "dongle" for a /dev/hidrawN node of the mouse, else None."""
+    ids = _hid_id(os.path.join("/sys/class/hidraw", os.path.basename(path)))
+    return PIDS.get(ids[1]) if ids and ids[0] == VID else None
+
+
+def describe_link(link):
+    """User-facing name of a connection ("wired"/"dongle")."""
+    return {"wired": _("cable"), "dongle": _("receiver")}.get(link, _("unknown"))
+
+
 def find_devices():
-    """hidraw nodes of supported receivers/mice that expose the vendor collection (report ID 8)."""
+    """hidraw nodes of supported receivers/mice that expose the vendor collection (report ID 8),
+    the cable first: while it is plugged in the mouse stops answering through the receiver."""
     found = []
     for node in sorted(glob.glob("/sys/class/hidraw/hidraw*")):
+        ids = _hid_id(node)
         try:
-            with open(os.path.join(node, "device/uevent")) as f:
-                uevent = f.read()
             with open(os.path.join(node, "device/report_descriptor"), "rb") as f:
                 desc = f.read()
         except OSError:
             continue
-        hid_id = next((l.split("=")[1] for l in uevent.splitlines() if l.startswith("HID_ID=")), "")
-        parts = hid_id.split(":")
-        if len(parts) == 3 and int(parts[1], 16) == VID and int(parts[2], 16) in PIDS \
-                and b"\x85\x08" in desc:  # Report ID (8)
+        if ids and ids[0] == VID and ids[1] in PIDS and b"\x85\x08" in desc:  # Report ID (8)
             found.append("/dev/" + os.path.basename(node))
-    return found
+    return sorted(found, key=lambda path: device_link(path) != "wired")
+
+
+def device_openers():
+    """(path, opener) for each find_devices() node, the cable first."""
+    return [(path, lambda path=path: Mouse(path, link=device_link(path)))
+            for path in find_devices()]
+
+
+def open_mouse(openers=None, fallback=True):
+    """Open the connection the mouse answers on: the first candidate whose 0x03 says it is
+    linked (the cable comes first), else, with `fallback`, the receiver so the caller can wait
+    for the mouse to wake up. `openers` are callables returning a Mouse (default: from
+    device_openers()). Returns None when there is nothing to use; raises PermissionError if
+    nothing could be opened for lack of permission."""
+    if openers is None:
+        openers = [opener for _path, opener in device_openers()]
+    opened, denied = [], None
+    try:
+        for opener in openers:
+            try:
+                m = opener()
+            except PermissionError as e:
+                denied = denied or e
+                continue
+            except OSError:
+                continue
+            try:
+                if m.online(retries=1, timeout=0.5):
+                    return m
+                opened.append(m)
+            except (OSError, MouseAsleep):
+                m.close()
+        if not opened:
+            if denied:
+                raise denied
+            return None
+        if not fallback:
+            return None
+        fallback = next((m for m in opened if m.link == "dongle"), opened[0])
+        opened.remove(fallback)
+        return fallback
+    finally:
+        for m in opened:
+            m.close()
 
 
 class Mouse:
-    def __init__(self, path, fd=None):
+    def __init__(self, path, fd=None, link=None):
         self.path = path
+        self.link = link  # "wired", "dongle" or None (unknown)
         self.fd = os.open(path, os.O_RDWR) if fd is None else fd
         self.notifications = []
         self._last_write = 0.0
@@ -159,9 +224,10 @@ class Mouse:
         _pkt, r = self.transact(CMD_READ_VERSION)
         return r[6:6 + r[5]]
 
-    def online(self):
-        """Answered by the receiver itself: True when the mouse is awake and linked."""
-        _pkt, r = self.transact(CMD_DEVICE_ONLINE)
+    def online(self, retries=5, timeout=1.0):
+        """Answered by the receiver itself: True when the mouse is awake and linked (always
+        True on the cable)."""
+        _pkt, r = self.transact(CMD_DEVICE_ONLINE, retries=retries, timeout=timeout)
         return r[6] == 1
 
     def wait_online(self, timeout=10.0):

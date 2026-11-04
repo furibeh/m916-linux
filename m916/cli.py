@@ -7,7 +7,7 @@ import time
 from . import config as cfg, profile
 from .i18n import _, ngettext
 from .protocol import FLASH_SIZE, STATUS_NAMES, CMD_STATUS_CHANGED, REPORT_ID, Mouse, \
-    MouseAsleep, ProtocolError, find_devices
+    MouseAsleep, ProtocolError, describe_link, device_link, open_mouse
 
 
 def progress_printer(label):
@@ -48,9 +48,10 @@ def level_index(conf, level):
 def cmd_info(m, args):
     version = m.version().hex(" ")
     level, charging, mv = m.battery()
-    print_fields([(_("device"), m.path), (_("firmware"), version),
+    print_fields([(_("device"), m.path), (_("connection"), describe_link(m.link)),
+                  (_("firmware"), version),
                   (_("battery"), "%d%%%s, %d mV" % (level, _(" (charging)") if charging else "", mv))],
-                 9)
+                 10)
     image, conf = load(m)
     rate = cfg.RATE_HZ.get(conf.report_rate)
     print_fields([(_("report rate"), "%s Hz" % (rate or _("raw 0x%02x") % conf.report_rate)),
@@ -368,17 +369,14 @@ def main(argv=None):
         except profile.ProfileError as e:
             sys.exit(_("error: %s") % "\n  ".join(e.errors))
 
-    path = args.device
-    if not path:
-        devices = find_devices()
-        if not devices:
-            sys.exit(_("Mouse not found (VID 3554, vendor collection with report ID 8)."))
-        path = devices[0]
     try:
-        m = Mouse(path)
-    except PermissionError:
+        # Without -d, the cable if the mouse answers there, else the receiver
+        m = Mouse(args.device, link=device_link(args.device)) if args.device else open_mouse()
+    except PermissionError as e:
         sys.exit(_("Permission denied on %s: install udev/70-redragon-m916.rules or run with sudo.")
-                 % path)
+                 % (e.filename or args.device))
+    if m is None:
+        sys.exit(_("Mouse not found (VID 3554, vendor collection with report ID 8)."))
     try:
         # The receiver answers DeviceOnLine itself; everything else needs the mouse awake
         if args.command != "watch" and not m.online():
