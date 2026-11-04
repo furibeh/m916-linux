@@ -147,6 +147,8 @@ class M916Test(unittest.TestCase):
         self.assertEqual(cli.parse_action("fire:20:0"), (4, 20, 0))
         self.assertEqual(cli.parse_action("dpi-lock:800"), (0x0A, 15, 0))
         self.assertEqual(cli.parse_action("scroll-up"), (0x0B, 1, 0))
+        self.assertEqual(cli.parse_action("lights"), (0x08, 0, 0))
+        self.assertEqual(cli.parse_action("next-slot"), (0x09, 0, 0))
         self.assertEqual(cli.parse_action("key:volume-up")[0].raw(), bytes([0x82, 0xE9, 0]))
 
     def test_restore_after_macro(self):

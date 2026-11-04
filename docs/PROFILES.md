@@ -148,7 +148,7 @@ that level as it is.
 
 | Value | Function |
 |---|---|
-| `"left"`, `"right"`, `"middle"`, `"back"`, `"forward"`, `"dpi-loop"`, `"dpi-up"`, `"dpi-down"`, `"scroll-up"`, `"scroll-down"`, `"scroll-left"`, `"scroll-right"`, `"report-rate"`, `"disabled"` | Simple action. |
+| `"left"`, `"right"`, `"middle"`, `"back"`, `"forward"`, `"dpi-loop"`, `"dpi-up"`, `"dpi-down"`, `"scroll-up"`, `"scroll-down"`, `"scroll-left"`, `"scroll-right"`, `"report-rate"`, `"lights"`, `"next-slot"`, `"disabled"` | Simple action. `"lights"` turns the DPI LED on or off; `"next-slot"` moves to the next onboard slot (each slot has its own buttons). |
 | `{"action": "fire", "interval": 20, "shots": 3}` | Rapid fire: each click stays down for `interval` ms and up for as long (10 to 255 ms, so a shot takes twice that); 0 to 3 shots (0 = while held). |
 | `{"action": "dpi-lock", "dpi": 400}` | Fixed DPI while held: a multiple of 50, from 50 to 12800. |
 | `{"action": "shortcut", "keys": "ctrl+shift+t"}` | Shortcut of up to 3 keys (names from `m916 keys`). |

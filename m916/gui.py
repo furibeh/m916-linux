@@ -385,7 +385,14 @@ BUTTON_LABELS = [
     ("scroll-left", _("Horizontal scroll: left")),
     ("scroll-right", _("Horizontal scroll: right")),
     ("report-rate", _("Change polling rate")),
+    ("lights", _("Lights: on/off")),
+    ("next-slot", _("Next onboard slot")),
 ]
+BUTTON_TIPS = {
+    "lights": _("Turns the DPI LED on or off. The mouse saves the change in the active slot."),
+    "next-slot": _("Switches to the next of the 4 slots. Each slot has its own buttons: set this "
+                   "button the same way in the others to keep cycling."),
+}
 FIRE, DPI_LOCK, SHORTCUT, MEDIA, MACRO, OTHER = "fire", "dpi-lock", "shortcut", "media", "macro", "other"
 SPECIAL_LABELS = [(FIRE, _("Rapid fire")), (DPI_LOCK, _("DPI lock")),
                   (SHORTCUT, _("Keyboard shortcut")), (MEDIA, _("Media key")), (MACRO, _("Macro"))]
@@ -695,6 +702,9 @@ class ButtonRow:
         self.combo = QComboBox()
         for key, text in BUTTON_LABELS + SPECIAL_LABELS:
             self.combo.addItem(text, key)
+            if key in BUTTON_TIPS:
+                self.combo.setItemData(self.combo.count() - 1, BUTTON_TIPS[key],
+                                       Qt.ItemDataRole.ToolTipRole)
         self.combo.insertSeparator(len(BUTTON_LABELS))
 
         self.pages = QStackedWidget()

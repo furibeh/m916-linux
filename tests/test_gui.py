@@ -10,7 +10,7 @@ os.environ["LANGUAGE"] = "en"  # tests compare the English source strings
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 try:
-    from PySide6.QtCore import QThread
+    from PySide6.QtCore import QThread, Qt
     from PySide6.QtWidgets import QApplication
 except ImportError:  # pragma: no cover
     QApplication = None
@@ -219,6 +219,32 @@ class GuiTest(unittest.TestCase):
         fake.press(6)  # turns the DPI LED off and notifies dpi-led
         self.wait_for(lambda: self.window.lights.effect.currentData() == gui.DPI_LED_OFF)
         self.assertFalse(self.window._dirty())
+
+    def choose_and_apply(self, k, action):
+        w = self.window
+        combo = w.buttons.rows[k].combo
+        combo.setCurrentIndex(combo.findData(action))
+        w.apply_btn.click()
+        self.wait_for(lambda: not w._busy)
+        self.assertFalse(w._dirty())
+
+    def test_lights_action(self):
+        from m916 import gui
+        self.choose_and_apply(6, "lights")
+        self.assertEqual(self.flash()[0x78:0x7C], bytes([0x08, 0, 0, 0x4D]))
+        self.worker._fake.press(6)
+        self.wait_for(lambda: self.window.lights.effect.currentData() == gui.DPI_LED_OFF)
+        self.assertEqual(self.window.buttons.rows[6].combo.currentData(), "lights")
+
+    def test_next_slot_action(self):
+        w = self.window
+        self.choose_and_apply(3, "next-slot")
+        self.assertEqual(self.flash()[0x6C:0x70], bytes([0x09, 0, 0, 0x4C]))
+        self.worker._fake.press(3)
+        self.wait_for(lambda: w.slot == 1 and not w._busy, timeout=2)
+        self.assertEqual(w.slot_box.currentText(), "Slot 2")
+        self.assertIn("Each slot has its own buttons", w.buttons.rows[3].combo.itemData(
+            w.buttons.rows[3].combo.findData("next-slot"), Qt.ItemDataRole.ToolTipRole))
 
     def test_follows_the_cable(self):
         # Plugging the cable in moves to it (the receiver loses the mouse); pulling it out

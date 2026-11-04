@@ -90,7 +90,8 @@ m916 dpi-levels 5             # enabled DPI levels
 m916 dpi-active 2             # level in use
 m916 rate 1000                # 125 / 250 / 500 / 1000 Hz
 m916 button 7 middle          # left|right|middle|back|forward|dpi-loop|dpi-up|dpi-down|
-                              # scroll-up|scroll-down|scroll-left|scroll-right|report-rate|disabled
+                              # scroll-up|scroll-down|scroll-left|scroll-right|report-rate|
+                              # lights|next-slot|disabled
 m916 button 7 key:ctrl+c      # shortcut of up to 3 keys, or a media key: key:volume-up
 m916 button 7 fire:20:3       # rapid fire: 3 clicks of 20 ms down + 20 ms up (0 = while held)
 m916 button 7 dpi-lock:400    # fixed DPI while held down
@@ -115,8 +116,10 @@ it and waits up to 10 s.
 
 The mouse keeps four independent configurations, called *slots* here ("configs" in the
 official app's protocol). Each one is a whole copy of the memory: DPI, buttons, macros,
-lights and options. The mouse uses the active one; a button set to "switch config" moves to
-the next slot.
+lights and options. The mouse uses the active one; a button set to `next-slot` ("Next
+onboard slot" in the graphical interface) moves to the next one, from slot 4 back to 1. Since
+each slot has its own buttons, give that button the same function in every slot you want to
+cycle through; otherwise `m916 slot N` or the selector brings you back.
 `info`, the configuration commands and the graphical interface work on the active slot.
 
 - `m916 slot` shows the active slot and `m916 slot N` selects it.

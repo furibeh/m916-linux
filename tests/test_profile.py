@@ -72,6 +72,13 @@ class ProfileFormatTest(unittest.TestCase):
                          [(cfg.OFF_DPI_ACTIVE, 2), (cfg.OFF_DPI_COUNT, 2), (0x78, 4)])
         self.assertEqual((conf.dpi_count, conf.dpi_active), (1, 0))
 
+    def test_lights_and_next_slot(self):
+        conf = cfg.Config.decode(self.original)
+        profile.apply(conf, dict(HEADER, buttons={"7": "lights", "8": "next-slot"}))
+        self.assertEqual(conf.buttons[6:8], [(0x08, 0, 0), (0x09, 0, 0)])
+        data = json.loads(profile.dumps(conf))
+        self.assertEqual((data["buttons"]["7"], data["buttons"]["8"]), ("lights", "next-slot"))
+
     def test_partial_levels(self):
         conf = cfg.Config.decode(self.original)
         profile.apply(conf, dict(HEADER, dpi={"levels": [None, {"x": 1600}]}))

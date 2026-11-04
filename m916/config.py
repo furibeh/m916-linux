@@ -93,6 +93,8 @@ BUTTON_ACTIONS = {
     "scroll-up": (0x0B, 0x01, 0),
     "scroll-down": (0x0B, 0x02, 0),
     "report-rate": (0x07, 0, 0),
+    "lights": (0x08, 0x00, 0),   # toggles the DPI LED; the mouse rewrites 0x52 itself
+    "next-slot": (0x09, 0, 0),   # next onboard slot, cycling through the 4
 }
 KEY_FIRE = 0x04       # p1 = ms down, then ms up, per shot (10-255); p2 = shots (0-3, 0 = while held)
 KEY_SHORTCUT = 0x05   # p1 = p2 = 0, events in the button's shortcut block

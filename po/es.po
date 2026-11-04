@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: m916-linux\n"
 "Report-Msgid-Bugs-To: https://github.com/furibeh/m916-linux/issues\n"
-"POT-Creation-Date: 2026-11-04 01:00-0500\n"
+"POT-Creation-Date: 2026-11-04 01:15-0500\n"
 "PO-Revision-Date: 2026-10-31 12:00-0500\n"
 "Last-Translator: furibeh\n"
 "Language-Team: Spanish\n"
@@ -1052,6 +1052,10 @@ msgid "Lights"
 msgstr "Luces"
 
 #: m916/gui.py
+msgid "Lights: on/off"
+msgstr "Luces: encender/apagar"
+
+#: m916/gui.py
 msgid "Linear correction (angle snapping)"
 msgstr "Corrección lineal (angle snapping)"
 
@@ -1114,6 +1118,10 @@ msgstr "Mi equipo"
 #: m916/gui.py
 msgid "Name:"
 msgstr "Nombre:"
+
+#: m916/gui.py
+msgid "Next onboard slot"
+msgstr "Siguiente ranura"
 
 #: m916/gui.py
 msgid "Next track"
@@ -1355,6 +1363,14 @@ msgstr "Detener"
 
 #: m916/gui.py
 msgid ""
+"Switches to the next of the 4 slots. Each slot has its own buttons: set this "
+"button the same way in the others to keep cycling."
+msgstr ""
+"Pasa a la siguiente de las 4 ranuras. Cada ranura tiene sus propios botones: "
+"configura este botón igual en las demás para seguir saltando."
+
+#: m916/gui.py
+msgid ""
 "The LED shows the color of each DPI level (DPI tab). Brightness applies to "
 "the steady effect and speed to breathing."
 msgstr ""
@@ -1467,6 +1483,13 @@ msgstr "Apagar las luces en reposo tras:"
 #: m916/gui.py
 msgid "Turn the lights off while the mouse moves"
 msgstr "Apagar las luces mientras se mueve el ratón"
+
+#: m916/gui.py
+msgid ""
+"Turns the DPI LED on or off. The mouse saves the change in the active slot."
+msgstr ""
+"Enciende o apaga el LED de DPI. El ratón guarda el cambio en la ranura "
+"activa."
 
 #: m916/gui.py
 msgid "Unapplied changes"

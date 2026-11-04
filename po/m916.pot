@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: m916-linux 0.4.0\n"
 "Report-Msgid-Bugs-To: https://github.com/furibeh/m916-linux/issues\n"
-"POT-Creation-Date: 2026-11-04 01:00-0500\n"
+"POT-Creation-Date: 2026-11-04 01:15-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -735,6 +735,25 @@ msgstr ""
 
 #: m916/gui.py
 msgid "Change polling rate"
+msgstr ""
+
+#: m916/gui.py
+msgid "Lights: on/off"
+msgstr ""
+
+#: m916/gui.py
+msgid "Next onboard slot"
+msgstr ""
+
+#: m916/gui.py
+msgid ""
+"Turns the DPI LED on or off. The mouse saves the change in the active slot."
+msgstr ""
+
+#: m916/gui.py
+msgid ""
+"Switches to the next of the 4 slots. Each slot has its own buttons: set this "
+"button the same way in the others to keep cycling."
 msgstr ""
 
 #: m916/gui.py

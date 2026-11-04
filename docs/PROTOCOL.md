@@ -140,7 +140,7 @@ Use in the tool:
   the same addresses, it can be restored to another slot to copy it.
 - Each slot change, with 0x0F or with a button set to function 9, is notified with 0x0A
   `isConfigChanged` [HW]. With 0x0F it was checked through the receiver and through the
-  cable; with function 9, only through the receiver. Function 9 cycles through the 4 slots
+  cable; with function 9, through the receiver and through the cable. Function 9 cycles through the 4 slots
   (4 → 1 → 2 → 3 → 4 → 1) [HW].
 - The GUI queries 0x0E on a 0x0A with `isConfigChanged` and on every load; it does not poll
   it. Before writing (`apply`, `restore`) it queries it again and does not write if it has
@@ -216,8 +216,8 @@ Sensors other than the 3395 use the tables in `driver_sensor.h`.
 | 5 | Keyboard shortcut or media key | p1 = p2 = 0; the events are in the button's shortcut block. The press events go out when the button is pressed and the release events when it is released, with 20 ms between events [HW] |
 | 6 | Macro | p1: index of the button itself (its macro block); p2: repeat, see below [HW] |
 | 7 | Switch report rate | [HW] |
-| 8 | Lights | p1: 0 all, 3 LED bar, 4 switch effect (the app does not offer it on this model) [RE]. With p1 = 0, each press toggles the DPI LED: **the mouse rewrites 0x52 in the flash** and sends the `dpi-led` notification (bit 3) [HW]. With p1 = 4 it does nothing, neither on the LED nor in the flash [HW] |
-| 9 | Switch config | p1 = p2 = 0: one press moves to the next slot and notifies it with 0x0A `isConfigChanged`; it cycles through the 4 (from 4 back to 1). Tested with function 9 on the same button of the 4 slots: each slot has its own buttons. The app does not offer it (`ConfigSelect`: "Switch config is not supported") [HW] |
+| 8 | Lights | p1: 0 all, 3 LED bar, 4 switch effect (the app does not offer it on this model) [RE]. With p1 = 0, each press toggles the DPI LED: **the mouse rewrites 0x52 in the flash** and sends the `dpi-led` notification (bit 3) [HW]. With p1 = 4 it does nothing, neither on the LED nor in the flash [HW]. The tool offers p1 = 0 as `lights`: written with `m916 button 4 lights`, 4 presses over the cable gave 4 `dpi-led` notifications, one per press, and 0x52 ended at 1 [HW] |
+| 9 | Switch config | p1 = p2 = 0: one press moves to the next slot and notifies it with 0x0A `isConfigChanged`; it cycles through the 4 (from 4 back to 1). Tested with function 9 on the same button of the 4 slots: each slot has its own buttons. The app does not offer it (`ConfigSelect`: "Switch config is not supported"); the tool offers it as `next-slot`: written with `m916 button 5 next-slot`, one press over the cable moved from slot 1 to 2 and sent `isConfigChanged` [HW] |
 | 0xA | DPI lock | p1 = dpi/50 − 1 (50–12800 DPI). Only while held; on release it goes back to the DPI of the level and the LED does not change. Tested with 400 and 12800 (p1 = 255) [HW] |
 | 0xB | Vertical scroll | p1: 1 up, 2 down. One wheel step per press; it does not repeat when held [HW] |
 
@@ -308,8 +308,6 @@ The app only shows the brightness with the steady effect and the speed with brea
   with 0xB7.
 - Sensor mode (0xB9): see whether the power draw changes with a long battery measurement.
 - Block 0x54–0x5F, pairs 0xBB and 0xBD and the 3 extra bytes of the online reply.
-- Function 9 over the cable: does it also notify `isConfigChanged`? (0x0F does, and so does
-  function 9 through the receiver.)
 - Command 0x01 (EncryptionData): not needed for anything tested; the algorithm is still
   unknown.
 - Long range (0x16): the range improvement has not been measured.

@@ -96,7 +96,8 @@ m916 dpi-levels 5             # niveles DPI activos
 m916 dpi-active 2             # nivel en uso
 m916 rate 1000                # 125 / 250 / 500 / 1000 Hz
 m916 button 7 middle          # left|right|middle|back|forward|dpi-loop|dpi-up|dpi-down|
-                              # scroll-up|scroll-down|scroll-left|scroll-right|report-rate|disabled
+                              # scroll-up|scroll-down|scroll-left|scroll-right|report-rate|
+                              # lights|next-slot|disabled
 m916 button 7 key:ctrl+c      # atajo de hasta 3 teclas, o tecla multimedia: key:volume-up
 m916 button 7 fire:20:3       # disparo repetido: 3 clics de 20 ms pulsado + 20 ms suelto (0 = mientras se pulse)
 m916 button 7 dpi-lock:400    # DPI fijo mientras se mantiene pulsado
@@ -122,8 +123,10 @@ moverlo y espera hasta 10 s.
 El ratón guarda cuatro configuraciones independientes, que aquí llamamos *ranuras* (en inglés,
 *slots*; «configs» en el protocolo de la aplicación oficial). Cada una es una copia completa
 de la memoria: DPI, botones, macros, luces y opciones. El ratón usa la activa, y un botón con
-la función «cambiar configuración» pasa a la siguiente. `info`, los comandos de configuración y
-la interfaz gráfica trabajan sobre la ranura activa.
+la función `next-slot` («Siguiente ranura» en la interfaz gráfica) pasa a la siguiente, de la 4
+a la 1. Como cada ranura tiene sus propios botones, da a ese botón la misma función en todas
+las ranuras entre las que quieras saltar; si no, `m916 slot N` o el selector te devuelven.
+`info`, los comandos de configuración y la interfaz gráfica trabajan sobre la ranura activa.
 
 - `m916 slot` muestra la ranura activa y `m916 slot N` la cambia.
 - `dump`, `restore`, `profile save` y `profile load` admiten `--slot N`: cambian a la ranura
